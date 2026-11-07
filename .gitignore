@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+# machine-specific (written by `odoo-ai workspace`)
+local.json
+*.log
+# build output: rebuild with vscode-extension/build_vsix.py
+*.vsix

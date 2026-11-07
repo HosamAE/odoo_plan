@@ -1,0 +1,3 @@
+#!/bin/sh
+# odoo-ai for Git Bash (the .bat is for cmd and PowerShell).
+exec python "C:/odoo/odoo_ai_cli/cli.py" "$@"
