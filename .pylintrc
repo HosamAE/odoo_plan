@@ -16,7 +16,7 @@ ignored-modules=odoo.addons
 ignore=CVS,.git,venv,enterprise,design-themes,third-party
 
 # Make the local plugins importable for every caller (VS Code and odoo-ai lint).
-init-hook="import sys; sys.path[:0] = ['C:/odoo/odoo19/tools/pylint_plugins', 'C:/odoo/odoo19/odoo']"
+init-hook="import sys; sys.path[:0] = ['C:/odoo/odoo20/tools/pylint_plugins', 'C:/odoo/odoo20/odoo']"
 
 # Load plugins if they are available. odoo_namespace: see pylint_plugins/odoo_namespace.py
 load-plugins=pylint_odoo,odoo_namespace
@@ -77,5 +77,5 @@ max-line-length=120
 
 [ODOOLINT]
 # Target Odoo version
-valid-odoo-versions=19.0
+valid-odoo-versions=20.0
 
