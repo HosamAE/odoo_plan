@@ -4,29 +4,16 @@
 # run arbitrary code.
 extension-pkg-whitelist=
 
-# Odoo's addons namespace is populated at RUNTIME (odoo.addons.__path__.append
-# per addons_path entry - see odoo/modules/module.py:initialize_sys_path), not
-# a static filesystem layout astroid can resolve on its own, even with the
-# init-hook (Acme.code-workspace) recreating that same runtime step for
-# pylint's own process. Silences E0401/E0611 on every
-# `from odoo.addons.<module>...` cross-addon import project-wide.
-ignored-modules=odoo.addons
-
 # Add files or directories to the blacklist. They should be base names, not paths.
 ignore=CVS,.git,venv,enterprise,design-themes,third-party
 
-# Make the local plugins importable for every caller (VS Code and odoo-ai lint).
-init-hook="import sys; sys.path[:0] = ['C:/odoo/odoo19/tools/pylint_plugins', 'C:/odoo/odoo19/odoo']"
-
-# Load plugins if they are available. odoo_namespace: see pylint_plugins/odoo_namespace.py
-load-plugins=pylint_odoo,odoo_namespace
+# Load plugins if they are available
+load-plugins=pylint_odoo
 
 [MESSAGES CONTROL]
 # Disable the messages which are not relevant or too noisy for Odoo
 disable=
     # General Python/Pylint style checks that are too noisy in Odoo
-    no-member,
-    E1101,
     missing-docstring,
     too-few-public-methods,
     duplicate-code,
@@ -35,8 +22,6 @@ disable=
     too-many-ancestors,
     attribute-defined-outside-init,
     invalid-name,
-    # Swedish identifiers (väg, otillfrågade) are a deliberate project convention.
-    non-ascii-name,
     unused-argument,
     abstract-method,
 
@@ -61,7 +46,7 @@ disable=
     manifest-author-string,
     website-manifest-key-not-valid-uri,
     manifest-external-assets,
-    
+
     # Custom Odoo design rules that are often preferred to be ignored
     attribute-string-redundant,
     method-compute,
@@ -77,5 +62,4 @@ max-line-length=120
 
 [ODOOLINT]
 # Target Odoo version
-valid-odoo-versions=19.0
-
+valid-odoo-versions=18.0
