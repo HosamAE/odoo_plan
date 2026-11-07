@@ -10,7 +10,6 @@ Checks the layout agreed on 2026-11-08 for the version these tools belong to:
 `--fix` repairs what is safe to repair (launcher, PATH, pylint .pth); it never
 deletes anything, it only names what is left over.
 """
-import filecmp
 import json
 import os
 import shutil
@@ -41,6 +40,14 @@ class Report:
         else:
             self.bad(bad, hint)
         return flag
+
+
+def _text(path):
+    """A file's content with line endings ignored (git may check them out as CRLF), or None."""
+    if not os.path.isfile(path):
+        return None
+    with open(path, "rb") as handle:
+        return handle.read().replace(b"\r\n", b"\n")
 
 
 def _user_path():
@@ -87,8 +94,7 @@ def check_tools(r, v, fix):
 def check_launcher(r, fix):
     print("\n== Shared: C:/odoo/bin")
     names = [n for n in os.listdir(LAUNCHER) if not n.endswith(".md")]
-    stale = [n for n in names if not os.path.isfile(os.path.join(BIN, n))
-             or not filecmp.cmp(os.path.join(LAUNCHER, n), os.path.join(BIN, n), shallow=False)]
+    stale = [n for n in names if _text(os.path.join(LAUNCHER, n)) != _text(os.path.join(BIN, n))]
     if stale and fix:
         os.makedirs(BIN, exist_ok=True)
         for n in stale:
