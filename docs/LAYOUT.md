@@ -1,0 +1,56 @@
+# Odoo workspace layout
+
+Every Odoo version keeps its own tools. Versions differ (framework, Python, lint rules, CI), so the tools of one version may change without touching the others.
+
+```text
+C:\odoo\
+├── bin\                         odoo-ai launcher, on PATH, shared by every version
+├── odoo-kg\                     knowledge-graph engine (one per machine)
+├── odoo<NN>\                    one Odoo version, not in git
+│   ├── odoo\  venv\  odoo.conf  Odoo source, its Python, its server config
+│   ├── AGENTS.md  PROGRESS.md   rules and notes for this version
+│   └── tools\                   these tools: branch <NN>.0 of the tools repository
+│       ├── cli.py               odoo-ai: lint, test, audit, kg, workspace, ci, doctor
+│       ├── .pylintrc  .flake8   lint configuration of this version
+│       ├── pylint_plugins\      only where the version needs one (19, 20)
+│       ├── vscode-extension\    Odoo CI extension (build output .vsix is not in git)
+│       ├── launcher\            source of C:\odoo\bin
+│       └── setup\               one-off setup scripts of this version, when it has any
+└── ProjectsOdoo<NN>\<project>\  a project: its own git, .conf and one workspace inside it
+```
+
+## The launcher
+
+`odoo-ai` in `C:\odoo\bin` only picks the version, then runs `C:\odoo\odoo<NN>\tools\cli.py`:
+
+1. `-v NN` on the command line;
+2. else the version of `-p <path>`;
+3. else the version of the current folder (`ProjectsOdoo<NN>\...` or `odoo<NN>\...`).
+
+With no version anywhere, `workspace`, `doctor` and `info` run once per installed version.
+
+## Everyday commands
+
+| Task | Command |
+| --- | --- |
+| Check a version's setup, repair what is safe | `odoo-ai doctor` / `odoo-ai doctor --fix` |
+| Wire projects (workspace, graph config, `.mcp.json`, `CLAUDE.md`) | `odoo-ai workspace` |
+| Test before pushing | the `CI` button in VS Code, or `odoo-ai ci --static-only` / `odoo-ai ci` |
+| Knowledge graph of the project here | `odoo-ai kg status` / `odoo-ai kg index` |
+| Rebuild every project's graph | `C:\odoo\bin\build_graphs.bat` |
+
+## The knowledge graph stays per project
+
+Each project has its own graph config (`C:\odoo\odoo-kg\config\local\<project>.toml`), its own data and its own `.mcp.json`. `odoo-ai workspace` writes them with the tools of the project's version; the graph is never committed.
+
+## A new machine
+
+1. Clone the Odoo source and create `venv` in `C:\odoo\odoo<NN>` (see `setup\` of a version that has one).
+2. Clone the tools: `git clone -b <NN>.0 <tools repository> C:\odoo\odoo<NN>\tools`.
+3. `python C:\odoo\odoo<NN>\tools\cli.py doctor --fix` (launcher, PATH, pylint path).
+4. Install the extension: build it with `vscode-extension\build_vsix.py`, then `code --install-extension`.
+5. `odoo-ai workspace` inside each project folder.
+
+## Moving a change to another version
+
+The versions are branches of one repository. A change made for 19 reaches 20 only on purpose: `git cherry-pick <commit>` in `C:\odoo\odoo20\tools`, then `odoo-ai doctor` there.

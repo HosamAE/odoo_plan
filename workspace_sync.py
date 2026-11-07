@@ -19,7 +19,11 @@ import re
 import sys
 
 WIN_ROOT = "C:/odoo"
-FS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# These tools live in C:/odoo/odoo<NN>/tools: one copy per Odoo version, each free to differ.
+TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+FS_ROOT = os.path.dirname(os.path.dirname(TOOLS_DIR))
+_TOOLS_MATCH = re.search(r"odoo(\d+)[\\/]tools$", TOOLS_DIR, re.IGNORECASE)
+TOOLS_VERSION = _TOOLS_MATCH.group(1) if _TOOLS_MATCH else ""  # "" outside C:/odoo/odoo<NN>/tools
 KG_DIR = f"{WIN_ROOT}/odoo-kg"
 KG_LOCAL_CONFIG = "odoo-kg/config/local"
 
@@ -469,7 +473,7 @@ def new_workspace(version, name, kg_python, config_win):
     py = f"{WIN_ROOT}/odoo{v}/venv/Scripts/python.exe"
     lint = {
         "label": "odoo-ai: lint this module", "type": "process", "command": py,
-        "args": [f"{WIN_ROOT}/odoo_ai_cli/cli.py", "lint", "-p", "${file}", "-v", v],
+        "args": [tools_cli(v), "lint", "-p", "${file}", "-v", v],
         "options": {"cwd": "${workspaceFolder:Project}"},
         "presentation": {"reveal": "always", "panel": "dedicated", "clear": True},
         "problemMatcher": [
@@ -490,11 +494,11 @@ def new_workspace(version, name, kg_python, config_win):
         "group": {"kind": "test", "isDefault": True},
     }
     lint_project = dict(lint, label="odoo-ai: lint the project",
-                        args=[f"{WIN_ROOT}/odoo_ai_cli/cli.py", "lint", "-p", "${workspaceFolder:Project}", "-v", v],
+                        args=[tools_cli(v), "lint", "-p", "${workspaceFolder:Project}", "-v", v],
                         detail="The same for every addon of the project (slow)")
     lint_project.pop("group")
     audit = dict(lint, label="odoo-ai: audit this module",
-                 args=[f"{WIN_ROOT}/odoo_ai_cli/cli.py", "audit", "-p", "${file}"],
+                 args=[tools_cli(v), "audit", "-p", "${file}"],
                  problemMatcher=[], detail="Manifest and security CSV of the addon of the open file")
     audit.pop("group")
     run = lambda label, extra, console: {
@@ -528,7 +532,7 @@ def new_workspace(version, name, kg_python, config_win):
             "cSpell.diagnosticLevel": "Hint",
             "pylint.enabled": True,
             "pylint.interpreter": [py],
-            "pylint.args": [f"--rcfile={WIN_ROOT}/odoo{v}/.pylintrc",
+            "pylint.args": [f"--rcfile={WIN_ROOT}/odoo{v}/tools/.pylintrc",
                             f"--init-hook=\"import sys; sys.path.append('{WIN_ROOT}/odoo{v}/odoo')\""],
             "pylint.cwd": proj,
             "pylint.importStrategy": "fromEnvironment",
@@ -601,7 +605,6 @@ def clone_conf(version, name, dry):
     s = raw.replace("\r\n", "\n")
     m = re.search(r"^addons_path\s*=\s*(.*)$", s, re.M)
     parts = [p.strip() for p in m.group(1).split(",") if p.strip()]
-    sib_key = f"ProjectsOdoo{version}/{sib}".lower()
     keep = [p for p in parts if p.replace("\\", "/").lower().find("projectsodoo") < 0]
     mine = f"{WIN_ROOT}/ProjectsOdoo{version}/{name}"
     s = s[:m.start(1)] + ", ".join(keep + [mine]) + s[m.end(1):]
@@ -886,9 +889,26 @@ def ensure_lint_settings(text, version, name):
     return text, changed
 
 
+def tools_cli(version):
+    """The odoo-ai of an Odoo version: its own tools folder."""
+    return f"{WIN_ROOT}/odoo{version}/tools/cli.py"
+
+
+# Paths from before the tools moved into C:/odoo/odoo<NN>/tools (2026-11-08)
+def move_tool_paths(text, version):
+    changed = []
+    for old, new in ((f"{WIN_ROOT}/odoo_ai_cli/cli.py", tools_cli(version)),
+                     (f"--rcfile={WIN_ROOT}/odoo{version}/.pylintrc", f"--rcfile={WIN_ROOT}/odoo{version}/tools/.pylintrc")):
+        if old in text:
+            text = text.replace(old, new)
+            changed.append(f"{old.rsplit('/', 1)[-1]} -> tools/")
+    loads_jsonc(text)
+    return text, changed
+
+
 def write_local_settings(kg_python, localappdata, dry):
     """What `odoo-ai kg` needs to find the graph on this machine."""
-    path = os.path.join(FS_ROOT, "odoo_ai_cli", "local.json")
+    path = os.path.join(TOOLS_DIR, "local.json")
     data = {"kg_python": kg_python, "localappdata": localappdata,
             "note": "Written by odoo-ai workspace. Machine-specific: not for sharing."}
     if not dry:
@@ -917,8 +937,7 @@ def sync_project(version, name, kg_python, localappdata, dry=False, create_works
     if manifests == 0:
         return [f"skip {win_dir}: no addon (__manifest__.py) found"]
 
-    has_ws = os.path.isfile(os.path.join(pdir, f"{name}.code-workspace")) or os.path.isfile(
-        fs(f"{WIN_ROOT}/ProjectsOdoo{version}/{name}.code-workspace"))
+    has_ws = os.path.isfile(os.path.join(pdir, f"{name}.code-workspace"))
     if not os.path.isdir(os.path.join(pdir, ".git")) and not has_ws:
         return [f"skip {win_dir}: neither a git checkout nor a workspace (a copy, not a project)"]
 
@@ -955,15 +974,12 @@ def sync_project(version, name, kg_python, localappdata, dry=False, create_works
             if exclude_locally(pdir, "*.conf", dry):
                 report.append("git        *.conf added to .git/info/exclude")
 
-    # ... and its workspace, inside the project and beside it (the 17/19 layout)
-    candidates = [os.path.join(pdir, f"{name}.code-workspace"),
-                  fs(f"{WIN_ROOT}/ProjectsOdoo{version}/{name}.code-workspace")]
-    if create_workspace:
-        for inner, path in ((True, candidates[0]), (False, candidates[1])):
-            if not os.path.isfile(path):
-                made = clone_workspace(version, name, pid, inner, dry)
-                if made:
-                    report.append(f"workspace  created {made}")
+    # ... and one workspace, inside the project
+    candidates = [os.path.join(pdir, f"{name}.code-workspace")]
+    if create_workspace and not os.path.isfile(candidates[0]):
+        made = clone_workspace(version, name, pid, True, dry)
+        if made:
+            report.append(f"workspace  created {made}")
         if exclude_locally(pdir, "*.code-workspace", dry):
             report.append("git        *.code-workspace added to .git/info/exclude")
     # ... and its OdooLS config, beside the project (never in its repository)
@@ -981,6 +997,8 @@ def sync_project(version, name, kg_python, localappdata, dry=False, create_works
         new, wired = ensure_graph_settings(new, kg_python, config_win)
         new, folders = fix_folders(new, version, name, inner=(path == candidates[0]))
         wired += folders
+        new, moved = move_tool_paths(new, version)
+        wired += moved
         new, lint = ensure_lint_settings(new, version, name)
         wired += lint
         if added or wired:
@@ -1023,7 +1041,7 @@ def iter_projects(versions):
                 yield v, name
 
 
-def run_workspace_sync(path=None, versions=("17", "18", "19", "20"), kg_python=None, localappdata=None,
+def run_workspace_sync(path=None, versions=(TOOLS_VERSION,), kg_python=None, localappdata=None,
                        dry=False):
     kg_python = find_kg_python(kg_python)
     localappdata = find_localappdata(localappdata)
@@ -1032,6 +1050,9 @@ def run_workspace_sync(path=None, versions=("17", "18", "19", "20"), kg_python=N
         m = re.search(r"ProjectsOdoo(\d+)/([^/]+)", norm, re.IGNORECASE)
         if not m:
             raise SystemExit(f"not a project folder: {path} (expected ...\\ProjectsOdoo<version>\\<Project>)")
+        if m.group(1) != TOOLS_VERSION:
+            raise SystemExit(f"{path} is an Odoo {m.group(1)} project: these are the Odoo {TOOLS_VERSION} tools "
+                             f"(run `odoo-ai`, it picks C:\\odoo\\odoo{m.group(1)}\\tools)")
         targets = [(m.group(1), m.group(2))]
     else:
         targets = list(iter_projects(versions))

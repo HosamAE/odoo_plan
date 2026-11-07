@@ -3,27 +3,79 @@
   "displayName": "Odoo CI (local)",
   "description": "Run the project's CI before pushing: the static checks of ci.yml, then a fresh install and every test. Works in every Odoo project workspace (ProjectsOdooNN/<project>) without setup.",
   "publisher": "acme",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "license": "UNLICENSED",
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Testing", "Other"],
-  "activationEvents": ["workspaceContains:**/__manifest__.py", "onStartupFinished"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Testing",
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/__manifest__.py",
+    "onStartupFinished"
+  ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
-      { "command": "odooCi.static", "title": "Run static checks (seconds)", "category": "Odoo CI", "icon": "$(checklist)" },
-      { "command": "odooCi.full", "title": "Run full CI (install and test)", "category": "Odoo CI", "icon": "$(beaker)" },
-      { "command": "odooCi.fullStop", "title": "Run full CI, stopping running Odoo servers first", "category": "Odoo CI" },
-      { "command": "odooCi.cancel", "title": "Cancel the running check", "category": "Odoo CI", "icon": "$(debug-stop)" },
-      { "command": "odooCi.menu", "title": "Choose a check", "category": "Odoo CI" },
-      { "command": "odooCi.showOutput", "title": "Show the output", "category": "Odoo CI", "icon": "$(output)" },
-      { "command": "odooCi.openLog", "title": "Open the Odoo test log", "category": "Odoo CI", "icon": "$(file-text)" }
+      {
+        "command": "odooCi.static",
+        "title": "Run static checks (seconds)",
+        "category": "Odoo CI",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "odooCi.full",
+        "title": "Run full CI (install and test)",
+        "category": "Odoo CI",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "odooCi.fullStop",
+        "title": "Run full CI, stopping running Odoo servers first",
+        "category": "Odoo CI"
+      },
+      {
+        "command": "odooCi.cancel",
+        "title": "Cancel the running check",
+        "category": "Odoo CI",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "odooCi.menu",
+        "title": "Choose a check",
+        "category": "Odoo CI"
+      },
+      {
+        "command": "odooCi.showOutput",
+        "title": "Show the output",
+        "category": "Odoo CI",
+        "icon": "$(output)"
+      },
+      {
+        "command": "odooCi.openLog",
+        "title": "Open the Odoo test log",
+        "category": "Odoo CI",
+        "icon": "$(file-text)"
+      }
     ],
     "viewsContainers": {
-      "activitybar": [{ "id": "odooCi", "title": "Odoo CI", "icon": "media/ci.svg" }]
+      "activitybar": [
+        {
+          "id": "odooCi",
+          "title": "Odoo CI",
+          "icon": "media/ci.svg"
+        }
+      ]
     },
     "views": {
-      "odooCi": [{ "id": "odooCi.steps", "name": "Checks" }]
+      "odooCi": [
+        {
+          "id": "odooCi.steps",
+          "name": "Checks"
+        }
+      ]
     },
     "viewsWelcome": [
       {
@@ -33,10 +85,26 @@
     ],
     "menus": {
       "view/title": [
-        { "command": "odooCi.static", "when": "view == odooCi.steps && !odooCi.running", "group": "navigation@1" },
-        { "command": "odooCi.full", "when": "view == odooCi.steps && !odooCi.running", "group": "navigation@2" },
-        { "command": "odooCi.cancel", "when": "view == odooCi.steps && odooCi.running", "group": "navigation@3" },
-        { "command": "odooCi.showOutput", "when": "view == odooCi.steps", "group": "navigation@4" }
+        {
+          "command": "odooCi.static",
+          "when": "view == odooCi.steps && !odooCi.running",
+          "group": "navigation@1"
+        },
+        {
+          "command": "odooCi.full",
+          "when": "view == odooCi.steps && !odooCi.running",
+          "group": "navigation@2"
+        },
+        {
+          "command": "odooCi.cancel",
+          "when": "view == odooCi.steps && odooCi.running",
+          "group": "navigation@3"
+        },
+        {
+          "command": "odooCi.showOutput",
+          "when": "view == odooCi.steps",
+          "group": "navigation@4"
+        }
       ]
     },
     "configuration": {
@@ -49,8 +117,8 @@
         },
         "odooCi.cliPath": {
           "type": "string",
-          "default": "C:/odoo/odoo_ai_cli/cli.py",
-          "description": "Path of the odoo-ai command line."
+          "default": "",
+          "description": "odoo-ai to run. Empty: the tools of the project's Odoo version (C:/odoo/odoo<NN>/tools/cli.py)."
         }
       }
     }

@@ -11,10 +11,11 @@ import sys
 from test_runner import run_odoo_test
 from linter import run_linter
 from ai_diagnoser import generate_diagnostic_prompt
-from workspace_sync import run_workspace_sync, resolve_project, KG_DIR, fs
+from workspace_sync import run_workspace_sync, resolve_project, KG_DIR, TOOLS_DIR, TOOLS_VERSION, fs
 from ci_local import run_ci
+from doctor import run_doctor
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 SUPPORTED_VERSIONS = ["17", "18", "19", "20"]
 
 
@@ -32,7 +33,7 @@ def module_root(path):
         probe = parent
 
 
-def detect_version(path, fallback="17"):
+def detect_version(path, fallback=TOOLS_VERSION):
     """Odoo version from a path: C:\\odoo\\odoo19\\..., ...\\ProjectsOdoo18\\..., else the fallback."""
     match = re.search(r"(?:ProjectsOdoo|[\\/]odoo)(1[0-9]|2[0-9])(?:[\\/]|$)", os.path.abspath(path), re.IGNORECASE)
     return match.group(1) if match else fallback
@@ -73,7 +74,7 @@ def main():
     test_parser = subparsers.add_parser("test", help="Run Odoo unittests for a module")
     test_parser.add_argument("--module", "-m", required=True, help="Module technical name (e.g. hoss_dashboard)")
     test_parser.add_argument("--version", "-v", default=None, choices=SUPPORTED_VERSIONS,
-                             help="Odoo version (default: from the current folder, else 17)")
+                             help="Odoo version (default: from the current folder, else these tools' version)")
     test_parser.add_argument("--db", "-d", default="test_db", help="Database name (default: test_db)")
     test_parser.add_argument("--conf", "-c", default=None, help="Path to .conf file")
     test_parser.add_argument("--diagnose", action="store_true", help="Generate AI diagnostic prompt if test fails")
@@ -82,7 +83,7 @@ def main():
     lint_parser = subparsers.add_parser("lint", help="Lint an Odoo module using pylint-odoo and flake8")
     lint_parser.add_argument("--path", "-p", default=".", help="Addon or project directory (default: current folder)")
     lint_parser.add_argument("--version", "-v", default=None, choices=SUPPORTED_VERSIONS,
-                             help="Odoo version (default: from the path, else 17)")
+                             help="Odoo version (default: from the path, else these tools' version)")
 
     # 3. Audit Command
     audit_parser = subparsers.add_parser("audit", help="Audit Odoo security CSV & manifest files")
@@ -101,7 +102,7 @@ def main():
     ws_parser = subparsers.add_parser(
         "workspace", help="Wire projects into the knowledge graph (odoo-kg config, VS Code tasks, .mcp.json, CLAUDE.md)")
     ws_parser.add_argument("--path", "-p", default=None,
-                           help="One project folder (default: every project in ProjectsOdoo17/18/19/20)")
+                           help="One project folder (default: every project of this Odoo version)")
     ws_parser.add_argument("--kg-python", default=None, help="Python 3.11+ for odoo-kg (default: auto-detect)")
     ws_parser.add_argument("--dry-run", action="store_true", help="Show what would change, write nothing")
 
@@ -113,6 +114,12 @@ def main():
     ci_parser.add_argument("--stop-servers", action="store_true",
                            help="Stop running Odoo servers first (their crons would write to the test database)")
     ci_parser.add_argument("--keep-db", action="store_true", help="Keep the test database afterwards")
+
+    # 8. Doctor Command
+    doctor_parser = subparsers.add_parser(
+        "doctor", help="Check this Odoo version's setup: tools, lint, launcher, PATH, extension, project wiring")
+    doctor_parser.add_argument("--fix", action="store_true",
+                               help="Repair what is safe (launcher, PATH, pylint .pth); never deletes")
 
     args = parser.parse_args()
 
@@ -172,11 +179,14 @@ def main():
     elif args.command == "ci":
         sys.exit(run_ci(args.path, args.static_only, args.stop_servers, args.keep_db))
 
+    elif args.command == "doctor":
+        sys.exit(run_doctor(args.fix))
+
     elif args.command == "workspace":
         run_workspace_sync(args.path, kg_python=args.kg_python, dry=args.dry_run)
 
     elif args.command == "info":
-        print(f"Odoo AI CLI v{VERSION}")
+        print(f"Odoo AI CLI v{VERSION}: the Odoo {TOOLS_VERSION} tools ({TOOLS_DIR})")
         print("Workspace Root: C:\\odoo")
         print(f"Version detected here: Odoo {detect_version(os.getcwd())}")
         project = resolve_project(os.getcwd())
@@ -184,7 +194,7 @@ def main():
             version, name, pid, config_win = project
             print(f"Project here: {name} (Odoo {version}), graph config: {config_win}")
             run_kg("status", os.getcwd())
-        print("Supported Versions: " + ", ".join("Odoo " + v for v in SUPPORTED_VERSIONS))
+        print("Every version has its own tools: C:/odoo/odoo<NN>/tools (the odoo-ai launcher picks them)")
         print("Registered Rules: AGENTS.md, .clinerules, .cursorrules")
         print("Graph: `odoo-ai kg status|index` in any project folder; `odoo-ai workspace` wires new projects")
 

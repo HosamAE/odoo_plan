@@ -1,6 +1,7 @@
 // Odoo CI (local): the project's CI as a view, a status-bar button and Problems.
 //
-// The work is done by `odoo-ai ci` (C:/odoo/odoo_ai_cli/ci_local.py); this
+// The work is done by `odoo-ai ci` of the project's Odoo version
+// (C:/odoo/odoo<NN>/tools/ci_local.py: every version has its own tools); this
 // extension starts it with ODOO_AI_CI_EVENTS=1, reads the "::ci::<json>" lines
 // it prints for every step, and draws them. Everything else it prints goes to
 // the "Odoo CI" output channel unchanged.
@@ -193,7 +194,9 @@ function run(mode) {
   // The project's own venv has what odoo-ai needs (PyYAML, pyflakes...); a bare
   // `python` is whatever VS Code's PATH finds, which may not.
   const python = cfg.get("python") || `C:/odoo/odoo${project.version}/venv/Scripts/python.exe`;
-  const args = [cfg.get("cliPath"), "ci"];
+  // Each Odoo version has its own tools: C:/odoo/odoo<NN>/tools.
+  const cli = cfg.get("cliPath") || `C:/odoo/odoo${project.version}/tools/cli.py`;
+  const args = [cli, "ci"];
   if (mode === "static") args.push("--static-only");
   if (mode === "fullStop") args.push("--stop-servers");
 

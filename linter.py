@@ -5,14 +5,13 @@ Runs pylint-odoo, flake8, and XML syntax checks on target module.
 
 import os
 import subprocess
-import sys
 import xml.etree.ElementTree as ET
 
 def find_linter_tools(version="17"):
     venv_scripts = f"C:\\odoo\\odoo{version}\\venv\\Scripts"
     pylint_exe = os.path.join(venv_scripts, "pylint.exe")
     flake8_exe = os.path.join(venv_scripts, "flake8.exe")
-    rcfile = f"C:\\odoo\\odoo{version}\\.pylintrc"
+    rcfile = f"C:\\odoo\\odoo{version}\\tools\\.pylintrc"
     
     return pylint_exe, flake8_exe, rcfile
 
