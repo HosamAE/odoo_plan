@@ -877,6 +877,8 @@ def ensure_lint_settings(text, version, name):
         text, f = drop_setting(text, key); note(f, f"-{key}")
     text, f = set_setting(text, "Odoo.serverConfigPath", odools_path(v, name)); note(f, "odools.toml")
     text, f = set_setting(text, "Odoo.selectedProfile", "default"); note(f, "OdooLS profile")
+    # OdooLS asks to turn off VS Code's own JS/TS features; we keep them (go-to, rename, imports)
+    text, f = set_setting(text, "Odoo.disableJsLanguageServerPopup", True); note(f, "no OdooLS JS popup")
     text, f = set_setting(text, "flake8.enabled", False); note(f, "flake8 off")
     text, f = set_setting(text, "cSpell.diagnosticLevel", "Hint"); note(f, "spelling as hints")
     words = list(data.get("cSpell.words", []))
