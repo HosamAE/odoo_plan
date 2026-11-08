@@ -113,8 +113,8 @@ def _static_steps(ci_yml, version):
 def run_static(repo, version, base):
     ci_yml = os.path.join(repo, ".github", "workflows", "ci.yml")
     if not os.path.isfile(ci_yml):
-        _say("  (no .github/workflows/ci.yml - nothing to run)")
-        return True
+        _say("  (no .github/workflows/ci.yml: only the version's own gates run)")
+        return run_version_gates(repo, version, has_ci=False)
     bash = _git_bash()
     if not bash:
         _say("  [ERROR] Git Bash not found (Git for Windows provides it; WSL's bash is not used)")
@@ -148,6 +148,41 @@ def run_static(repo, version, base):
             _say(f"  [FAIL] {name}")
             tail = [l for l in (res.stdout + res.stderr).strip().splitlines()
                     if l.strip() and not l.startswith("[notice]")][-25:]
+            for line in tail:
+                _say("         " + line)
+            _event(type="step", phase="static", name=name, status="fail", seconds=round(took), details=tail)
+    return run_version_gates(repo, version, has_ci=True) and ok
+
+
+#: The gates every project of this version keeps (tools/gates). A project whose
+#: ci.yml runs its own copy (.github/scripts/<same name>) is not asked twice.
+VERSION_GATES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gates")
+
+
+def run_version_gates(repo, version, has_ci):
+    if not os.path.isdir(VERSION_GATES):
+        return True
+    py = fs(f"{WIN_ROOT}/odoo{version}/venv/Scripts/python.exe")
+    env = dict(os.environ, PYTHONIOENCODING="utf-8", GATE_ROOT=repo)
+    ok = True
+    for gate in sorted(os.listdir(VERSION_GATES)):
+        if not gate.startswith("check_") or gate == "check_test_log.py" or not gate.endswith(".py"):
+            continue
+        if has_ci and os.path.isfile(os.path.join(repo, ".github", "scripts", gate)):
+            continue
+        name = f"version gate: {gate[6:-3].replace('_', ' ')}"
+        _event(type="step", phase="static", name=name, status="running")
+        started = time.time()
+        res = subprocess.run([py, os.path.join(VERSION_GATES, gate)], cwd=repo, env=env,
+                             capture_output=True, text=True, encoding="utf-8", errors="replace")
+        took = time.time() - started
+        if res.returncode == 0:
+            _say(f"  [OK]   {name}  ({took:.0f}s)")
+            _event(type="step", phase="static", name=name, status="ok", seconds=round(took))
+        else:
+            ok = False
+            tail = [l for l in (res.stdout + res.stderr).strip().splitlines() if l.strip()][-25:]
+            _say(f"  [FAIL] {name}")
             for line in tail:
                 _say("         " + line)
             _event(type="step", phase="static", name=name, status="fail", seconds=round(took), details=tail)
@@ -237,9 +272,11 @@ def run_tests(repo, version, name, conf_file, keep_db, at=None):
            name=(summaries[-1] if summaries else "The run did not reach the tests"),
            seconds=round(time.time() - started), details=failed_tests[:40])
     gate = os.path.join(repo, ".github", "scripts", "check_test_log.py")
+    if not os.path.isfile(gate):
+        gate = os.path.join(VERSION_GATES, "check_test_log.py")   # the version's own
     if os.path.isfile(gate):
         res = subprocess.run([py, gate, log_path], cwd=repo, capture_output=True, text=True,
-                             env=dict(os.environ, PYTHONIOENCODING="utf-8"))
+                             env=dict(os.environ, PYTHONIOENCODING="utf-8", GATE_ROOT=repo))
         gate_ok = res.returncode == 0
         ok &= gate_ok
         _say(f"  [{'OK' if gate_ok else 'FAIL'}]   framework warnings in the log")
