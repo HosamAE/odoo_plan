@@ -865,6 +865,44 @@ def drop_setting(text, key):
     return text[:start] + text[end:], True
 
 
+#: Extensions the workspaces must not propose (owner's decisions): Copilot (2026-11-08,
+#: "the message must not show again") and the old Odoo extension OdooLS replaced.
+UNWANTED_EXTENSIONS = ("github.copilot", "github.copilot-chat", "trinhanhngoc.vscode-odoo")
+WANTED_EXTENSIONS = ("acme.odoo-ci",)
+
+
+def tidy_recommendations(text):
+    """Drop the unwanted recommendations, name them as unwanted, add the wanted ones."""
+    changed = []
+    block = re.search(r'("recommendations"\s*:\s*\[)(.*?)(\])', text, re.S)
+    if not block:
+        return text, changed
+    body = block.group(2)
+    for ext in UNWANTED_EXTENSIONS:
+        new = re.sub(r'\n[ \t]*"%s",?' % re.escape(ext), "", body)
+        if new != body:
+            body = new
+            changed.append(f"-{ext}")
+    indent = re.search(r'\n([ \t]*)"', body)
+    indent = indent.group(1) if indent else "      "
+    for ext in WANTED_EXTENSIONS:
+        if f'"{ext}"' not in body:
+            body = body.rstrip() + ("" if body.rstrip().endswith(",") or not body.strip() else ",") \
+                + f'\n{indent}"{ext}",\n' + indent[:-2]
+            changed.append(f"+{ext}")
+    text = text[:block.start(2)] + body + text[block.end(2):]
+    if '"unwantedRecommendations"' not in text:
+        end = re.search(r'"recommendations"\s*:\s*\[.*?\]\s*,?', text, re.S).end()
+        closing = text[re.search(r'"recommendations"\s*:\s*\[.*?\]', text, re.S).end():end]
+        sep = "" if "," in closing else ","
+        unwanted = ", ".join(f'"{e}"' for e in UNWANTED_EXTENSIONS)
+        outer = indent[:-2] if len(indent) >= 2 else ""
+        text = text[:end] + f'{sep}\n{outer}"unwantedRecommendations": [{unwanted}],' + text[end:]
+        changed.append("unwanted list")
+    loads_jsonc(text)
+    return text, changed
+
+
 def ensure_lint_settings(text, version, name):
     """The workspace settings agreed on 2026-11-07, for every project.
 
@@ -1019,6 +1057,8 @@ def sync_project(version, name, kg_python, localappdata, dry=False, create_works
         wired += folders
         new, moved = move_tool_paths(new, version)
         wired += moved
+        new, recs = tidy_recommendations(new)
+        wired += recs
         new, lint = ensure_lint_settings(new, version, name)
         wired += lint
         if added or wired:
