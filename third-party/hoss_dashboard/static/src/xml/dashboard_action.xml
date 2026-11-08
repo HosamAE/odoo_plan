@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="hoss_app_dashboard.Dashboard" owl="1">
+        <div t-attf-class="hoss_dashboard_container hoss_bg_behavior_{{activeConfig.background_behavior || 'fixed'}} hoss_greeting_{{activeConfig.greeting_behavior || 'fixed'}}_mode {{ activeConfig.show_cards === false ? 'hoss_cards_disabled' : '' }}" t-ref="dashboardContainer">
+            <div class="hoss_dashboard_content_wrapper" t-attf-style="padding-top: {{activeConfig.top_padding !== undefined ? activeConfig.top_padding : 106}}px;">
+
+                <div t-if="(activeConfig.greeting_title !== '' &amp;&amp; activeConfig.greeting_title !== false &amp;&amp; activeConfig.greeting_title !== null) || (activeConfig.greeting_subtitle !== '' &amp;&amp; activeConfig.greeting_subtitle !== false &amp;&amp; activeConfig.greeting_subtitle !== null)" class="hoss_dashboard_header">
+                    <h1 t-if="activeConfig.greeting_title" class="hoss_greeting" t-esc="activeConfig.greeting_title"/>
+                    <p t-if="activeConfig.greeting_subtitle" class="hoss_subtitle" t-esc="activeConfig.greeting_subtitle"/>
+                </div>
+                
+                <div t-if="!state.searchQuery" class="hoss_app_grid" t-on-dragover.prevent="(ev) => this.onDragOver(ev)">
+                    <t t-foreach="filteredApps" t-as="app" t-key="app.id">
+                        <div 
+                            class="hoss_app_card" 
+                            t-att-class="{ 'focus': menuService.getCurrentApp() === app, 'dragging': state.draggedApp &amp;&amp; state.draggedApp.id === app.id }"
+                            t-on-click="() => this.openApp(app)"
+                            t-att-draggable="(state.config.is_admin &amp;&amp; !state.config.lock_app_positions) ? 'true' : 'false'"
+                            t-on-dragstart="(ev) => this.onDragStart(app, ev)"
+                            t-on-dragend="(ev) => this.onDragEnd(app, ev)"
+                            t-on-dragenter="(ev) => this.onDragEnter(app, ev)"
+                            t-on-dragover.prevent="(ev) => this.onDragOver(ev)"
+                            t-on-drop="(ev) => this.onDrop(app, ev)"
+                        >
+                            <div class="hoss_app_icon_container">
+                                <img class="hoss_app_icon" t-attf-src="/web/image?model=ir.ui.menu&amp;field=web_icon_data&amp;id={{app.id}}" t-att-title="app.name" t-att-alt="app.name" />
+                            </div>
+                            <span class="hoss_app_name" t-esc="app.name"/>
+                        </div>
+                    </t>
+                </div>
+            </div>
+
+
+            <!-- Customizer Side Drawer Panel -->
+            <div t-if="state.config.can_customize" class="hoss_customizer_drawer" t-att-class="{ 'open': state.customizerOpen }">
+                <div class="drawer_header">
+                    <h3>Customize Dashboard</h3>
+                    <button class="close_btn" t-on-click="toggleCustomizer">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
+                <div class="drawer_content">
+                    <!-- System Selection -->
+                    <div class="hoss_form_section">
+                        <h4>System Theme</h4>
+                        <div class="hoss_form_group">
+                            <label>Select Configuration</label>
+                            <select class="hoss_select" t-on-change="(ev) => this.onSystemChange(ev)">
+                                <option value="custom" t-att-selected="state.tempConfig.is_custom">My Custom Design</option>
+                                <t t-foreach="state.tempConfig.systems || []" t-as="sys" t-key="sys.id">
+                                    <option t-att-value="sys.id" t-att-selected="!state.tempConfig.is_custom &amp;&amp; state.tempConfig.id === sys.id" t-esc="sys.name"/>
+                                </t>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Background Settings -->
+                    <div class="hoss_form_section">
+                        <h4>Background Style</h4>
+                        <div class="hoss_form_group">
+                            <label>Background Type</label>
+                            <div class="hoss_selector">
+                                <button t-att-class="{ 'active': state.tempConfig.background_type === 'gradient' }" t-on-click="() => this.changeConfig('background_type', 'gradient')">Gradient</button>
+                                <button t-att-class="{ 'active': state.tempConfig.background_type === 'color' }" t-on-click="() => this.changeConfig('background_type', 'color')">Color</button>
+                                <button t-att-class="{ 'active': state.tempConfig.background_type === 'image' }" t-on-click="() => this.changeConfig('background_type', 'image')">Image</button>
+                            </div>
+                        </div>
+                        <div t-if="state.tempConfig.background_type === 'color'" class="hoss_form_group">
+                            <label>Background Color</label>
+                            <div class="color_picker_row">
+                                <div class="color_picker_wrapper">
+                                    <input type="color" t-att-value="state.tempConfig.background_color" t-on-input="(ev) => this.changeConfig('background_color', ev.target.value)"/>
+                                    <input class="color_code_text" type="text" t-att-value="state.tempConfig.background_color" t-on-input="(ev) => this.changeConfig('background_color', ev.target.value)"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div t-if="state.tempConfig.background_type === 'gradient'" class="hoss_form_group">
+                            <label>Gradient Colors</label>
+                            <div class="color_picker_row mb-2">
+                                <div class="color_picker_wrapper">
+                                    <input type="color" t-att-value="state.tempConfig.background_gradient_start" t-on-input="(ev) => this.changeConfig('background_gradient_start', ev.target.value)"/>
+                                    <input class="color_code_text" type="text" t-att-value="state.tempConfig.background_gradient_start" t-on-input="(ev) => this.changeConfig('background_gradient_start', ev.target.value)"/>
+                                </div>
+                            </div>
+                            <div class="color_picker_row">
+                                <div class="color_picker_wrapper">
+                                    <input type="color" t-att-value="state.tempConfig.background_gradient_end" t-on-input="(ev) => this.changeConfig('background_gradient_end', ev.target.value)"/>
+                                    <input class="color_code_text" type="text" t-att-value="state.tempConfig.background_gradient_end" t-on-input="(ev) => this.changeConfig('background_gradient_end', ev.target.value)"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div t-if="state.tempConfig.background_type === 'gradient'" class="hoss_form_group">
+                            <label>Gradient Angle <span class="val_label" t-esc="state.tempConfig.background_gradient_angle + '°'"/></label>
+                            <div class="slider_container">
+                                <input type="range" min="0" max="360" t-att-value="state.tempConfig.background_gradient_angle" t-on-input="(ev) => this.changeConfig('background_gradient_angle', ev.target.value)"/>
+                            </div>
+                        </div>
+                        <div t-if="state.tempConfig.background_type === 'image'" class="hoss_form_group">
+                            <label>Preset Wallpapers</label>
+                            <div class="preset_wallpapers_grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+                                <div class="preset_item" t-on-click="() => this.changeConfig('background_image_url_custom', '/hoss_dashboard/static/src/img/wallpaper_day.png')" t-attf-style="cursor: pointer; border-radius: 8px; overflow: hidden; border: 2px solid #ddd; height: 50px; background: url('/hoss_dashboard/static/src/img/wallpaper_day.png') center/cover no-repeat; {{state.tempConfig.background_image_url_custom === '/hoss_dashboard/static/src/img/wallpaper_day.png' ? 'border-color: #3b82f6 !important; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5) !important;' : ''}}" title="Day Sunrise Theme"/>
+                                <div class="preset_item" t-on-click="() => this.changeConfig('background_image_url_custom', '/hoss_dashboard/static/src/img/wallpaper_night.png')" t-attf-style="cursor: pointer; border-radius: 8px; overflow: hidden; border: 2px solid #ddd; height: 50px; background: url('/hoss_dashboard/static/src/img/wallpaper_night.png') center/cover no-repeat; {{state.tempConfig.background_image_url_custom === '/hoss_dashboard/static/src/img/wallpaper_night.png' ? 'border-color: #3b82f6 !important; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5) !important;' : ''}}" title="Night Starry Theme"/>
+                                <div class="preset_item" t-on-click="() => this.changeConfig('background_image_url_custom', '/hoss_dashboard/static/src/img/wallpaper_corporate.png')" t-attf-style="cursor: pointer; border-radius: 8px; overflow: hidden; border: 2px solid #ddd; height: 50px; background: url('/hoss_dashboard/static/src/img/wallpaper_corporate.png') center/cover no-repeat; {{state.tempConfig.background_image_url_custom === '/hoss_dashboard/static/src/img/wallpaper_corporate.png' ? 'border-color: #3b82f6 !important; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5) !important;' : ''}}" title="Corporate Sleek Theme"/>
+                            </div>
+                            <label>Custom Image URL</label>
+                            <input class="hoss_input" type="text" t-att-value="state.tempConfig.background_image_url_custom || ''" t-on-input="(ev) => this.changeConfig('background_image_url_custom', ev.target.value)" placeholder="e.g. https://images.unsplash.com/..."/>
+                        </div>
+                        <div class="hoss_form_group">
+                            <label>Saturation <span class="val_label" t-esc="state.tempConfig.background_saturation + '%'"/></label>
+                            <div class="slider_container">
+                                <input type="range" min="0" max="200" t-att-value="state.tempConfig.background_saturation" t-on-input="(ev) => this.changeConfig('background_saturation', ev.target.value)"/>
+                            </div>
+                        </div>
+                        <div class="hoss_form_group">
+                            <label>Dashboard Layout Mode</label>
+                            <div class="hoss_selector">
+                                <button t-att-class="{ 'active': state.tempConfig.greeting_behavior === 'fixed' }" t-on-click="() => this.selectLayoutMode('classic')">Classic</button>
+                                <button t-att-class="{ 'active': state.tempConfig.greeting_behavior === 'scroll' &amp;&amp; state.tempConfig.background_behavior === 'scroll' }" t-on-click="() => this.selectLayoutMode('scroll')">Full Scroll</button>
+                                <button t-att-class="{ 'active': state.tempConfig.greeting_behavior === 'scroll' &amp;&amp; state.tempConfig.background_behavior === 'fixed' }" t-on-click="() => this.selectLayoutMode('parallax')">Parallax</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Greeting Message Settings -->
+                    <div class="hoss_form_section">
+                        <h4>Greeting Message</h4>
+                        <div class="hoss_form_group">
+                            <label>Greeting Title</label>
+                            <input class="hoss_input" type="text" t-att-value="state.tempConfig.greeting_title || ''" t-on-input="(ev) => this.changeConfig('greeting_title', ev.target.value)" placeholder="e.g. Welcome back!"/>
+                        </div>
+                        <div class="hoss_form_group">
+                            <label>Greeting Subtitle</label>
+                            <input class="hoss_input" type="text" t-att-value="state.tempConfig.greeting_subtitle || ''" t-on-input="(ev) => this.changeConfig('greeting_subtitle', ev.target.value)" placeholder="e.g. What would you like to do today?"/>
+                        </div>
+                        <div class="hoss_form_group">
+                            <label>Greeting Alignment</label>
+                            <div class="hoss_selector">
+                                <button t-att-class="{ 'active': state.tempConfig.greeting_align === 'left' }" t-on-click="() => this.changeConfig('greeting_align', 'left')">Left</button>
+                                <button t-att-class="{ 'active': state.tempConfig.greeting_align === 'center' || !state.tempConfig.greeting_align }" t-on-click="() => this.changeConfig('greeting_align', 'center')">Center</button>
+                                <button t-att-class="{ 'active': state.tempConfig.greeting_align === 'right' }" t-on-click="() => this.changeConfig('greeting_align', 'right')">Right</button>
+                            </div>
+                        </div>
+                        <div class="hoss_form_group">
+                            <label>Title Size <span class="val_label" t-esc="(state.tempConfig.greeting_title_size || 48) + 'px'"/></label>
+                            <div class="slider_container">
+                                <input type="range" min="16" max="64" t-att-value="state.tempConfig.greeting_title_size || 48" t-on-input="(ev) => this.changeConfig('greeting_title_size', ev.target.value)"/>
+                            </div>
+                        </div>
+                        <div class="hoss_form_group">
+                            <label>Subtitle Size <span class="val_label" t-esc="(state.tempConfig.greeting_subtitle_size || 18) + 'px'"/></label>
+                            <div class="slider_container">
+                                <input type="range" min="12" max="32" t-att-value="state.tempConfig.greeting_subtitle_size || 18" t-on-input="(ev) => this.changeConfig('greeting_subtitle_size', ev.target.value)"/>
+                            </div>
+                        </div>
+                        <div class="hoss_form_group">
+                            <label>Spacing / Margin <span class="val_label" t-esc="(state.tempConfig.greeting_spacing || 40) + 'px'"/></label>
+                            <div class="slider_container">
+                                <input type="range" min="0" max="100" t-att-value="state.tempConfig.greeting_spacing || 40" t-on-input="(ev) => this.changeConfig('greeting_spacing', ev.target.value)"/>
+                            </div>
+                        </div>
+                        <div class="hoss_form_group">
+                            <label>Top Padding <span class="val_label" t-esc="(state.tempConfig.top_padding !== undefined ? state.tempConfig.top_padding : 106) + 'px'"/></label>
+                            <div class="slider_container">
+                                <input type="range" min="10" max="250" t-att-value="state.tempConfig.top_padding !== undefined ? state.tempConfig.top_padding : 106" t-on-input="(ev) => this.changeConfig('top_padding', ev.target.value)"/>
+                            </div>
+                        </div>
+                        <div class="hoss_form_group d-flex align-items-center mb-3">
+                            <input type="checkbox" id="show_clock" t-att-checked="state.tempConfig.show_clock !== false" t-on-change="(ev) => this.changeConfig('show_clock', ev.target.checked)" class="me-2 cursor-pointer" style="width: 16px; height: 16px;"/>
+                            <label for="show_clock" class="m-0 cursor-pointer text-slate-700 font-bold" style="font-size: 0.85rem;">Show Clock in Navbar</label>
+                        </div>
+                        <t t-if="state.tempConfig.show_clock !== false">
+                            <div class="hoss_form_group">
+                                <label>Clock Text Color</label>
+                                <div class="color_picker_row">
+                                    <div class="color_picker_wrapper">
+                                        <input type="color" t-att-value="state.tempConfig.clock_text_color || '#ffffff'" t-on-input="(ev) => this.changeConfig('clock_text_color', ev.target.value)"/>
+                                        <input class="color_code_text" type="text" t-att-value="state.tempConfig.clock_text_color || '#ffffff'" t-on-input="(ev) => this.changeConfig('clock_text_color', ev.target.value)"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="hoss_form_group">
+                                <label>Clock BG Color</label>
+                                <div class="color_picker_row">
+                                    <div class="color_picker_wrapper">
+                                        <input type="color" t-att-value="state.tempConfig.clock_bg_color || '#ffffff'" t-on-input="(ev) => this.changeConfig('clock_bg_color', ev.target.value)"/>
+                                        <input class="color_code_text" type="text" t-att-value="state.tempConfig.clock_bg_color || '#ffffff'" t-on-input="(ev) => this.changeConfig('clock_bg_color', ev.target.value)"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="hoss_form_group">
+                                <label>Clock Border Color</label>
+                                <div class="color_picker_row">
+                                    <div class="color_picker_wrapper">
+                                        <input type="color" t-att-value="state.tempConfig.clock_border_color || '#ffffff'" t-on-input="(ev) => this.changeConfig('clock_border_color', ev.target.value)"/>
+                                        <input class="color_code_text" type="text" t-att-value="state.tempConfig.clock_border_color || '#ffffff'" t-on-input="(ev) => this.changeConfig('clock_border_color', ev.target.value)"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="hoss_form_group">
+                                <label>Clock BG Opacity <span class="val_label" t-esc="(state.tempConfig.clock_bg_opacity !== undefined ? state.tempConfig.clock_bg_opacity : 13) + '%'"/></label>
+                                <div class="slider_container">
+                                    <input type="range" min="0" max="100" t-att-value="state.tempConfig.clock_bg_opacity !== undefined ? state.tempConfig.clock_bg_opacity : 13" t-on-input="(ev) => this.changeConfig('clock_bg_opacity', +ev.target.value)"/>
+                                </div>
+                            </div>
+                            <div class="hoss_form_group">
+                                <label>Clock Border Width <span class="val_label" t-esc="(state.tempConfig.clock_border_width !== undefined ? state.tempConfig.clock_border_width : 1) + 'px'"/></label>
+                                <div class="slider_container">
+                                    <input type="range" min="0" max="5" t-att-value="state.tempConfig.clock_border_width !== undefined ? state.tempConfig.clock_border_width : 1" t-on-input="(ev) => this.changeConfig('clock_border_width', +ev.target.value)"/>
+                                </div>
+                            </div>
+                            <div class="hoss_form_group d-flex align-items-center mb-2">
+                                <input type="checkbox" id="clock_shadow" t-att-checked="state.tempConfig.clock_shadow !== false" t-on-change="(ev) => this.changeConfig('clock_shadow', ev.target.checked)" class="me-2 cursor-pointer" style="width: 16px; height: 16px;"/>
+                                <label for="clock_shadow" class="m-0 cursor-pointer text-slate-700">Card Box Shadow</label>
+                            </div>
+                            <div class="hoss_form_group d-flex align-items-center mb-3">
+                                <input type="checkbox" id="clock_text_shadow" t-att-checked="state.tempConfig.clock_text_shadow !== false" t-on-change="(ev) => this.changeConfig('clock_text_shadow', ev.target.checked)" class="me-2 cursor-pointer" style="width: 16px; height: 16px;"/>
+                                <label for="clock_text_shadow" class="m-0 cursor-pointer text-slate-700">Text Shadow</label>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- App Icon Settings -->
+                    <div class="hoss_form_section">
+                        <h4>App Cards &amp; Icons</h4>
+                        <div class="hoss_form_group">
+                            <label>Card Theme Preset</label>
+                            <div class="hoss_selector">
+                                <button t-att-class="{ 'active': state.tempConfig.preset_theme === 'custom' || !state.tempConfig.preset_theme }" t-on-click="() => this.selectPresetTheme('custom')">Custom</button>
+                                <button t-att-class="{ 'active': state.tempConfig.preset_theme === 'glass' }" t-on-click="() => this.selectPresetTheme('glass')">Glass</button>
+                                <button t-att-class="{ 'active': state.tempConfig.preset_theme === 'minimal' }" t-on-click="() => this.selectPresetTheme('minimal')">Minimal</button>
+                                <button t-att-class="{ 'active': state.tempConfig.preset_theme === 'flat' }" t-on-click="() => this.selectPresetTheme('flat')">Flat</button>
+                            </div>
+                        </div>
+                        <div class="hoss_form_group d-flex align-items-center mb-3">
+                            <input type="checkbox" id="show_cards" t-att-checked="state.tempConfig.show_cards !== false" t-on-change="(ev) => this.changeConfig('show_cards', ev.target.checked)" class="me-2 cursor-pointer" style="width: 16px; height: 16px;"/>
+                            <label for="show_cards" class="m-0 cursor-pointer text-slate-700 font-bold" style="font-size: 0.85rem;">Show App Cards</label>
+                        </div>
+                        <div class="hoss_form_group d-flex align-items-center mb-3">
+                            <input type="checkbox" id="lock_app_positions" t-att-checked="state.tempConfig.lock_app_positions" t-on-change="(ev) => this.changeConfig('lock_app_positions', ev.target.checked)" class="me-2 cursor-pointer" style="width: 16px; height: 16px;"/>
+                            <label for="lock_app_positions" class="m-0 cursor-pointer text-slate-700 font-bold" style="font-size: 0.85rem;">Lock App Positions</label>
+                        </div>
+                        <div class="hoss_form_group">
+                            <label>Icon Size <span class="val_label" t-esc="state.tempConfig.icon_size + 'px'"/></label>
+                            <div class="slider_container">
+                                <input type="range" min="24" max="120" t-att-value="state.tempConfig.icon_size" t-on-input="(ev) => this.changeConfig('icon_size', ev.target.value)"/>
+                            </div>
+                        </div>
+                        <div class="hoss_form_group">
+                            <label>Icon Shape</label>
+                            <div class="hoss_selector">
+                                <button t-att-class="{ 'active': state.tempConfig.icon_shape === 'rounded' }" t-on-click="() => this.changeConfig('icon_shape', 'rounded')">Rounded</button>
+                                <button t-att-class="{ 'active': state.tempConfig.icon_shape === 'circle' }" t-on-click="() => this.changeConfig('icon_shape', 'circle')">Circle</button>
+                                <button t-att-class="{ 'active': state.tempConfig.icon_shape === 'square' }" t-on-click="() => this.changeConfig('icon_shape', 'square')">Square</button>
+                            </div>
+                        </div>
+                        <t t-if="state.tempConfig.show_cards !== false">
+                            <div class="hoss_form_group">
+                                <label>Card Opacity <span class="val_label" t-esc="state.tempConfig.card_bg_opacity + '%'"/></label>
+                                <div class="slider_container">
+                                    <input type="range" min="5" max="95" t-att-value="state.tempConfig.card_bg_opacity" t-on-input="(ev) => this.changeConfig('card_bg_opacity', ev.target.value)"/>
+                                </div>
+                            </div>
+                            <div class="hoss_form_group">
+                                <label>Card Border Radius <span class="val_label" t-esc="state.tempConfig.card_border_radius + 'px'"/></label>
+                                <div class="slider_container">
+                                    <input type="range" min="0" max="50" t-att-value="state.tempConfig.card_border_radius" t-on-input="(ev) => this.changeConfig('card_border_radius', ev.target.value)"/>
+                                </div>
+                            </div>
+                            <div class="hoss_form_group">
+                                <label>Card Border Width <span class="val_label" t-esc="state.tempConfig.card_border_width + 'px'"/></label>
+                                <div class="slider_container">
+                                    <input type="range" min="0" max="6" t-att-value="state.tempConfig.card_border_width" t-on-input="(ev) => this.changeConfig('card_border_width', ev.target.value)"/>
+                                </div>
+                            </div>
+                            <div class="hoss_form_group">
+                                <label>Card Border Color</label>
+                                <div class="color_picker_row">
+                                    <div class="color_picker_wrapper">
+                                        <input type="color" t-att-value="state.tempConfig.card_border_color" t-on-input="(ev) => this.changeConfig('card_border_color', ev.target.value)"/>
+                                        <input class="color_code_text" type="text" t-att-value="state.tempConfig.card_border_color" t-on-input="(ev) => this.changeConfig('card_border_color', ev.target.value)"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Admin Only: Time Schedule Settings -->
+                    <div t-if="state.config.is_admin" class="hoss_form_section">
+                        <h4>Time Schedule (Global)</h4>
+                        <div class="hoss_form_group d-flex align-items-center mb-3">
+                            <input type="checkbox" id="use_time_schedule" t-att-checked="state.tempConfig.use_time_schedule" t-on-change="(ev) => this.changeConfig('use_time_schedule', ev.target.checked)" class="me-2 cursor-pointer" style="width: 16px; height: 16px;"/>
+                            <label for="use_time_schedule" class="m-0 cursor-pointer text-slate-700 font-bold" style="font-size: 0.85rem;">Use Time Schedule</label>
+                        </div>
+                        <t t-if="state.tempConfig.use_time_schedule">
+                            <div class="hoss_form_group">
+                                <label>Start Hour (0-23) <span class="val_label" t-esc="(state.tempConfig.start_hour || 0) + ':00'"/></label>
+                                <div class="slider_container">
+                                    <input type="range" min="0" max="23" t-att-value="state.tempConfig.start_hour || 0" t-on-input="(ev) => this.changeConfig('start_hour', ev.target.value)"/>
+                                </div>
+                            </div>
+                            <div class="hoss_form_group">
+                                <label>End Hour (0-23) <span class="val_label" t-esc="(state.tempConfig.end_hour || 0) + ':00'"/></label>
+                                <div class="slider_container">
+                                    <input type="range" min="0" max="23" t-att-value="state.tempConfig.end_hour || 0" t-on-input="(ev) => this.changeConfig('end_hour', ev.target.value)"/>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Admin Only: Save globally toggle -->
+                    <div t-if="state.config.is_admin" class="hoss_form_group mt-3 d-flex align-items-center bg-light p-2 rounded border" style="background-color: rgba(0,0,0,0.03) !important;">
+                        <input type="checkbox" id="save_globally" t-att-checked="state.saveGlobally" t-on-change="(ev) => this.state.saveGlobally = ev.target.checked" class="me-2 cursor-pointer" style="width: 16px; height: 16px;"/>
+                        <label for="save_globally" class="m-0 cursor-pointer text-slate-700 font-bold" style="font-size: 0.85rem;">Apply globally (for all users)</label>
+                    </div>
+
+                    <!-- Link to backend configuration -->
+                    <a t-if="state.config.can_customize" class="link_backend_config" t-on-click="openBackendConfig">
+                        <i class="fa fa-cog"></i> Open Backend Config
+                    </a>
+                </div>
+                <div class="drawer_footer">
+                    <button class="btn_save" t-on-click="saveCustomizerSettings">Save</button>
+                    <button class="btn_cancel" t-on-click="cancelCustomizerSettings">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

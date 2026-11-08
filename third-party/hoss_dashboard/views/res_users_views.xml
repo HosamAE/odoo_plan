@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_users_form_inherit_hoss_dashboard" model="ir.ui.view">
+        <field name="name">res.users.form.inherit.hoss.dashboard</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <!-- Add can_customize_dashboard helper field -->
+            <xpath expr="//sheet" position="inside">
+                <field name="can_customize_dashboard" invisible="1"/>
+            </xpath>
+
+            <!-- Put the allow_dashboard_customization checkbox inside the Access Rights tab (Restricted to Admins) -->
+            <xpath expr="//page[@name='access_rights']" position="inside">
+                <group string="Hoss Dashboard Permissions" groups="base.group_system">
+                    <field name="allow_dashboard_customization"/>
+                </group>
+            </xpath>
+
+            <!-- Expose the settings page/tab for allowed users -->
+            <xpath expr="//page[@name='preferences']" position="after">
+                <page string="Dashboard Settings" name="hoss_dashboard_settings" invisible="not can_customize_dashboard">
+                    <group string="Hoss Dashboard Theme">
+                        <field name="dashboard_config_id" options="{'no_create': True}"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_users_form_dashboard_config" model="ir.ui.view">
+        <field name="name">res.users.form.dashboard.config</field>
+        <field name="model">res.users</field>
+        <field name="arch" type="xml">
+            <form string="Dashboard Settings">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <notebook>
+                        <page string="Dashboard Settings" name="hoss_dashboard_settings">
+                            <group>
+                                <group string="Dashboard Theme">
+                                    <field name="dashboard_config_id" options="{'no_create': True}"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

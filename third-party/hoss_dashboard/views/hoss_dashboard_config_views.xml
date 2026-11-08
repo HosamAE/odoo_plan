@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Hoss Dashboard Config Tree/List View -->
+    <record id="view_hoss_dashboard_config_tree" model="ir.ui.view">
+        <field name="name">hoss.dashboard.config.list</field>
+        <field name="model">hoss.dashboard.config</field>
+        <field name="arch" type="xml">
+            <list string="Dashboard Configurations">
+                <field name="name"/>
+                <field name="background_type"/>
+                <field name="user_id" string="Assigned User"/>
+                <field name="use_time_schedule"/>
+                <field name="start_hour" invisible="not use_time_schedule"/>
+                <field name="end_hour" invisible="not use_time_schedule"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Hoss Dashboard Config Form View -->
+    <record id="view_hoss_dashboard_config_form" model="ir.ui.view">
+        <field name="name">hoss.dashboard.config.form</field>
+        <field name="model">hoss.dashboard.config</field>
+        <field name="arch" type="xml">
+            <form string="Hoss Dashboard Configuration">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1>
+                            <field name="name" placeholder="e.g. Default Theme"/>
+                        </h1>
+                    </div>
+                    <notebook>
+                        <page string="Background Options" name="background">
+                            <group>
+                                <field name="background_type" widget="radio" options="{'horizontal': true}"/>
+                            </group>
+                            <group>
+                                <group invisible="background_type != 'color'">
+                                    <field name="background_color" widget="color"/>
+                                </group>
+                                <group invisible="background_type != 'gradient'">
+                                    <field name="background_gradient_start" widget="color"/>
+                                    <field name="background_gradient_end" widget="color"/>
+                                    <field name="background_gradient_angle"/>
+                                </group>
+                                <group invisible="background_type != 'image'">
+                                    <field name="background_image" widget="image"/>
+                                    <field name="background_image_url_custom"/>
+                                </group>
+                                <group>
+                                    <field name="background_saturation" widget="integer"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Layout &amp; Spacing" name="layout">
+                            <group>
+                                <group string="App Icon">
+                                    <field name="icon_size"/>
+                                    <field name="icon_shape" widget="radio" options="{'horizontal': true}"/>
+                                </group>
+                                <group string="Spacing &amp; Clock">
+                                    <field name="top_padding"/>
+                                    <field name="greeting_spacing"/>
+                                    <field name="show_clock"/>
+                                    <field name="clock_text_color" widget="color" invisible="not show_clock"/>
+                                    <field name="clock_bg_color" widget="color" invisible="not show_clock"/>
+                                    <field name="clock_border_color" widget="color" invisible="not show_clock"/>
+                                    <field name="clock_bg_opacity" invisible="not show_clock"/>
+                                    <field name="clock_border_width" invisible="not show_clock"/>
+                                    <field name="clock_shadow" invisible="not show_clock"/>
+                                    <field name="clock_text_shadow" invisible="not show_clock"/>
+                                </group>
+                                <group string="App Card Glassmorphism">
+                                    <field name="show_cards"/>
+                                    <field name="card_bg_color" widget="color" invisible="not show_cards"/>
+                                    <field name="card_bg_opacity" invisible="not show_cards"/>
+                                    <field name="card_border_radius" invisible="not show_cards"/>
+                                    <field name="card_border_width" invisible="not show_cards"/>
+                                    <field name="card_border_color" widget="color" invisible="not show_cards"/>
+                                    <field name="lock_app_positions"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Dashboard Content" name="content">
+                            <group string="Greeting Title">
+                                <field name="greeting_title"/>
+                                <field name="greeting_subtitle"/>
+                                <field name="greeting_align"/>
+                                <field name="greeting_title_size"/>
+                                <field name="greeting_subtitle_size"/>
+                            </group>
+                            <group string="Greeting Message HTML">
+                                <field name="greeting_html" widget="html" options="{'style-inline': true}"/>
+                            </group>
+                        </page>
+                        <page string="Time Schedule" name="schedule">
+                            <group>
+                                <field name="use_time_schedule"/>
+                                <field name="start_hour" invisible="not use_time_schedule"/>
+                                <field name="end_hour" invisible="not use_time_schedule"/>
+                            </group>
+                        </page>
+                        <page string="Assignment" name="assignment" groups="base.group_system">
+                            <group>
+                                <field name="user_id"/>
+                                <field name="allow_user_customization"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Singleton Server Action to fetch or create and return form view -->
+    <record id="action_hoss_dashboard_config" model="ir.actions.server">
+        <field name="name">Home Menu Settings</field>
+        <field name="model_id" ref="model_hoss_dashboard_config"/>
+        <field name="state">code</field>
+        <field name="code">
+action = env['hoss.dashboard.config'].get_config_action()
+        </field>
+    </record>
+
+    <!-- Menuitem to access settings -->
+    <menuitem id="menu_hoss_dashboard_config"
+              name="Hoss Dashboard Settings"
+              action="action_hoss_dashboard_config"
+              parent="base.menu_administration"
+              sequence="100"/>
+</odoo>
