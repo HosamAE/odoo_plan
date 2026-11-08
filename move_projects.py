@@ -13,7 +13,7 @@ What it does for this tools' version:
      carry absolute paths: *.conf, .claude/*.json, .vscode/*.json - and in
      odoo<NN>/odoo.conf (secrets stay where they are: only the path changes)
   4. `git worktree repair` in every moved repository
-Afterwards: `odoo-ai workspace` rewrites workspaces, graph configs and
+Then it runs `odoo-ai workspace`, which rewrites workspaces, graph configs and
 CLAUDE.md for the new paths, and `odoo-ai kg index` in each project
 refreshes its graph.
 
@@ -25,7 +25,7 @@ import re
 import shutil
 import subprocess
 
-from workspace_sync import FS_ROOT, LEGACY_PROJECTS, TOOLS_VERSION, fs, projects_root
+from workspace_sync import FS_ROOT, LEGACY_PROJECTS, TOOLS_VERSION, fs, projects_root, run_workspace_sync
 
 LOCAL_FILES = ("*.conf", ".claude/*.json", ".vscode/*.json")
 
@@ -126,8 +126,15 @@ def run_move_projects(apply=False):
             print(f"  removed  {src} (empty)")
         except OSError:
             print(f"  kept     {src}: not empty")
+    if not apply:
+        print("\n[MOVE] dry run done.")
+        return 0
+    print("\n[MOVE] Rewriting workspaces, graph configs and CLAUDE.md for the new paths:")
+    run_workspace_sync(versions=(v,))
     if failed:
-        print(f"\n[MOVE] {len(failed)} not moved: {', '.join(failed)}. Close what holds them and run again.")
+        print(f"\n[MOVE] {len(failed)} not moved: {', '.join(failed)}. Close what holds them "
+              "(VS Code, a running Odoo) and run `odoo-ai move-projects --apply` again.")
         return 1
-    print("\n[MOVE] done." + (" Next: odoo-ai workspace, then odoo-ai kg index in each project." if apply else ""))
+    print("\n[MOVE] done. Open each project's workspace from its new folder; "
+          "`odoo-ai kg index` in a project refreshes its graph.")
     return 0
