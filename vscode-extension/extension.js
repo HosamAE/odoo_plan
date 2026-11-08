@@ -7,14 +7,14 @@
 // the "Odoo CI" output channel unchanged.
 //
 // No setup per workspace: the project is found from the folder path
-// (...\ProjectsOdoo<NN>\<project>), the same rule odoo-ai uses.
+// (...\odoo<NN>\projects\<project>), the same rule odoo-ai uses.
 "use strict";
 
 const vscode = require("vscode");
 const cp = require("child_process");
 const path = require("path");
 
-const PROJECT_RX = /ProjectsOdoo(\d+)[\\/]([^\\/]+)/i;
+const PROJECT_RX = /odoo(\d+)[\\/]projects[\\/]([^\\/]+)/i;
 const FILE_LINE_RX = /^\s*([\w./\\-]+\.(?:py|xml|csv|js|scss|po|yml|txt)):(\d+):\s*(.*)$/;
 
 let output, statusItem, diagnostics, tree, child = null;
@@ -187,7 +187,7 @@ function run(mode) {
   }
   const project = findProject();
   if (!project) {
-    vscode.window.showErrorMessage("Odoo CI: this workspace is not inside ProjectsOdoo<NN>\\<project>.");
+    vscode.window.showErrorMessage("Odoo CI: this workspace is not inside odoo<NN>\\projects\\<project>.");
     return;
   }
   const cfg = vscode.workspace.getConfiguration("odooCi");

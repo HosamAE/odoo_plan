@@ -1,6 +1,6 @@
 """
 Odoo AI Workspace Sync Engine
-Wires every project under C:\\odoo\\ProjectsOdoo<version>\\ into the knowledge graph (odoo-kg)
+Wires every project under C:\\odoo\\odoo<version>\\projects\\ into the knowledge graph (odoo-kg)
 and keeps its VS Code workspace on the shared layout.
 
 For each project it:
@@ -19,6 +19,10 @@ import re
 import sys
 
 WIN_ROOT = "C:/odoo"
+# A project lives with its Odoo version: C:/odoo/odoo<NN>/projects/<name> (since 2026-11-08;
+# LEGACY_PROJECTS is where they were before, read only to move old paths).
+PROJECT_RX = re.compile(r"odoo(\d+)/projects/([^/]+)", re.IGNORECASE)
+LEGACY_PROJECTS = "ProjectsOdoo"
 # These tools live in C:/odoo/odoo<NN>/tools: one copy per Odoo version, each free to differ.
 TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 FS_ROOT = os.path.dirname(os.path.dirname(TOOLS_DIR))
@@ -42,6 +46,14 @@ SKIP_DIRS = {".git", ".history", "venv", ".venv", "node_modules", "__pycache__",
 
 
 # --------------------------------------------------------------------- helpers
+
+def projects_root(version):
+    return f"{WIN_ROOT}/odoo{version}/projects"
+
+
+def project_dir(version, name):
+    return f"{projects_root(version)}/{name}"
+
 
 def fs(win_path):
     """C:/odoo/x -> the real path of x on this machine."""
@@ -315,7 +327,7 @@ ACME17_SECTION = """## What this repository is
 
 Odoo 17 Acme addons: coworking, conference, rental and SaaS on Odoo 17.
 `ONBOARDING.md` is the day-one read; `ACCESS_RIGHTS.md` and `VERSION_BUMP.md` are the two rules people break.
-Odoo 17 syntax rules: `C:\\odoo\\ProjectsOdoo17\\core\\ODOO17_FRAMEWORK_RULES_AND_DIFFERENCES.md`
+Odoo 17 syntax rules: `C:\\odoo\\odoo17\\projects\\core\\ODOO17_FRAMEWORK_RULES_AND_DIFFERENCES.md`
 (Odoo 17 `_()`, `odoo.osv.expression`; not the Odoo 19 forms).
 
 ## Rules from ONBOARDING.md
@@ -369,21 +381,21 @@ def claude_md(version, name, pid, fam, conf, git, users):
                     "per customer, and their `origin` remote is this folder, not GitHub.")
         elif r.lower().replace("\\", "/").endswith("projectsodoo17/sample_shared"):
             what = (f"Customer checkout `{name}`: branch `{b}`, cloned from the local "
-                    "`C:\\odoo\\ProjectsOdoo17\\sample_shared` (its `origin`). Customer-specific work stays on this branch.")
+                    "`C:\\odoo\\odoo17\\projects\\sample_shared` (its `origin`). Customer-specific work stays on this branch.")
         elif b == "core":
             what = (f"`core` of `{r}`: the production trunk. Changes arrive through `testing` "
-                    "(`C:\\odoo\\ProjectsOdoo17\\acme`). `deploy_remove_enterprise.sh` is the server "
+                    "(`C:\\odoo\\odoo17\\projects\\acme`). `deploy_remove_enterprise.sh` is the server "
                     "deploy that removed the Enterprise modules; read it before deploying core.")
         else:
             what = (f"Branch `{b}` of `{r}`: staging. Branch off `testing`, merge back into `testing`, "
                     "promote to `main`/`core` when ready.")
-        pdir = fs(f"{WIN_ROOT}/ProjectsOdoo{v}/{name}")
+        pdir = fs(project_dir(v, name))
         alt = os.path.join(pdir, ".git", "objects", "info", "alternates")
         if os.path.isfile(alt) and "sample_shared" in open(alt, encoding="utf-8", errors="ignore").read():
-            what += ("\n\nIts git objects live in `C:\\odoo\\ProjectsOdoo17\\sample_shared` "
+            what += ("\n\nIts git objects live in `C:\\odoo\\odoo17\\projects\\sample_shared` "
                      "(`.git/objects/info/alternates`): never move, delete or `git gc --prune` `sample_shared`, "
                      "or this checkout loses its history.")
-        hook = os.path.isfile(os.path.join(fs(f"{WIN_ROOT}/ProjectsOdoo{v}/{name}"), ".git", "hooks", "pre-commit"))
+        hook = os.path.isfile(os.path.join(fs(project_dir(v, name)), ".git", "hooks", "pre-commit"))
         parts.append(ACME17_SECTION.format(
             what=what, hook_note="" if hook else " (**not installed in this checkout yet**)"))
     elif fam == "addon-repo":
@@ -394,7 +406,7 @@ def claude_md(version, name, pid, fam, conf, git, users):
         db = conf["db_name"]
         parts.append(RUN_SECTION.format(
             py=f"C:\\odoo\\odoo{v}\\venv\\Scripts\\python.exe", bin=f"C:\\odoo\\odoo{v}\\odoo\\odoo-bin",
-            conf_path=f"C:\\odoo\\ProjectsOdoo{v}\\{name}\\{conf['file']}", port=conf["port"],
+            conf_path=f"C:\\odoo\\odoo{v}\\projects\\{name}\\{conf['file']}", port=conf["port"],
             db_user=conf["db_user"], db_line="" if db in ("False", "", None) else f", database `{db}`",
             addons="\n".join(f"- `{a}`" for a in conf["addons"])))
     parts.append(KG_SECTION.format(pid=pid))
@@ -406,7 +418,7 @@ def claude_md(version, name, pid, fam, conf, git, users):
 def projects_listing(addon_dir_win, version):
     """Projects of this version whose .conf addons_path names addon_dir_win."""
     users = []
-    base = fs(f"{WIN_ROOT}/ProjectsOdoo{version}")
+    base = fs(projects_root(version))
     key = addon_dir_win.replace("\\", "/").lower().rstrip("/")
     for n in sorted(os.listdir(base)):
         d = os.path.join(base, n)
@@ -416,7 +428,7 @@ def projects_listing(addon_dir_win, version):
             if f.endswith(".conf"):
                 text = open(os.path.join(d, f), encoding="utf-8", errors="ignore").read().replace("\\", "/").lower()
                 if key in text:
-                    users.append(f"ProjectsOdoo{version}\\{n}\\{f}")
+                    users.append(f"odoo{version}\\projects\\{n}\\{f}")
     return users
 
 
@@ -469,7 +481,7 @@ def insert_tasks(text, tasks):
 
 def new_workspace(version, name, kg_python, config_win):
     v = version
-    proj = f"{WIN_ROOT}/ProjectsOdoo{v}/{name}"
+    proj = project_dir(v, name)
     py = f"{WIN_ROOT}/odoo{v}/venv/Scripts/python.exe"
     lint = {
         "label": "odoo-ai: lint this module", "type": "process", "command": py,
@@ -551,16 +563,16 @@ def new_workspace(version, name, kg_python, config_win):
     }
 
 
-def exclude_locally(project_dir, pattern, dry):
-    exclude = os.path.join(project_dir, ".git", "info", "exclude")
-    if not os.path.isdir(os.path.join(project_dir, ".git")):
+def exclude_locally(pdir, pattern, dry):
+    exclude = os.path.join(pdir, ".git", "info", "exclude")
+    if not os.path.isdir(os.path.join(pdir, ".git")):
         return False
     current = ""
     if os.path.isfile(exclude):
         current, _ = read_text(exclude)
     if pattern in current.splitlines():
         return False
-    gitignore = os.path.join(project_dir, ".gitignore")
+    gitignore = os.path.join(pdir, ".gitignore")
     if os.path.isfile(gitignore) and pattern in read_text(gitignore)[0].replace("\r\n", "\n").split("\n"):
         return False  # the repository already ignores it
     if not dry:
@@ -597,7 +609,7 @@ def clone_conf(version, name, dry):
     """<name>.conf for a project without one: the pattern project's conf (same DB user and
     passwords), with this project's addons_path and its own port."""
     sib = PATTERN_PROJECT.get(version)
-    sib_dir = fs(f"{WIN_ROOT}/ProjectsOdoo{version}/{sib}")
+    sib_dir = fs(project_dir(version, sib))
     src_name = conf_name(sib_dir, sib) if sib and os.path.isdir(sib_dir) else None
     if not src_name:
         return None
@@ -606,7 +618,7 @@ def clone_conf(version, name, dry):
     m = re.search(r"^addons_path\s*=\s*(.*)$", s, re.M)
     parts = [p.strip() for p in m.group(1).split(",") if p.strip()]
     keep = [p for p in parts if p.replace("\\", "/").lower().find("projectsodoo") < 0]
-    mine = f"{WIN_ROOT}/ProjectsOdoo{version}/{name}"
+    mine = project_dir(version, name)
     s = s[:m.start(1)] + ", ".join(keep + [mine]) + s[m.end(1):]
     port = NEW_PORTS.get((version, name), None)
     if port:
@@ -621,9 +633,9 @@ def clone_conf(version, name, dry):
 def clone_workspace(version, name, pid, inner, dry):
     """<name>.code-workspace from the pattern project's own workspace, paths and names swapped."""
     sib = PATTERN_PROJECT.get(version)
-    sib_dir = fs(f"{WIN_ROOT}/ProjectsOdoo{version}/{sib}")
+    sib_dir = fs(project_dir(version, sib))
     src = os.path.join(sib_dir, f"{sib}.code-workspace") if inner else \
-        fs(f"{WIN_ROOT}/ProjectsOdoo{version}/{sib}.code-workspace")
+        fs(f"{projects_root(version)}/{sib}.code-workspace")
     if not os.path.isfile(src):
         src = os.path.join(sib_dir, f"{sib}.code-workspace")
         if not os.path.isfile(src):
@@ -633,12 +645,12 @@ def clone_workspace(version, name, pid, inner, dry):
         from_inner = inner
     t, crlf = read_text(src)
     sib_pid = PROJECT_ID_OVERRIDES.get((version, sib.lower()), project_id(sib, version))
-    for a, b in ((f"ProjectsOdoo{version}/{sib}", f"ProjectsOdoo{version}/{name}"),
-                 (f"ProjectsOdoo{version}\\\\{sib}", f"ProjectsOdoo{version}\\\\{name}"),
+    for a, b in ((f"odoo{version}/projects/{sib}", f"odoo{version}/projects/{name}"),
+                 (f"odoo{version}\\\\projects\\\\{sib}", f"odoo{version}\\\\projects\\\\{name}"),
                  (f"{sib_pid}.toml", f"{pid}.toml")):
         t = t.replace(a, b)
     sib_conf = conf_name(sib_dir, sib)
-    my_conf = conf_name(fs(f"{WIN_ROOT}/ProjectsOdoo{version}/{name}"), name) or f"{name}.conf"
+    my_conf = conf_name(fs(project_dir(version, name)), name) or f"{name}.conf"
     if sib_conf:
         t = t.replace(f"/{name}/{sib_conf}", f"/{name}/{my_conf}")
     t = re.sub(r'(\s*)"-u",\s*"[^"]*",', "", t)        # the pattern's own module list
@@ -648,8 +660,8 @@ def clone_workspace(version, name, pid, inner, dry):
         t = t.replace('"name": "Project",\n      "path": "."', f'"name": "Project",\n      "path": "./{name}"')
         t = re.sub(r'("name":\s*"Project",\s*"path":\s*)"\."', rf'\1"./{name}"', t)
     loads_jsonc(t)
-    dst = os.path.join(fs(f"{WIN_ROOT}/ProjectsOdoo{version}/{name}"), f"{name}.code-workspace") if inner else \
-        fs(f"{WIN_ROOT}/ProjectsOdoo{version}/{name}.code-workspace")
+    dst = os.path.join(fs(project_dir(version, name)), f"{name}.code-workspace") if inner else \
+        fs(f"{projects_root(version)}/{name}.code-workspace")
     write_text(dst, t, crlf=crlf, dry=dry)
     return os.path.relpath(dst, FS_ROOT)
 
@@ -657,9 +669,11 @@ def clone_workspace(version, name, pid, inner, dry):
 
 def fix_folders(text, version, name, inner):
     """The two folders of a workspace: Odoo source and the project. Beside the project
-    (ProjectsOdooNN/<name>.code-workspace) they are ../odooNN and ./<name>; inside it ../../odooNN and '.'."""
+    (odooNN/projects/<name>.code-workspace) they are ../odoo and ./<name>; inside it ../../odoo and '.'."""
     changed = []
-    odoo_path = f"../../odoo{version}" if inner else f"../odoo{version}"
+    # The Odoo source, not the version folder: that folder holds the projects too,
+    # and VS Code would show (and index) the project twice.
+    odoo_path = "../../odoo" if inner else "../odoo"
     proj_path = "." if inner else f"./{name}"
     def sub(label, want, t):
         pat = re.compile(r'("name"\s*:\s*"' + label + r'"\s*,\s*"path"\s*:\s*)"([^"]*)"')
@@ -716,8 +730,8 @@ DEAD_SETTINGS = ("odoo.interpreter", "odoo.pythonPath", "odoo.addons",
 
 
 def odools_path(version, name):
-    """Beside the project, outside its repository: per developer, never committed."""
-    return f"{WIN_ROOT}/ProjectsOdoo{version}/{name}.odools.toml"
+    """Inside the project, kept out of its repository (.git/info/exclude): per developer."""
+    return f"{project_dir(version, name)}/odools.toml"
 
 
 def odools_text(version, name, conf):
@@ -737,7 +751,7 @@ def odools_text(version, name, conf):
             continue
         if os.path.isdir(fs(path)) or path.lower().startswith(f"{WIN_ROOT}/projectsodoo{v}/{name}".lower()):
             addons.append(path)
-    project = f"{WIN_ROOT}/ProjectsOdoo{v}/{name}"
+    project = project_dir(v, name)
     if project.lower() not in (a.lower() for a in addons):
         addons.append(project)
     tsserver = os.path.expandvars(r"%APPDATA%\npm\tsserver.cmd")
@@ -776,7 +790,7 @@ def odools_text(version, name, conf):
         "",
         "# The project only: Odoo itself and the venv are analysed, not reported.",
         "[[config.diagnostic_filters]]",
-        f'paths = ["**/ProjectsOdoo{v}/{name}/**"]',
+        f'paths = ["**/odoo{v}/projects/{name}/**"]',
         'path_type = "notin"',
         "",
         "# Tests touch models of modules installed in the test DB without declaring them.",
@@ -899,11 +913,13 @@ def tools_cli(version):
 # Paths from before the tools moved into C:/odoo/odoo<NN>/tools (2026-11-08)
 def move_tool_paths(text, version):
     changed = []
-    for old, new in ((f"{WIN_ROOT}/odoo_ai_cli/cli.py", tools_cli(version)),
+    for old, new in ((f"{WIN_ROOT}/{LEGACY_PROJECTS}{version}/", f"{projects_root(version)}/"),
+                     (f"C:\\\\odoo\\\\{LEGACY_PROJECTS}{version}\\\\", f"C:\\\\odoo\\\\odoo{version}\\\\projects\\\\"),
+                     (f"{WIN_ROOT}/odoo_ai_cli/cli.py", tools_cli(version)),
                      (f"--rcfile={WIN_ROOT}/odoo{version}/.pylintrc", f"--rcfile={WIN_ROOT}/odoo{version}/tools/.pylintrc")):
         if old in text:
             text = text.replace(old, new)
-            changed.append(f"{old.rsplit('/', 1)[-1]} -> tools/")
+            changed.append(f"{old.rstrip('/').rsplit('/', 1)[-1]} -> new path")
     loads_jsonc(text)
     return text, changed
 
@@ -921,7 +937,7 @@ def write_local_settings(kg_python, localappdata, dry):
 def resolve_project(path):
     """(version, name, pid, config_win) of the project a path belongs to, or None."""
     norm = os.path.abspath(path).replace("\\", "/")
-    m = re.search(r"ProjectsOdoo(\d+)/([^/]+)", norm, re.IGNORECASE)
+    m = PROJECT_RX.search(norm)
     if not m:
         return None
     version, name = m.group(1), m.group(2)
@@ -933,7 +949,7 @@ def resolve_project(path):
 
 def sync_project(version, name, kg_python, localappdata, dry=False, create_workspace=True):
     report = []
-    win_dir = f"{WIN_ROOT}/ProjectsOdoo{version}/{name}"
+    win_dir = project_dir(version, name)
     pdir = fs(win_dir)
     manifests = count_manifests(pdir)
     if manifests == 0:
@@ -984,13 +1000,15 @@ def sync_project(version, name, kg_python, localappdata, dry=False, create_works
             report.append(f"workspace  created {made}")
         if exclude_locally(pdir, "*.code-workspace", dry):
             report.append("git        *.code-workspace added to .git/info/exclude")
-    # ... and its OdooLS config, beside the project (never in its repository)
+    # ... and its OdooLS config, inside the project but never in its repository
     odools_fs = fs(odools_path(version, name))
     wanted_ls = odools_text(version, name, read_conf(pdir, name))
     current_ls = read_text(odools_fs)[0] if os.path.isfile(odools_fs) else None
     if current_ls is None or (MARKER in current_ls and current_ls.replace("\r\n", "\n") != wanted_ls):
         write_text(odools_fs, wanted_ls, dry=dry)
         report.append(f"odools     {odools_path(version, name)}")
+    if exclude_locally(pdir, "odools.toml", dry):
+        report.append("git        odools.toml added to .git/info/exclude")
     for path in candidates:
         if not os.path.isfile(path):
             continue
@@ -1035,7 +1053,7 @@ def sync_project(version, name, kg_python, localappdata, dry=False, create_works
 
 def iter_projects(versions):
     for v in versions:
-        base = fs(f"{WIN_ROOT}/ProjectsOdoo{v}")
+        base = fs(projects_root(v))
         if not os.path.isdir(base):
             continue
         for name in sorted(os.listdir(base)):
@@ -1049,9 +1067,9 @@ def run_workspace_sync(path=None, versions=(TOOLS_VERSION,), kg_python=None, loc
     localappdata = find_localappdata(localappdata)
     if path:
         norm = path.replace("\\", "/")
-        m = re.search(r"ProjectsOdoo(\d+)/([^/]+)", norm, re.IGNORECASE)
+        m = PROJECT_RX.search(norm)
         if not m:
-            raise SystemExit(f"not a project folder: {path} (expected ...\\ProjectsOdoo<version>\\<Project>)")
+            raise SystemExit(f"not a project folder: {path} (expected ...\\odoo<version>\\projects\\<Project>)")
         if m.group(1) != TOOLS_VERSION:
             raise SystemExit(f"{path} is an Odoo {m.group(1)} project: these are the Odoo {TOOLS_VERSION} tools "
                              f"(run `odoo-ai`, it picks C:\\odoo\\odoo{m.group(1)}\\tools)")

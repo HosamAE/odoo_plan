@@ -6,9 +6,9 @@ is on PATH) only picks the version and hands over:
 
   1. -v/--version NN on the command line;
   2. else the version of -p/--path;
-  3. else the version of the current folder (ProjectsOdoo<NN>/... or odoo<NN>/...).
+  3. else the version of the current folder (odoo<NN>/..., its projects included).
 
-With no version anywhere, `workspace`, `doctor` and `info` run once per
+With no version anywhere, `workspace`, `doctor`, `info` and `move-projects` run once per
 installed version; any other command says how to choose one.
 
 Source: launcher/odoo-ai.py in the tools repository. `odoo-ai doctor --fix`
@@ -21,8 +21,8 @@ import subprocess
 import sys
 
 ROOT = os.environ.get("ODOO_ROOT", r"C:\odoo")
-VERSION_RX = re.compile(r"(?:ProjectsOdoo|[\\/]odoo)(\d{2})(?:[\\/]|$)", re.IGNORECASE)
-EVERY_VERSION = {"workspace", "doctor", "info"}
+VERSION_RX = re.compile(r"[\\/]odoo(\d{2})(?:[\\/]|$)", re.IGNORECASE)
+EVERY_VERSION = {"workspace", "doctor", "info", "move-projects"}
 
 
 def installed():
@@ -71,7 +71,7 @@ def main():
         print(__doc__)
         print("Installed versions:", ", ".join(installed()) or "none")
         sys.exit(0)
-    sys.exit("odoo-ai: run it inside a project (ProjectsOdoo<NN>\\<project>) or pass -v <NN>. "
+    sys.exit("odoo-ai: run it inside a project (odoo<NN>\\projects\\<project>) or pass -v <NN>. "
              f"Installed versions: {', '.join(installed()) or 'none'}")
 
 
