@@ -1,0 +1,27 @@
+# Packages Odoo 17 needs here beyond odoo/requirements.txt (lint, CI, the modules imports).
+# pip install -r C:\odoo\odoo17\odoo\requirements.txt -r C:\odoo\odoo17\tools\setup\requirements-extra.txt
+pyyaml
+pyflakes
+black
+flake8
+pylint-odoo==10.0.4
+isort
+asn1crypto
+boto3
+cbor2
+docker
+dropbox
+geocoder
+gTTS
+nextcloud-api-wrapper
+openpyxl
+pandas
+paramiko
+pre_commit
+pycountry
+pyncclient
+python-crontab
+SQLAlchemy
+sqlparse
+timezonefinder
+ua-parser
