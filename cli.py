@@ -14,6 +14,7 @@ from ai_diagnoser import generate_diagnostic_prompt
 from workspace_sync import run_workspace_sync, resolve_project, KG_DIR, TOOLS_DIR, TOOLS_VERSION, fs
 from ci_local import run_ci
 from doctor import run_doctor
+from move_projects import run_move_projects
 
 VERSION = "1.3.0"
 SUPPORTED_VERSIONS = ["17", "18", "19", "20"]
@@ -34,8 +35,8 @@ def module_root(path):
 
 
 def detect_version(path, fallback=TOOLS_VERSION):
-    """Odoo version from a path: C:\\odoo\\odoo19\\..., ...\\ProjectsOdoo18\\..., else the fallback."""
-    match = re.search(r"(?:ProjectsOdoo|[\\/]odoo)(1[0-9]|2[0-9])(?:[\\/]|$)", os.path.abspath(path), re.IGNORECASE)
+    """Odoo version from a path: C:\\odoo\\odoo19\\... (projects included), else the fallback."""
+    match = re.search(r"[\\/]odoo(1[0-9]|2[0-9])(?:[\\/]|$)", os.path.abspath(path), re.IGNORECASE)
     return match.group(1) if match else fallback
 
 def kg_python():
@@ -53,7 +54,7 @@ def run_kg(action, path):
     import subprocess
     project = resolve_project(path)
     if not project:
-        print(f"[KG] {os.path.abspath(path)} is not inside C:\\odoo\\ProjectsOdoo<version>\\<Project>")
+        print(f"[KG] {os.path.abspath(path)} is not inside C:\\odoo\\odoo<version>\\projects\\<Project>")
         return 2
     version, name, pid, config_win = project
     if not os.path.isfile(fs(config_win)):
@@ -121,6 +122,11 @@ def main():
     doctor_parser.add_argument("--fix", action="store_true",
                                help="Repair what is safe (launcher, PATH, pylint .pth); never deletes")
 
+    # 9. Move-projects Command (once per machine, 2026-11-08 layout)
+    move_parser = subparsers.add_parser(
+        "move-projects", help="Move C:/odoo/ProjectsOdoo<NN>/* into C:/odoo/odoo<NN>/projects/ (dry run unless --apply)")
+    move_parser.add_argument("--apply", action="store_true", help="Do it (close VS Code and stop Odoo first)")
+
     args = parser.parse_args()
 
     if getattr(args, "path", None) and args.command in ("lint", "audit"):
@@ -178,6 +184,9 @@ def main():
 
     elif args.command == "ci":
         sys.exit(run_ci(args.path, args.static_only, args.stop_servers, args.keep_db))
+
+    elif args.command == "move-projects":
+        sys.exit(run_move_projects(args.apply))
 
     elif args.command == "doctor":
         sys.exit(run_doctor(args.fix))

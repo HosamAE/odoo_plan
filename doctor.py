@@ -5,7 +5,7 @@ Checks the layout agreed on 2026-11-08 for the version these tools belong to:
   C:/odoo/odoo<NN>/            Odoo source, venv, odoo.conf (not in git)
   C:/odoo/odoo<NN>/tools/      these tools, branch <NN>.0 of the tools repository
   C:/odoo/bin/                 the odoo-ai launcher (on PATH), shared by every version
-  C:/odoo/ProjectsOdoo<NN>/<project>/   one workspace inside, its graph config, .mcp.json
+  C:/odoo/odoo<NN>/projects/<project>/  one workspace inside, its graph config, .mcp.json, odools.toml
 
 `--fix` repairs what is safe to repair (launcher, PATH, pylint .pth); it never
 deletes anything, it only names what is left over.
@@ -16,7 +16,7 @@ import shutil
 import subprocess
 
 from workspace_sync import (FS_ROOT, KG_DIR, TOOLS_DIR, TOOLS_VERSION, count_manifests, fs, iter_projects,
-                            loads_jsonc, project_id, PROJECT_ID_OVERRIDES)
+                            loads_jsonc, project_dir, project_id, projects_root, PROJECT_ID_OVERRIDES)
 
 BIN = os.path.join(FS_ROOT, "bin")
 LAUNCHER = os.path.join(TOOLS_DIR, "launcher")
@@ -89,6 +89,8 @@ def check_tools(r, v, fix):
                  f"C:/odoo/odoo{v}/.pylintrc", f"C:/odoo/odoo{v}/.flake8"):
         if os.path.exists(fs(left)):
             r.bad(f"left over: {left}", "now in tools/; remove it")
+    r.check(not os.path.isdir(fs(f"C:/odoo/ProjectsOdoo{v}")), f"projects in odoo{v}/projects",
+            f"projects still in C:/odoo/ProjectsOdoo{v}", "odoo-ai move-projects --apply (VS Code closed)")
 
 
 def check_launcher(r, fix):
@@ -128,7 +130,7 @@ def check_launcher(r, fix):
 
 def check_projects(r, v):
     for version, name in iter_projects((v,)):
-        pdir = fs(f"C:/odoo/ProjectsOdoo{version}/{name}")
+        pdir = fs(project_dir(version, name))
         if count_manifests(pdir) == 0:
             continue
         if not os.path.isdir(os.path.join(pdir, ".git")) and not os.path.isfile(
@@ -142,7 +144,7 @@ def check_projects(r, v):
             loads_jsonc(text)
             r.check(not any(old in text for old in LEGACY), "workspace runs tools/cli.py",
                     "workspace still runs C:/odoo/odoo_ai_cli", "odoo-ai workspace")
-        outer = fs(f"C:/odoo/ProjectsOdoo{version}/{name}.code-workspace")
+        outer = fs(f"{projects_root(version)}/{name}.code-workspace")
         r.check(not os.path.isfile(outer), "one workspace (none beside the project)",
                 f"second workspace beside the project: {outer}", "remove it; the one inside is the workspace")
         pid = PROJECT_ID_OVERRIDES.get((version, name.lower()), project_id(name, version))
