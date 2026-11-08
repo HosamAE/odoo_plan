@@ -406,7 +406,7 @@
       {
         "label": "odoo-kg: build graph",
         "type": "process",
-        "command": "C:/Users/COMPUMARTS/AppData/Local/Programs/Python/Python312/python.exe",
+        "command": "{{KG_PYTHON}}",
         "args": [
           "-m",
           "odoo_kg",
@@ -428,11 +428,9 @@
       {
         "label": "odoo-kg: status",
         "type": "process",
-        "command": "C:/Users/COMPUMARTS/AppData/Local/Programs/Python/Python312/python.exe",
+        "command": "C:/odoo/odoo19/venv/Scripts/python.exe",
         "args": [
-          "-m",
-          "odoo_kg",
-          "status",
+          "C:/odoo/odoo19/tools/kg_open.py",
           "--config",
           "C:/odoo/odoo19/tools/kg/config/local/{{PROJECT_ID}}.toml"
         ],
@@ -440,18 +438,20 @@
           "cwd": "C:/odoo/odoo19/tools/kg"
         },
         "presentation": {
-          "reveal": "always",
+          "reveal": "silent",
           "panel": "dedicated",
           "clear": true
         },
         "problemMatcher": [],
-        "runOptions": {"runOn": "folderOpen"},
-        "detail": "Is the published graph fresh for the tree on disk?"
+        "runOptions": {
+          "runOn": "folderOpen"
+        },
+        "detail": "On open: keep the graph fresh (rebuilt when a commit left it behind)"
       },
       {
         "label": "odoo-kg: doctor",
         "type": "process",
-        "command": "C:/Users/COMPUMARTS/AppData/Local/Programs/Python/Python312/python.exe",
+        "command": "{{KG_PYTHON}}",
         "args": [
           "-m",
           "odoo_kg",
@@ -473,12 +473,14 @@
     ]
   },
   "settings": {
+    "terminal.integrated.environmentChangesIndicator": "off",
+    "terminal.integrated.environmentChangesRelaunch": true,
     "Odoo.disableJsLanguageServerPopup": true,
     "mcp": {
       "servers": {
         "odoo-kg": {
           "type": "stdio",
-          "command": "C:/Users/COMPUMARTS/AppData/Local/Programs/Python/Python312/python.exe",
+          "command": "{{KG_PYTHON}}",
           "args": [
             "-m",
             "odoo_kg",
