@@ -232,7 +232,7 @@ def kg_config_text(pid, version, repo_root, data_dir, profile, origins, rules=()
 [project]
 project_id = "{pid}"
 repo_root = "{repo_root}"
-core_root = "{WIN_ROOT}/odoo{version}"
+core_root = "{WIN_ROOT}/odoo{version}/odoo"
 
 [storage]
 data_dir = "{data_dir}"
