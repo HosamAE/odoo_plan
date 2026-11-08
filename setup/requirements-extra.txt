@@ -1,0 +1,10 @@
+# Packages Odoo 20 needs here beyond odoo/requirements.txt (lint, CI, the modules imports).
+# pip install -r C:\odoo\odoo20\odoo\requirements.txt -r C:\odoo\odoo20\tools\setup\requirements-extra.txt
+pyyaml
+pyflakes
+black
+flake8
+pylint-odoo==10.0.12
+isort
+markdown2
+websocket-client

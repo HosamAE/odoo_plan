@@ -1,0 +1,38 @@
+{
+  "_comment": "What Odoo 20 needs on a machine. The sources, the venv and the packages you install yourself; `odoo-ai setup --check` says what is missing and the command for it.",
+  "version": "20",
+  "odoo_branch": "20.0",
+  "python": "3.12",
+  "repos": [
+    {
+      "path": "odoo",
+      "url": "https://github.com/odoo/odoo.git",
+      "branch": "20.0",
+      "required": true
+    },
+    {
+      "path": "design-themes",
+      "url": "https://github.com/odoo/design-themes.git",
+      "branch": "20.0",
+      "required": false
+    },
+    {
+      "path": "enterprise",
+      "url": "https://github.com/odoo/enterprise.git",
+      "branch": "20.0",
+      "required": false,
+      "note": "needs an Odoo partner account with access to odoo/enterprise"
+    }
+  ],
+  "addons_path": [
+    "enterprise",
+    "design-themes",
+    "odoo/addons",
+    "third-party"
+  ],
+  "db_user": "odoo20",
+  "postgresql": "16 or newer (18 used here); db_template = template1 on Windows with PostgreSQL 18",
+  "wkhtmltopdf": "0.12.6 (patched Qt), C:/Program Files/wkhtmltopdf/bin",
+  "pylint_plugin": true,
+  "requirements_extra": "setup/requirements-extra.txt"
+}
