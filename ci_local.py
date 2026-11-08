@@ -171,11 +171,18 @@ def _modules_and_tags(repo, version):
 
 #: Starts odoo-bin with the clock set to a moment (freezegun, ticking from there):
 #: `odoo-ai ci --at "2026-11-07 23:30"` runs the suite as if it were that UTC time.
-#: The database's own now() is not moved - create_date and SQL now() stay real.
+#: The database's own now() is NOT moved: create_date and SQL now() stay real, so a
+#: test comparing create_date with the Python clock fails at a frozen moment and
+#: passes at the real one - read such a failure before calling it a bug
+#: (2026-11-08: crm_core's response alert, create_date vs now()).
+#: freezegun swaps time.localtime, which logging.Formatter keeps as its converter
+#: and then calls as a method: every log line failed to format. It is put back
+#: as a staticmethod after the clock starts.
 FROZEN_START = "\n".join((
-    "import runpy, sys",
+    "import logging, runpy, sys, time",
     "from freezegun import freeze_time",
     "freeze_time(sys.argv[1], tick=True).start()",
+    "logging.Formatter.converter = staticmethod(time.localtime)",
     "sys.argv = sys.argv[2:]",
     "runpy.run_path(sys.argv[0], run_name='__main__')",
 ))
