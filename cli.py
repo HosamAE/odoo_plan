@@ -17,6 +17,7 @@ from doctor import run_doctor
 from move_projects import run_move_projects
 from setup_version import run_setup
 from new_project import run_new_project
+from gates_cmd import run_gates
 
 VERSION = "1.3.0"
 SUPPORTED_VERSIONS = ["17", "18", "19", "20"]
@@ -141,6 +142,12 @@ def main():
     new_parser.add_argument("--branch", help="Branch to check out")
     new_parser.add_argument("--no-graph", action="store_true", help="Do not build the knowledge graph now")
 
+    # 12. Gates Command
+    gates_parser = subparsers.add_parser(
+        "gates", help="The version's gates in the project's .github/scripts (report; --install copies them)")
+    gates_parser.add_argument("--path", "-p", default=".", help="Any folder inside the project (default: here)")
+    gates_parser.add_argument("--install", action="store_true", help="Copy the missing or older gates into the project")
+
     # 9. Move-projects Command (once per machine, 2026-11-08 layout)
     move_parser = subparsers.add_parser(
         "move-projects", help="Move C:/odoo/ProjectsOdoo<NN>/* into C:/odoo/odoo<NN>/projects/ (dry run unless --apply)")
@@ -203,6 +210,9 @@ def main():
 
     elif args.command == "ci":
         sys.exit(run_ci(args.path, args.static_only, args.stop_servers, args.keep_db, args.at))
+
+    elif args.command == "gates":
+        sys.exit(run_gates(args.path, args.install))
 
     elif args.command == "setup":
         sys.exit(run_setup(args.check, args.db_role))
