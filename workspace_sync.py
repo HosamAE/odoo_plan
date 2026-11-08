@@ -654,8 +654,28 @@ def clone_conf(version, name, dry):
     return f"{name}.conf (from {sib}/{src_name}, port {port or 'same as pattern'})"
 
 
+def workspace_from_template(version, name, pid, dry):
+    """<name>.code-workspace from tools/project/project.code-workspace, the version's
+    template every project is built on ({{PROJECT}}, {{PROJECT_ID}}, {{CONF}})."""
+    template = os.path.join(TOOLS_DIR, "project", "project.code-workspace")
+    if not os.path.isfile(template):
+        return None
+    t, crlf = read_text(template)
+    conf = conf_name(fs(project_dir(version, name)), name) or f"{name}.conf"
+    t = t.replace("{{PROJECT}}", name).replace("{{PROJECT_ID}}", pid).replace("{{CONF}}", conf)
+    loads_jsonc(t)
+    dst = os.path.join(fs(project_dir(version, name)), f"{name}.code-workspace")
+    write_text(dst, t, crlf=crlf, dry=dry)
+    return os.path.relpath(dst, FS_ROOT) + " (from tools/project)"
+
+
 def clone_workspace(version, name, pid, inner, dry):
-    """<name>.code-workspace from the pattern project's own workspace, paths and names swapped."""
+    """<name>.code-workspace from the template in tools/project, else from the pattern
+    project's own workspace, paths and names swapped."""
+    if inner:
+        made = workspace_from_template(version, name, pid, dry)
+        if made:
+            return made
     sib = PATTERN_PROJECT.get(version)
     sib_dir = fs(project_dir(version, sib))
     src = os.path.join(sib_dir, f"{sib}.code-workspace") if inner else \
