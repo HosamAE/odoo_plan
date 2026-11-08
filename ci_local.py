@@ -169,7 +169,19 @@ def _modules_and_tags(repo, version):
     return ",".join(names), ",".join("/" + n for n in names)
 
 
-def run_tests(repo, version, name, conf_file, keep_db):
+#: Starts odoo-bin with the clock set to a moment (freezegun, ticking from there):
+#: `odoo-ai ci --at "2026-11-07 23:30"` runs the suite as if it were that UTC time.
+#: The database's own now() is not moved - create_date and SQL now() stay real.
+FROZEN_START = "\n".join((
+    "import runpy, sys",
+    "from freezegun import freeze_time",
+    "freeze_time(sys.argv[1], tick=True).start()",
+    "sys.argv = sys.argv[2:]",
+    "runpy.run_path(sys.argv[0], run_name='__main__')",
+))
+
+
+def run_tests(repo, version, name, conf_file, keep_db, at=None):
     py = fs(f"{WIN_ROOT}/odoo{version}/venv/Scripts/python.exe")
     odoo_bin = fs(f"{WIN_ROOT}/odoo{version}/odoo/odoo-bin")
     db = re.sub(r"[^a-z0-9_]", "_", f"{name.lower()}_ci_local")
@@ -186,11 +198,14 @@ def run_tests(repo, version, name, conf_file, keep_db):
     subprocess.run([py, odoo_bin, "db", "-c", conf_file, "drop", db], capture_output=True)
     started = time.time()
     with open(log_path, "w", encoding="utf-8") as log:
-        subprocess.run([py, odoo_bin, "-c", conf_file, "-d", db, f"--db-filter=^{db}$",
-                        "--without-demo=all", "-i", modules, "--test-enable", "--test-tags", tags,
-                        "--stop-after-init", "--http-port=1994", "--log-level=warn",
-                        "--log-handler=odoo.tests:INFO"],
-                       stdout=log, stderr=subprocess.STDOUT, cwd=os.path.dirname(odoo_bin))
+        odoo_args = [odoo_bin, "-c", conf_file, "-d", db, f"--db-filter=^{db}$",
+                     "--without-demo=all", "-i", modules, "--test-enable", "--test-tags", tags,
+                     "--stop-after-init", "--http-port=1994", "--log-level=warn",
+                     "--log-handler=odoo.tests:INFO"]
+        command = [py, "-c", FROZEN_START, at] + odoo_args if at else [py] + odoo_args
+        if at:
+            _say(f"  clock      {at} UTC (frozen start, ticking)")
+        subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, cwd=os.path.dirname(odoo_bin))
     _say(f"  took       {(time.time() - started) / 60:.0f} min")
     text = open(log_path, encoding="utf-8", errors="replace").read()
     results = [l for l in text.splitlines() if "odoo.tests.result" in l]
@@ -231,7 +246,7 @@ def run_tests(repo, version, name, conf_file, keep_db):
     return ok
 
 
-def run_ci(path=".", static_only=False, stop_servers=False, keep_db=False):
+def run_ci(path=".", static_only=False, stop_servers=False, keep_db=False, at=None):
     project = resolve_project(os.path.abspath(path))
     if not project:
         raise SystemExit(f"not inside a project (expected ...\\odoo<version>\\projects\\<Project>): {path}")
@@ -273,7 +288,7 @@ def run_ci(path=".", static_only=False, stop_servers=False, keep_db=False):
     conf = read_conf(repo, name)
     if not conf:
         raise SystemExit(f"no .conf in {repo}")
-    tests_ok = run_tests(repo, version, name, os.path.join(repo, conf["file"]), keep_db)
+    tests_ok = run_tests(repo, version, name, os.path.join(repo, conf["file"]), keep_db, at)
 
     passed = static_ok and tests_ok
     _say("\n[CI] " + ("PASSED - safe to push" if passed else "FAILED - fix the above before pushing"))
