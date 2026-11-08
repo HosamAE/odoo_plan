@@ -115,6 +115,8 @@ def main():
     ci_parser.add_argument("--stop-servers", action="store_true",
                            help="Stop running Odoo servers first (their crons would write to the test database)")
     ci_parser.add_argument("--keep-db", action="store_true", help="Keep the test database afterwards")
+    ci_parser.add_argument("--at", metavar="\"YYYY-MM-DD HH:MM\"",
+                           help="Run the tests as if it were this UTC moment, e.g. just after midnight in Stockholm: \"2026-11-07 23:30\"")
 
     # 8. Doctor Command
     doctor_parser = subparsers.add_parser(
@@ -183,7 +185,7 @@ def main():
         sys.exit(run_kg(args.action, args.path))
 
     elif args.command == "ci":
-        sys.exit(run_ci(args.path, args.static_only, args.stop_servers, args.keep_db))
+        sys.exit(run_ci(args.path, args.static_only, args.stop_servers, args.keep_db, args.at))
 
     elif args.command == "move-projects":
         sys.exit(run_move_projects(args.apply))
