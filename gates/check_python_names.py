@@ -59,7 +59,7 @@ TRANSLATOR_MODULES = {"odoo", "odoo.tools", "odoo.tools.translate"}
 
 
 #: env._ exists from Odoo 18 on: 17's tools turn this rule off.
-TRANSLATOR_RULE = True
+TRANSLATOR_RULE = False   # Odoo 17: `from odoo import _` is the right form here
 
 
 def static_translator(text):

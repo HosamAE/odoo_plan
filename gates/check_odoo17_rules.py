@@ -1,5 +1,5 @@
 # pylint: disable=print-used  # a CI step: printing is its output
-"""The Odoo 19 rules, checked instead of remembered.
+"""The Odoo 17 rules, checked instead of remembered.
 
 ODOO19_BREAKING_CHANGES_AND_FRAMEWORK_RULES.md and AGENTS.md write them
 down; written down alone they were broken 79 times for the translator
@@ -23,7 +23,7 @@ The translator (`from odoo import _`) is check_python_names.py's.
 A line that must break a rule says why: `# noqa: odoo19 <reason>` (XML:
 <!-- noqa: odoo19 <reason> --> on the line).
 
-Usage: python .github/scripts/check_odoo19_rules.py [--all]
+Usage: python .github/scripts/check_odoo17_rules.py [--all]
 Exit code 1 when anything is found, one line per finding.
 """
 import argparse
@@ -32,11 +32,12 @@ import re
 import sys
 
 from gate_common import ROOT, modules as registered_modules
-NOQA = "noqa: odoo19"
+NOQA = "noqa: odoo17"
 #: The rules this version keeps. Each version's tools carry their own list:
 #: Odoo 17 has no Domain, env._ or _read_group; 18 no Domain or _read_group.
-ENABLED = {"R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"}
-VERSION = "19"
+# Odoo 17: no Domain class, no env._ (so R10 reads _() % x), name_get and read_group still current.
+ENABLED = {"R2", "R3", "R4", "R5", "R6", "R7", "R10"}
+VERSION = "17"
 
 
 
