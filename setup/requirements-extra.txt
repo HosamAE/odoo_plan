@@ -1,0 +1,8 @@
+# Packages Odoo 18 needs here beyond odoo/requirements.txt (lint, CI, the modules imports).
+# pip install -r C:\odoo\odoo18\odoo\requirements.txt -r C:\odoo\odoo18\tools\setup\requirements-extra.txt
+pyyaml
+pyflakes
+black
+flake8
+pylint-odoo==10.0.8
+isort
