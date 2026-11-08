@@ -18,6 +18,7 @@ from move_projects import run_move_projects
 from setup_version import run_setup
 from new_project import run_new_project
 from gates_cmd import run_gates
+from port_cmd import run_port
 
 VERSION = "1.3.0"
 SUPPORTED_VERSIONS = ["17", "18", "19", "20"]
@@ -148,6 +149,13 @@ def main():
     gates_parser.add_argument("--path", "-p", default=".", help="Any folder inside the project (default: here)")
     gates_parser.add_argument("--install", action="store_true", help="Copy the missing or older gates into the project")
 
+    # 13. Port Command
+    port_parser = subparsers.add_parser(
+        "port", help="Carry a tools commit to other versions' tools (a trial unless --apply)")
+    port_parser.add_argument("commit", help="The commit in these tools, e.g. HEAD or a hash")
+    port_parser.add_argument("--to", help="Versions, e.g. 18,20 (default: every other installed version)")
+    port_parser.add_argument("--apply", action="store_true", help="Cherry-pick and commit")
+
     # 9. Move-projects Command (once per machine, 2026-11-08 layout)
     move_parser = subparsers.add_parser(
         "move-projects", help="Move C:/odoo/ProjectsOdoo<NN>/* into C:/odoo/odoo<NN>/projects/ (dry run unless --apply)")
@@ -210,6 +218,9 @@ def main():
 
     elif args.command == "ci":
         sys.exit(run_ci(args.path, args.static_only, args.stop_servers, args.keep_db, args.at))
+
+    elif args.command == "port":
+        sys.exit(run_port(args.commit, args.to, args.apply))
 
     elif args.command == "gates":
         sys.exit(run_gates(args.path, args.install))
