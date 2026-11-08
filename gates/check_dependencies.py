@@ -79,7 +79,13 @@ def addon_dirs(base):
 
 
 def find_odoo(explicit):
-    candidates = [explicit, os.environ.get("ODOO_SRC"), ROOT.parent / "odoo", ROOT / "odoo", pathlib.Path.cwd() / "odoo"]
+    # The project's own version first: C:/odoo/odoo<NN>/projects/<project> is Odoo <NN>,
+    # whatever its manifests say and wherever this runs from.
+    by_path = re.search(r"[\\/]odoo(\d+)[\\/]projects[\\/]", str(ROOT))
+    candidates = [explicit, os.environ.get("ODOO_SRC"), ROOT / "odoo"]
+    if by_path:
+        candidates.append(pathlib.Path(f"C:/odoo/odoo{by_path.group(1)}/odoo"))
+    candidates += [ROOT.parent / "odoo", pathlib.Path.cwd() / "odoo"]
     version = None
     for d in addon_dirs(ROOT)[:20]:
         m = manifest(d)

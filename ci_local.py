@@ -156,6 +156,9 @@ def run_static(repo, version, base):
 
 #: The gates every project of this version keeps (tools/gates). A project whose
 #: ci.yml runs its own copy (.github/scripts/<same name>) is not asked twice.
+#: For a project that has not taken them yet (`odoo-ai gates --install`) they
+#: WARN and do not fail: an old project's hundreds of findings would otherwise
+#: turn its CI red for good, and a gate nobody can get green is ignored.
 VERSION_GATES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gates")
 
 
@@ -165,6 +168,7 @@ def run_version_gates(repo, version, has_ci):
     py = fs(f"{WIN_ROOT}/odoo{version}/venv/Scripts/python.exe")
     env = dict(os.environ, PYTHONIOENCODING="utf-8", GATE_ROOT=repo)
     ok = True
+    adopted = os.path.isfile(os.path.join(repo, ".github", "scripts", "gate_common.py"))
     for gate in sorted(os.listdir(VERSION_GATES)):
         if not gate.startswith("check_") or gate == "check_test_log.py" or not gate.endswith(".py"):
             continue
@@ -180,12 +184,18 @@ def run_version_gates(repo, version, has_ci):
             _say(f"  [OK]   {name}  ({took:.0f}s)")
             _event(type="step", phase="static", name=name, status="ok", seconds=round(took))
         else:
-            ok = False
             tail = [l for l in (res.stdout + res.stderr).strip().splitlines() if l.strip()][-25:]
-            _say(f"  [FAIL] {name}")
+            if adopted:
+                ok = False
+                _say(f"  [FAIL] {name}")
+            else:
+                _say(f"  [WARN] {name} - not failing: this project has not taken the version's gates yet "
+                     f"(odoo-ai gates --install)")
+                tail = tail[-3:]
             for line in tail:
                 _say("         " + line)
-            _event(type="step", phase="static", name=name, status="fail", seconds=round(took), details=tail)
+            _event(type="step", phase="static", name=name, status="fail" if adopted else "skip",
+                   seconds=round(took), details=tail)
     return ok
 
 
