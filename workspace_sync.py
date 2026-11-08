@@ -1045,6 +1045,10 @@ def ensure_lint_settings(text, version, name):
     # every open terminal show "want to relaunch the terminal": relaunch it when safe, quietly.
     text, f = set_setting(text, "terminal.integrated.environmentChangesRelaunch", True); note(f, "terminal relaunch")
     text, f = set_setting(text, "terminal.integrated.environmentChangesIndicator", "off"); note(f, "terminal notice off")
+    # ...and the notice's root: terminals restored from the last session open before the
+    # extensions are ready. Start fresh ones instead (they get the full environment).
+    text, f = set_setting(text, "terminal.integrated.enablePersistentSessions", False); note(f, "no restored terminals")
+    text, f = set_setting(text, "terminal.integrated.persistentSessionReviveProcess", "never"); note(f, "no revived processes")
     # OdooLS asks to turn off VS Code's own JS/TS features; we keep them (go-to, rename, imports)
     text, f = set_setting(text, "Odoo.disableJsLanguageServerPopup", True); note(f, "no OdooLS JS popup")
     text, f = set_setting(text, "flake8.enabled", False); note(f, "flake8 off")
