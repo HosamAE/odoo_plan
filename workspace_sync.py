@@ -277,9 +277,75 @@ def kg_tasks(kg_python, config_win):
         }
     return [
         task(KG_TASK_LABELS[0], "index", "Index this project into the knowledge graph and publish it"),
-        task(KG_TASK_LABELS[1], "status", "Is the published graph fresh for the tree on disk?"),
+        open_task(kg_python, config_win),
         task(KG_TASK_LABELS[2], "doctor", "Check the odoo-kg configuration (writes nothing)"),
     ]
+
+
+def open_task(kg_python, config_win):
+    """The task that runs when the workspace opens: tools/kg_open.py rebuilds a stale
+    graph and stays quiet; `odoo_kg status` alone fails after every commit."""
+    return {
+        "label": KG_TASK_LABELS[1],
+        "type": "process",
+        "command": kg_python,
+        "args": [f"{WIN_ROOT}/odoo{TOOLS_VERSION}/tools/kg_open.py", "--config", config_win],
+        "options": {"cwd": KG_DIR},
+        "presentation": {"reveal": "silent", "panel": "dedicated", "clear": True},
+        "problemMatcher": [],
+        "runOptions": {"runOn": "folderOpen"},
+        "detail": "On open: keep the graph fresh (rebuilt when a commit left it behind)",
+    }
+
+
+def _object_span(text, inside):
+    """(start, end) of the JSON object around index `inside`, strings respected."""
+    depth, i, start = 0, inside, None
+    while i >= 0:
+        if text[i] == "}":
+            depth += 1
+        elif text[i] == "{":
+            if depth == 0:
+                start = i
+                break
+            depth -= 1
+        i -= 1
+    if start is None:
+        return None
+    depth, i, in_str = 0, start, False
+    while i < len(text):
+        c = text[i]
+        if in_str:
+            if c == "\\":
+                i += 1
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return start, i + 1
+        i += 1
+    return None
+
+
+def fix_open_task(text, kg_python, config_win):
+    """An existing workspace's status task becomes the quiet open task."""
+    at = text.find(f'"label": "{KG_TASK_LABELS[1]}"')
+    if at < 0 or "kg_open.py" in text:
+        return text, []
+    span = _object_span(text, at)
+    if not span:
+        return text, []
+    line_start = text.rfind("\n", 0, span[0]) + 1
+    indent = text[line_start:span[0]] if not text[line_start:span[0]].strip() else "      "
+    body = json.dumps(open_task(kg_python, config_win), indent=2).replace("\n", "\n" + indent)
+    new = text[:span[0]] + body + text[span[1]:]
+    loads_jsonc(new)
+    return new, ["graph status task -> quiet rebuild on open"]
 
 
 def mcp_json(kg_python, config_win):
@@ -973,6 +1039,10 @@ def ensure_lint_settings(text, version, name):
         text, f = drop_setting(text, key); note(f, f"-{key}")
     text, f = set_setting(text, "Odoo.serverConfigPath", odools_path(v, name)); note(f, "odools.toml")
     text, f = set_setting(text, "Odoo.selectedProfile", "default"); note(f, "OdooLS profile")
+    # Extensions that add to the terminal's environment (Python Debugger, Claude Code) made
+    # every open terminal show "want to relaunch the terminal": relaunch it when safe, quietly.
+    text, f = set_setting(text, "terminal.integrated.environmentChangesRelaunch", True); note(f, "terminal relaunch")
+    text, f = set_setting(text, "terminal.integrated.environmentChangesIndicator", "off"); note(f, "terminal notice off")
     # OdooLS asks to turn off VS Code's own JS/TS features; we keep them (go-to, rename, imports)
     text, f = set_setting(text, "Odoo.disableJsLanguageServerPopup", True); note(f, "no OdooLS JS popup")
     text, f = set_setting(text, "flake8.enabled", False); note(f, "flake8 off")
@@ -1109,6 +1179,8 @@ def sync_project(version, name, kg_python, localappdata, dry=False, create_works
         wired += moved
         new, recs = tidy_recommendations(new)
         wired += recs
+        new, quiet = fix_open_task(new, kg_python, config_win)
+        wired += quiet
         new, lint = ensure_lint_settings(new, version, name)
         wired += lint
         if added or wired:
