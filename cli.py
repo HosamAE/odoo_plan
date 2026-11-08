@@ -15,6 +15,8 @@ from workspace_sync import run_workspace_sync, resolve_project, KG_DIR, TOOLS_DI
 from ci_local import run_ci
 from doctor import run_doctor
 from move_projects import run_move_projects
+from setup_version import run_setup
+from new_project import run_new_project
 
 VERSION = "1.3.0"
 SUPPORTED_VERSIONS = ["17", "18", "19", "20"]
@@ -124,6 +126,21 @@ def main():
     doctor_parser.add_argument("--fix", action="store_true",
                                help="Repair what is safe (launcher, PATH, pylint .pth); never deletes")
 
+    # 10. Setup Command (a new machine, or checking one)
+    setup_parser = subparsers.add_parser(
+        "setup", help="Make this Odoo version ready: sources, venv, packages, conf, DB role, launcher, extension")
+    setup_parser.add_argument("--check", action="store_true", help="Only report what is missing")
+    setup_parser.add_argument("--db-role", action="store_true",
+                              help="Also create/update the PostgreSQL role (asks for the postgres password)")
+
+    # 11. New-project Command
+    new_parser = subparsers.add_parser(
+        "new-project", help="Clone a project into odoo<NN>/projects and wire it (conf, workspace, graph)")
+    new_parser.add_argument("name", help="Folder name, e.g. Acme")
+    new_parser.add_argument("--git", help="Repository to clone (omit when the folder is already there)")
+    new_parser.add_argument("--branch", help="Branch to check out")
+    new_parser.add_argument("--no-graph", action="store_true", help="Do not build the knowledge graph now")
+
     # 9. Move-projects Command (once per machine, 2026-11-08 layout)
     move_parser = subparsers.add_parser(
         "move-projects", help="Move C:/odoo/ProjectsOdoo<NN>/* into C:/odoo/odoo<NN>/projects/ (dry run unless --apply)")
@@ -186,6 +203,12 @@ def main():
 
     elif args.command == "ci":
         sys.exit(run_ci(args.path, args.static_only, args.stop_servers, args.keep_db, args.at))
+
+    elif args.command == "setup":
+        sys.exit(run_setup(args.check, args.db_role))
+
+    elif args.command == "new-project":
+        sys.exit(run_new_project(args.name, args.git, args.branch, not args.no_graph))
 
     elif args.command == "move-projects":
         sys.exit(run_move_projects(args.apply))
