@@ -24,23 +24,21 @@ A new module is added to `modules.txt` in the same commit; the CI refuses a fold
 
 ## 3. The rules the code keeps
 
-Checked by the CI (`.github\scripts\`), so they hold without anyone remembering them:
+Checked by the version's gates (`tools\gates\`, run by `odoo-ai ci` on every project of this version; a project that also carries them in `.github\scripts` - `odoo-ai gates --install` - has GitHub's CI run them too, and from then on they fail the run instead of warning):
 
 | Rule | Gate |
 | --- | --- |
 | no undefined names, no unused imports | `check_python_names.py` |
-| translations through the environment: `self.env._()`, `request.env._()` in controllers, `env._()` with an env, `_lt = LazyTranslate(__name__)` with none; never `from odoo import _` | `check_python_names.py` |
-| values passed to the translation, not formatted after it: `self.env._("%(name)s", name=x)` | `check_odoo17_rules.py` R10 |
-| `Domain` from `odoo.fields`, not `odoo.osv.expression` | R1 |
+| translations with `from odoo import _` (Odoo 17 has no `env._`); `_lt` for module-level texts | review |
+| values passed to the translation, not formatted after it: `_("%(name)s", name=x)` | `check_odoo17_rules.py` R10 |
+| domains with `odoo.osv.expression` (`Domain` arrives in 19) | review |
 | `search_count()`, not `len(search())` | R3 |
-| `default_res_ids: [id]` for the mail composer | R2 |
+| `default_res_ids: [id]` for the mail composer (`default_res_id` raises) | R2 |
 | defaults as `lambda self: self._method()`, not the method itself | R4 |
 | a compute writes only fields that name it as their `compute=` (and a `search=` if filtered on) | R5 |
 | `<search>` groups hold only `<filter>`; no `parent.` in view contexts | R6, R7 |
-| `_read_group` / `formatted_read_group`, `_compute_display_name` | R8, R9 |
 | a module depends on every module whose models, fields or XML ids it uses - or asks first (`"model" in self.env`, `raise_if_not_found=False`) | `check_dependencies.py` |
 | no framework warnings from our modules in the Odoo log | `check_test_log.py` |
-| no secrets in tracked files; XML well formed; help/ present; versions in the 17.0 series | `ci.yml` steps |
 
 Kept by review (from `C:\odoo\AGENTS.md` and `C:\odoo\odoo17\AGENTS.md`):
 
@@ -54,17 +52,18 @@ Kept by review (from `C:\odoo\AGENTS.md` and `C:\odoo\odoo17\AGENTS.md`):
 ## 4. Tests
 
 - Every fix comes with the test that would have caught it; every feature with tests of its rules.
-- A test that needs a module its own module does not depend on says so: `@skip_unless_installed("other_module")` (`acme_base.tools.testing`). It skips, with the reason, where that module is absent.
-- A test that means "today" uses the user's clock (`_today_of(user)` in the HR tests, `datetime.now(tz)` elsewhere), so it holds after midnight in Stockholm and on a server anywhere.
+- A test that needs a module its own module does not depend on says so and skips where that module is absent (Acme: `@skip_unless_installed("other_module")` from `acme_base.tools.testing`; another project gives itself the same helper).
+- A test that means "today" uses the user's clock (`fields.Date.context_today(user.with_context(tz=user.tz))`, `datetime.now(tz)`), so it holds after midnight in Stockholm and on a server anywhere.
 - `odoo-ai ci --at "2026-11-07 23:30"` runs the suite at a chosen UTC moment (the database's own clock stays real).
 
 ## 5. From a change to a push
 
-1. Work on the project's branch; keep the graph fresh (`odoo-ai kg index` after commits that matter).
-2. Before committing: the **CI** button in VS Code (static checks in seconds; the full run installs everything on a fresh database and runs every test, about 20 minutes) - or `odoo-ai ci` / `odoo-ai ci --static-only`.
-3. Bump the version of every module the commit touches (`17.0.x.y.z+1`; modules not deployed anywhere yet may skip it). A version that carries a migration is the migration's folder name.
-4. Commit in Odoo's form: `[FIX] module: summary`, `[ADD]`, `[IMP]`, `[REF]`, `[REM]`; the body says why.
-5. Pull, then push. The CI on GitHub runs the same gates.
+1. Once per project: `odoo-ai gates --install`, and add the printed steps to its `ci.yml`, so the version's gates bind it on GitHub too.
+2. Work on the project's branch; keep the graph fresh (`odoo-ai kg index` after commits that matter).
+3. Before committing: the **CI** button in VS Code (static checks in seconds; the full run installs everything on a fresh database and runs every test, about 20 minutes) - or `odoo-ai ci` / `odoo-ai ci --static-only`.
+4. Bump the version of every module the commit touches (`17.0.x.y.z+1`; modules not deployed anywhere yet may skip it). A version that carries a migration is the migration's folder name.
+5. Commit in Odoo's form: `[FIX] module: summary`, `[ADD]`, `[IMP]`, `[REF]`, `[REM]`; the body says why.
+6. Pull, then push. The CI on GitHub runs the same gates.
 
 ## 6. When the structure itself must change
 
