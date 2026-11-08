@@ -729,6 +729,8 @@ def workspace_from_template(version, name, pid, dry):
     t, crlf = read_text(template)
     conf = conf_name(fs(project_dir(version, name)), name) or f"{name}.conf"
     t = t.replace("{{PROJECT}}", name).replace("{{PROJECT_ID}}", pid).replace("{{CONF}}", conf)
+    # this machine's Python 3.11+ for the graph (never the template author's path)
+    t = t.replace("{{KG_PYTHON}}", find_kg_python(None).replace("\\", "/"))
     loads_jsonc(t)
     dst = os.path.join(fs(project_dir(version, name)), f"{name}.code-workspace")
     write_text(dst, t, crlf=crlf, dry=dry)
