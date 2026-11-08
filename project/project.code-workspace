@@ -479,6 +479,8 @@
     ]
   },
   "settings": {
+    "terminal.integrated.persistentSessionReviveProcess": "never",
+    "terminal.integrated.enablePersistentSessions": false,
     "terminal.integrated.environmentChangesIndicator": "off",
     "terminal.integrated.environmentChangesRelaunch": true,
     "Odoo.disableJsLanguageServerPopup": true,
