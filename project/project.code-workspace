@@ -412,7 +412,7 @@
       {
         "label": "odoo-kg: build graph",
         "type": "process",
-        "command": "C:/Users/COMPUMARTS/AppData/Local/Programs/Python/Python312/python.exe",
+        "command": "{{KG_PYTHON}}",
         "args": [
           "-m",
           "odoo_kg",
@@ -434,11 +434,9 @@
       {
         "label": "odoo-kg: status",
         "type": "process",
-        "command": "C:/Users/COMPUMARTS/AppData/Local/Programs/Python/Python312/python.exe",
+        "command": "C:/odoo/odoo19/venv/Scripts/python.exe",
         "args": [
-          "-m",
-          "odoo_kg",
-          "status",
+          "C:/odoo/odoo17/tools/kg_open.py",
           "--config",
           "C:/odoo/odoo17/tools/kg/config/local/{{PROJECT_ID}}.toml"
         ],
@@ -446,18 +444,20 @@
           "cwd": "C:/odoo/odoo17/tools/kg"
         },
         "presentation": {
-          "reveal": "always",
+          "reveal": "silent",
           "panel": "dedicated",
           "clear": true
         },
         "problemMatcher": [],
-        "runOptions": {"runOn": "folderOpen"},
-        "detail": "Is the published graph fresh for the tree on disk?"
+        "runOptions": {
+          "runOn": "folderOpen"
+        },
+        "detail": "On open: keep the graph fresh (rebuilt when a commit left it behind)"
       },
       {
         "label": "odoo-kg: doctor",
         "type": "process",
-        "command": "C:/Users/COMPUMARTS/AppData/Local/Programs/Python/Python312/python.exe",
+        "command": "{{KG_PYTHON}}",
         "args": [
           "-m",
           "odoo_kg",
@@ -479,6 +479,8 @@
     ]
   },
   "settings": {
+    "terminal.integrated.environmentChangesIndicator": "off",
+    "terminal.integrated.environmentChangesRelaunch": true,
     "Odoo.disableJsLanguageServerPopup": true,
     "cSpell.ignorePaths": ["**/odoo17/odoo/**", "**/odoo17/enterprise/**", "**/odoo17/venv/**", "**/i18n/**", "**/*.po", "**/*.pot", "**/static/lib/**", "**/help/sv/**"],
     "cSpell.words": ["odoo", "Odoo", "odools", "pylint", "pylintrc", "ormcache", "onchange", "xmlid", "xpath", "qweb", "QWeb", "owl", "OWL", "hr", "res", "uom", "kanban", "sudo", "ondelete"],
@@ -489,7 +491,7 @@
       "servers": {
         "odoo-kg": {
           "type": "stdio",
-          "command": "C:/Users/COMPUMARTS/AppData/Local/Programs/Python/Python312/python.exe",
+          "command": "{{KG_PYTHON}}",
           "args": [
             "-m",
             "odoo_kg",
