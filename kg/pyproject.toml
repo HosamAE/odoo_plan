@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "odoo-kg"
+description = "Odoo knowledge-graph indexer and read-only MCP query server"
+readme = "README.md"
+requires-python = ">=3.11"
+
+# The version lives in odoo_kg/__init__.py and is read from there, so the
+# package metadata and the MCP server's serverInfo.version cannot drift apart.
+dynamic = ["version"]
+
+# No runtime dependencies, by design. M1 is standard library only: ast,
+# sqlite3, hashlib, tomllib, subprocess, os. Nothing is installed to run or
+# test this tool.
+dependencies = []
+
+[project.scripts]
+odoo-kg = "odoo_kg.cli:main"
+
+[tool.setuptools]
+packages = ["odoo_kg", "odoo_kg.mcp"]
+
+[tool.setuptools.dynamic]
+version = { attr = "odoo_kg.__version__" }

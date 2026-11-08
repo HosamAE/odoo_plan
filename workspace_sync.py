@@ -4,7 +4,7 @@ Wires every project under C:\\odoo\\odoo<version>\\projects\\ into the knowledge
 and keeps its VS Code workspace on the shared layout.
 
 For each project it:
-  1. writes an odoo-kg config:   C:\\odoo\\odoo-kg\\config\\local\\<project-id>.toml  (never committed)
+  1. writes an odoo-kg config:   C:\\odoo\\odoo<NN>\\tools\\kg\\config\\local\\<project-id>.toml  (never committed)
   2. adds the odoo-kg tasks to the project's .code-workspace file(s)
   3. writes a Claude Code .mcp.json in the project root and excludes it in .git/info/exclude
   4. writes a CLAUDE.md with the knowledge-graph rules when the project has none
@@ -28,8 +28,10 @@ TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 FS_ROOT = os.path.dirname(os.path.dirname(TOOLS_DIR))
 _TOOLS_MATCH = re.search(r"odoo(\d+)[\\/]tools$", TOOLS_DIR, re.IGNORECASE)
 TOOLS_VERSION = _TOOLS_MATCH.group(1) if _TOOLS_MATCH else ""  # "" outside C:/odoo/odoo<NN>/tools
-KG_DIR = f"{WIN_ROOT}/odoo-kg"
-KG_LOCAL_CONFIG = "odoo-kg/config/local"
+# The knowledge-graph engine lives in each version's tools (since 2026-11-08), next to
+# the rest of them; LEGACY_KG_DIR is where it stood alone before, read only to move paths.
+KG_DIR = f"{WIN_ROOT}/odoo{TOOLS_VERSION}/tools/kg"
+LEGACY_KG_DIR = f"{WIN_ROOT}/odoo-kg"
 
 KG_TASK_LABELS = ("odoo-kg: build graph", "odoo-kg: status", "odoo-kg: doctor")
 
@@ -303,8 +305,8 @@ KG_SECTION = """## The knowledge graph
   It indexes this folder only: Odoo core and other addon repos on the
   addons_path are not in it, so their modules show as unresolved dependencies.
 - Rebuild after commits that matter: VS Code task **odoo-kg: build graph**, or
-  `python -m odoo_kg index --config C:\\odoo\\odoo-kg\\config\\local\\{pid}.toml`
-  from `C:\\odoo\\odoo-kg`.
+  `python -m odoo_kg index --config C:\\odoo\\odoo{v}\\tools\\kg\\config\\local\\{pid}.toml`
+  from `C:\\odoo\\odoo{v}\\tools\\kg`, or `odoo-ai kg index` inside the project.
 - The graph is never shared through Git. It is per-developer, per-checkout.
 - **Do not modify `odoo-kg` as part of an ordinary Odoo task.**
 """
@@ -409,7 +411,7 @@ def claude_md(version, name, pid, fam, conf, git, users):
             conf_path=f"C:\\odoo\\odoo{v}\\projects\\{name}\\{conf['file']}", port=conf["port"],
             db_user=conf["db_user"], db_line="" if db in ("False", "", None) else f", database `{db}`",
             addons="\n".join(f"- `{a}`" for a in conf["addons"])))
-    parts.append(KG_SECTION.format(pid=pid))
+    parts.append(KG_SECTION.format(pid=pid, v=version))
     parts.append("## Never in Git\n\n- Databases, dumps, filestores, `*.conf`, keys, tokens, passwords.\n"
                  "- Generated graph data, `.mcp.json`, this file.\n")
     return "\n".join(parts)
@@ -951,7 +953,8 @@ def tools_cli(version):
 # Paths from before the tools moved into C:/odoo/odoo<NN>/tools (2026-11-08)
 def move_tool_paths(text, version):
     changed = []
-    for old, new in ((f"{WIN_ROOT}/{LEGACY_PROJECTS}{version}/", f"{projects_root(version)}/"),
+    for old, new in ((f"{LEGACY_KG_DIR}/", f"{KG_DIR}/"), (f'"{LEGACY_KG_DIR}"', f'"{KG_DIR}"'),
+                     (f"{WIN_ROOT}/{LEGACY_PROJECTS}{version}/", f"{projects_root(version)}/"),
                      (f"C:\\\\odoo\\\\{LEGACY_PROJECTS}{version}\\\\", f"C:\\\\odoo\\\\odoo{version}\\\\projects\\\\"),
                      (f"{WIN_ROOT}/odoo_ai_cli/cli.py", tools_cli(version)),
                      (f"--rcfile={WIN_ROOT}/odoo{version}/.pylintrc", f"--rcfile={WIN_ROOT}/odoo{version}/tools/.pylintrc")):
@@ -1071,6 +1074,11 @@ def sync_project(version, name, kg_python, localappdata, dry=False, create_works
     if not os.path.isfile(mcp_path):
         write_text(mcp_path, mcp_json(kg_python, config_win), dry=dry)
         report.append("mcp        .mcp.json (odoo-kg server)")
+    elif LEGACY_KG_DIR in read_text(mcp_path)[0]:
+        text, crlf = read_text(mcp_path)
+        write_text(mcp_path, text.replace(f"{LEGACY_KG_DIR}/", f"{KG_DIR}/").replace(
+            f'"{LEGACY_KG_DIR}"', f'"{KG_DIR}"'), crlf=crlf, dry=dry)
+        report.append("mcp        .mcp.json -> the engine in tools/kg")
     if exclude_locally(pdir, ".mcp.json", dry):
         report.append("git        .mcp.json added to .git/info/exclude")
 
