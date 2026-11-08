@@ -522,7 +522,7 @@ def new_workspace(version, name, kg_python, config_win):
         "cwd": f"{WIN_ROOT}/odoo{v}/odoo", "console": console, "justMyCode": False,
     }
     return {
-        "folders": [{"name": "odoo", "path": f"../../odoo{v}"}, {"name": "Project", "path": "."}],
+        "folders": [{"name": "odoo", "path": "../../odoo"}, {"name": "Project", "path": "."}],
         "extensions": {"recommendations": [
             "odoo.odoo", "acme.odoo-ci", "ms-python.python", "ms-python.debugpy",
             "ms-python.vscode-pylance", "ms-python.black-formatter", "ms-python.pylint", "ms-python.isort",
@@ -607,23 +607,45 @@ def conf_name(pdir, name):
     return confs[0] if confs else None
 
 
+def next_free_port(version):
+    """One above the highest http_port among this version's projects."""
+    used = []
+    for _v, other in iter_projects((version,)):
+        pdir = fs(project_dir(version, other))
+        conf = conf_name(pdir, other)
+        if conf:
+            m = re.search(r"^http_port\s*=\s*(\d+)", read_text(os.path.join(pdir, conf))[0], re.M)
+            if m:
+                used.append(int(m.group(1)))
+    return max(used) + 1 if used else 8000 + int(version) * 10
+
+
 def clone_conf(version, name, dry):
     """<name>.conf for a project without one: the pattern project's conf (same DB user and
-    passwords), with this project's addons_path and its own port."""
+    passwords), with this project's addons_path and its own port. On a new machine, where
+    there is no pattern project yet, the version's own odoo.conf (`odoo-ai setup` writes it)."""
     sib = PATTERN_PROJECT.get(version)
-    sib_dir = fs(project_dir(version, sib))
+    sib_dir = fs(project_dir(version, sib)) if sib else ""
     src_name = conf_name(sib_dir, sib) if sib and os.path.isdir(sib_dir) else None
-    if not src_name:
-        return None
-    raw, crlf = read_text(os.path.join(sib_dir, src_name))
+    if src_name:
+        source = os.path.join(sib_dir, src_name)
+    else:
+        source = fs(f"{WIN_ROOT}/odoo{version}/odoo.conf")
+        sib, src_name = f"odoo{version}", "odoo.conf"
+        if not os.path.isfile(source):
+            return None
+    raw, crlf = read_text(source)
     s = raw.replace("\r\n", "\n")
     m = re.search(r"^addons_path\s*=\s*(.*)$", s, re.M)
     parts = [p.strip() for p in m.group(1).split(",") if p.strip()]
-    keep = [p for p in parts if p.replace("\\", "/").lower().find("projectsodoo") < 0]
+    # Odoo, enterprise, themes and third-party - never the pattern project or any other one.
+    keep = [p for p in parts if not re.search(r"projectsodoo|/projects/", p.replace("\\", "/").lower())]
     mine = project_dir(version, name)
     s = s[:m.start(1)] + ", ".join(keep + [mine]) + s[m.end(1):]
-    port = NEW_PORTS.get((version, name), None)
+    port = NEW_PORTS.get((version, name), None) or next_free_port(version)
     if port:
+        if re.search(r"^http_port\s*=", s, re.M) is None:
+            s = s.rstrip("\n") + f"\nhttp_port = {port}\n"
         s = re.sub(r"^http_port\s*=.*$", f"http_port = {port}", s, flags=re.M)
     s = re.sub(r"^db_name\s*=.*$", "db_name = False", s, flags=re.M)
     s = re.sub(r"^dbfilter\s*=.*\n", "", s, flags=re.M)
@@ -1037,6 +1059,11 @@ def sync_project(version, name, kg_python, localappdata, dry=False, create_works
     candidates = [os.path.join(pdir, f"{name}.code-workspace")]
     if create_workspace and not os.path.isfile(candidates[0]):
         made = clone_workspace(version, name, pid, True, dry)
+        if not made:
+            # No pattern project to copy (a new machine): one written from scratch.
+            write_text(candidates[0], json.dumps(new_workspace(version, name, kg_python, config_win),
+                                                 indent=2) + "\n", dry=dry)
+            made = os.path.relpath(candidates[0], FS_ROOT) + " (new)"
         if made:
             report.append(f"workspace  created {made}")
         if exclude_locally(pdir, "*.code-workspace", dry):
