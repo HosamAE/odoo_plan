@@ -47,11 +47,12 @@ C:\odoo\
 
 | Path | What |
 | --- | --- |
-| `cli.py` | `odoo-ai`: `setup`, `new-project`, `workspace`, `ci`, `doctor`, `kg`, `lint`, `test`, `audit`, `move-projects` |
+| `cli.py` | `odoo-ai`: `setup`, `new-project`, `workspace`, `ci`, `gates`, `port`, `doctor`, `kg`, `lint`, `test`, `audit`, `move-projects` |
 | `project\` | what every project gets: the workspace and conf templates, and what the generated files are for |
 | `docs\PROJECT_PLAN.md` | how a project is built on this structure: its files, rules, gates, tests, the way to a push |
 | `docs\version\` `docs\shared\` | the version's AI rules (`AGENTS.md`, framework notes) and the rules all versions share |
 | `setup\version.json` `setup\requirements-extra.txt` | the version's Python, sources, addons path, DB user, and the packages beyond Odoo's |
+| `gates\` | the version's gates (names, framework rules, dependencies, log): `odoo-ai ci` runs them on every project, `odoo-ai gates --install` puts them in a project's CI |
 | `kg\` | the knowledge-graph engine: one graph per project |
 | `ci_local.py` `vscode-extension\` | the project's CI on this machine (`odoo-ai ci`, `--at "<UTC moment>"`) and the VS Code button for it |
 | `.pylintrc` `.flake8` `pylint_plugins\` | lint configuration of this version |
@@ -65,8 +66,9 @@ C:\odoo\
 | Is this machine whole? | `odoo-ai doctor` (`--fix` repairs what is safe), `odoo-ai setup --check` |
 | A new project | `odoo-ai new-project <name> --git <url>` |
 | Test before pushing | the `CI` button in VS Code, or `odoo-ai ci` |
+| The version's gates in a project's own CI | `odoo-ai gates --install` |
 | The project's graph | `odoo-ai kg status` / `odoo-ai kg index`; all of them: `C:\odoo\bin\build_graphs.bat` |
 
 ## Changing the tools
 
-Change them in the version's own `tools` folder and commit on its branch. Another version gets a change by `git cherry-pick`, on purpose - never through a shared copy.
+Change them in the version's own `tools` folder and commit on its branch. Another version gets a change on purpose - never through a shared copy: `odoo-ai port <commit>` tries it on the other versions, `--apply` commits it there.
