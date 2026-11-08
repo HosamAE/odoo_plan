@@ -89,6 +89,10 @@ def check_tools(r, v, fix):
                  f"C:/odoo/odoo{v}/.pylintrc", f"C:/odoo/odoo{v}/.flake8"):
         if os.path.exists(fs(left)):
             r.bad(f"left over: {left}", "now in tools/; remove it")
+    r.check(os.path.isfile(os.path.join(TOOLS_DIR, "kg", "odoo_kg", "__main__.py")), "graph engine in tools/kg",
+            "no graph engine in tools/kg", "it ships with the tools: git pull in tools/")
+    r.check(not os.path.isdir(fs("C:/odoo/odoo-kg")), "no stand-alone C:/odoo/odoo-kg",
+            "left over: C:/odoo/odoo-kg", "the engine is in every version's tools/kg now; move it aside")
     r.check(not os.path.isdir(fs(f"C:/odoo/ProjectsOdoo{v}")), f"projects in odoo{v}/projects",
             f"projects still in C:/odoo/ProjectsOdoo{v}", "odoo-ai move-projects --apply (VS Code closed)")
 

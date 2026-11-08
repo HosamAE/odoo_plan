@@ -5,3 +5,6 @@ local.json
 *.log
 # build output: rebuild with vscode-extension/build_vsix.py
 *.vsix
+
+# per machine: each project's graph config (odoo-ai workspace writes it)
+kg/config/local/
