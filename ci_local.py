@@ -32,7 +32,7 @@ import sys
 import tempfile
 import time
 
-from workspace_sync import WIN_ROOT, fs, read_conf, resolve_project
+from workspace_sync import WIN_ROOT, fs, project_dir, read_conf, resolve_project
 
 
 def _say(text=""):
@@ -234,9 +234,9 @@ def run_tests(repo, version, name, conf_file, keep_db):
 def run_ci(path=".", static_only=False, stop_servers=False, keep_db=False):
     project = resolve_project(os.path.abspath(path))
     if not project:
-        raise SystemExit(f"not inside a project (expected ...\\ProjectsOdoo<version>\\<Project>): {path}")
+        raise SystemExit(f"not inside a project (expected ...\\odoo<version>\\projects\\<Project>): {path}")
     version, name = project[0], project[1]
-    repo = fs(f"{WIN_ROOT}/ProjectsOdoo{version}/{name}")
+    repo = fs(project_dir(version, name))
     branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     _git(repo, "fetch", "--quiet", "origin")
     base = f"origin/{branch}" if _git(repo, "rev-parse", "--verify", "--quiet", f"origin/{branch}") else "HEAD"
