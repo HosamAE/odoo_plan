@@ -1,37 +1,46 @@
-# odoo_plan: everything one Odoo version needs to be worked on
+# odoo_plan: the structure and tools of one Odoo version
 
-Each branch is one Odoo version (`17.0`, `18.0`, `19.0`, `20.0`) and is checked out as that version's tools, in `C:\odoo\odoo<NN>\tools`. A branch carries what its version needs and nothing shared with the others: versions differ in Python, packages, lint rules and CI, so each one is free to change on its own.
+Each branch is one Odoo version (`17.0`, `18.0`, `19.0`, `20.0`), checked out as that version's tools in `C:\odoo\odoo<NN>\tools`. It carries the structure and everything around the code - the CI, the knowledge graph, the AI rules, lint, the project template, the plan projects follow - so nothing has to be built again from the start. A change made on one branch changes that version only.
 
-## A new machine, from nothing
+What it does **not** carry: Odoo, enterprise, the themes, third-party addons and the venv. You download and create those yourself, as usual; `odoo-ai setup --check` says which are missing and gives the command for each.
 
-Install once: **Git**, **Python** (the version in `setup\version.json`: 3.10 for Odoo 17, 3.12 for 18-20, with the `py` launcher), **PostgreSQL** (16 or newer), **wkhtmltopdf** 0.12.6 (patched Qt), and **VS Code**.
-
-Then, for each Odoo version you work on (19 here):
+## Getting to work on a new machine
 
 ```powershell
+# 1. the structure and tools of the version
 git clone -b 19.0 https://github.com/HosamAE/odoo_plan C:\odoo\odoo19\tools
-python C:\odoo\odoo19\tools\cli.py setup            # sources, venv, packages, odoo.conf, launcher, extension
-python C:\odoo\odoo19\tools\cli.py setup --db-role  # the PostgreSQL role (asks for postgres's password)
+
+# 2. what you download yourself (setup --check lists the exact commands)
+git clone --depth 1 -b 19.0 https://github.com/odoo/odoo.git C:\odoo\odoo19\odoo
+git clone --depth 1 -b 19.0 https://github.com/odoo/enterprise.git C:\odoo\odoo19\enterprise      # with access
+git clone --depth 1 -b 19.0 https://github.com/odoo/design-themes.git C:\odoo\odoo19\design-themes
+#    third-party addons into C:\odoo\odoo19\third-party
+py -3.12 -m venv C:\odoo\odoo19\venv
+C:\odoo\odoo19\venv\Scripts\python.exe -m pip install -r C:\odoo\odoo19\odoo\requirements.txt -r C:\odoo\odoo19\tools\setup\requirements-extra.txt
+
+# 3. the rest: odoo.conf, launcher on PATH, VS Code extension, rules files
+python C:\odoo\odoo19\tools\cli.py setup
+python C:\odoo\odoo19\tools\cli.py setup --db-role     # the PostgreSQL role (asks for postgres's password)
+
+# 4. each project
 odoo-ai new-project Acme --git https://github.com/<owner>/<repo> --branch testing19
 ```
 
-Open `C:\odoo\odoo19\projects\Acme\Acme.code-workspace`, and work.
+Then open `C:\odoo\odoo19\projects\Acme\Acme.code-workspace`.
 
-`odoo-ai setup --check` reports what a machine is missing without changing anything. Every step looks first, so running `setup` again is safe.
-
-## What a version folder looks like
+## The version folder
 
 ```text
 C:\odoo\
-├── bin\                         odoo-ai launcher (setup puts it on PATH)
+├── bin\                                odoo-ai launcher (setup puts it on PATH)
 └── odoo19\
-    ├── odoo\ enterprise\ design-themes\   sources (setup clones them; enterprise needs access)
-    ├── venv\  odoo.conf                   Python and server config (setup writes them; never in git)
-    ├── third-party\                       -> tools\third-party (the addons this branch carries)
-    ├── AGENTS.md  ODOO19_*.md             this version's rules (from tools\docs\version)
-    ├── tools\                             THIS REPOSITORY, branch 19.0
-    └── projects\<project>\                each project: its own git; conf, workspace, odools.toml,
-                                           .mcp.json and CLAUDE.md inside it, never committed
+    ├── odoo\ enterprise\ design-themes\  downloaded by you
+    ├── third-party\  venv\               yours too
+    ├── odoo.conf                         written by setup (passwords generated, never committed)
+    ├── AGENTS.md  ODOO19_*.md            this version's rules (setup copies them from tools\docs\version)
+    ├── tools\                            THIS REPOSITORY, branch 19.0
+    └── projects\<PROJECT>\               a project: its own git; its workspace, conf, odools.toml,
+                                          .mcp.json and CLAUDE.md inside it, never committed
 ```
 
 ## What the branch carries
@@ -39,13 +48,13 @@ C:\odoo\
 | Path | What |
 | --- | --- |
 | `cli.py` | `odoo-ai`: `setup`, `new-project`, `workspace`, `ci`, `doctor`, `kg`, `lint`, `test`, `audit`, `move-projects` |
-| `setup\version.json` | the version's Odoo branch, Python, repositories, extra packages, addons path, DB user |
-| `kg\` | the knowledge-graph engine: one graph per project (`kg\config\local\`, never committed) |
-| `ci_local.py` | the project's CI on this machine (`odoo-ai ci`, `--static-only`, `--at "<UTC moment>"`) |
+| `project\` | what every project gets: the workspace and conf templates, and what the generated files are for |
+| `docs\PROJECT_PLAN.md` | how a project is built on this structure: its files, rules, gates, tests, the way to a push |
+| `docs\version\` `docs\shared\` | the version's AI rules (`AGENTS.md`, framework notes) and the rules all versions share |
+| `setup\version.json` `setup\requirements-extra.txt` | the version's Python, sources, addons path, DB user, and the packages beyond Odoo's |
+| `kg\` | the knowledge-graph engine: one graph per project |
+| `ci_local.py` `vscode-extension\` | the project's CI on this machine (`odoo-ai ci`, `--at "<UTC moment>"`) and the VS Code button for it |
 | `.pylintrc` `.flake8` `pylint_plugins\` | lint configuration of this version |
-| `vscode-extension\` | the Odoo CI extension (a CI button, a steps view, Problems) |
-| `third-party\` | addons the version needs that live in no other repository |
-| `docs\version\` `docs\shared\` | the version's rules (AGENTS.md, framework notes) and the rules shared by all versions |
 | `launcher\` | the `odoo-ai` launcher and `build_graphs.bat` for `C:\odoo\bin` |
 | `docs\LAYOUT.md` | the layout and the everyday commands in more detail |
 
@@ -53,11 +62,11 @@ C:\odoo\
 
 | Task | Command |
 | --- | --- |
-| Is this machine whole? | `odoo-ai doctor` (`--fix` repairs what is safe) |
+| Is this machine whole? | `odoo-ai doctor` (`--fix` repairs what is safe), `odoo-ai setup --check` |
 | A new project | `odoo-ai new-project <name> --git <url>` |
 | Test before pushing | the `CI` button in VS Code, or `odoo-ai ci` |
 | The project's graph | `odoo-ai kg status` / `odoo-ai kg index`; all of them: `C:\odoo\bin\build_graphs.bat` |
 
 ## Changing the tools
 
-Change them in the version's own `tools` folder and commit on its branch. A change that other versions need too reaches them by `git cherry-pick`, on purpose - never by sharing one copy.
+Change them in the version's own `tools` folder and commit on its branch. Another version gets a change by `git cherry-pick`, on purpose - never through a shared copy.

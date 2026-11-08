@@ -1,0 +1,23 @@
+# Packages Odoo 19 needs here beyond odoo/requirements.txt (lint, CI, the modules imports).
+# pip install -r C:\odoo\odoo19\odoo\requirements.txt -r C:\odoo\odoo19\tools\setup\requirements-extra.txt
+pyyaml
+pyflakes
+black
+flake8
+pylint-odoo==10.0.4
+isort
+openpyxl
+ofxparse
+xlsxwriter
+qrcode
+cryptography
+phonenumbers
+websocket-client
+CairoSVG
+pymupdf
+gTTS
+paramiko
+python-crontab
+SQLAlchemy
+pre_commit
+playwright
