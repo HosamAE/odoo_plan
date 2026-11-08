@@ -1,18 +1,17 @@
-"""odoo-ai setup: make this Odoo version ready to work on, on any machine.
+"""odoo-ai setup: check this Odoo version's folder, and fill in what the tools own.
 
-Everything a version needs is in setup/version.json of these tools, so a new
-machine needs only Git, the right Python, PostgreSQL and wkhtmltopdf, then:
+The tools (this repository) are the structure and everything around the code.
+Odoo, enterprise, the themes, any third-party addons and the venv you download
+and create yourself, as usual; setup says which of them is missing and gives
+the command for it, without doing it:
 
     git clone -b 19.0 https://github.com/HosamAE/odoo_plan C:\\odoo\\odoo19\\tools
-    python C:\\odoo\\odoo19\\tools\\cli.py setup
+    python C:\\odoo\\odoo19\\tools\\cli.py setup --check
 
-Each step looks first and does only what is missing, so running it again (or on
-a machine that is already set up) changes nothing. `--check` only reports.
-
-  1. prerequisites   git, Python <version.json python>, PostgreSQL, wkhtmltopdf, VS Code
-  2. sources         odoo (required), design-themes, enterprise (when access is granted)
-  3. venv            venv with that Python; Odoo's requirements + pip_extra
-  4. third-party     odoo<NN>/third-party -> tools/third-party (the addons these tools carry)
+  1. prerequisites   git, Python <version.json python>, PostgreSQL, wkhtmltopdf, VS Code   (check)
+  2. sources         odoo, design-themes, enterprise, third-party                        (check)
+  3. venv            the venv and setup/requirements-extra.txt                           (check)
+  4. projects        the projects folder                                                 (made)
   5. odoo.conf       written once, with generated passwords (never printed, never committed)
   6. database role   the PostgreSQL role of odoo.conf (asks for the postgres password)
   7. launcher        C:/odoo/bin on PATH, pylint plugin path (doctor --fix)
@@ -91,43 +90,37 @@ def step_prerequisites(run, spec):
 
 
 def step_sources(run, spec, root):
-    print("\n== 2. sources")
+    print("\n== 2. sources (you download them)")
     for repo in spec["repos"]:
         path = os.path.join(root, repo["path"])
-        if os.path.isdir(os.path.join(path, ".git")) or (os.path.isdir(path) and os.listdir(path)):
-            run.ok(f"{repo['path']} ({repo['branch']})")
+        if os.path.isdir(path) and os.listdir(path):
+            run.ok(f"{repo['path']}")
             continue
-        if run.do(f"clone {repo['url']} {repo['branch']} -> {repo['path']}"):
-            res = subprocess.run(["git", "clone", "--depth", "1", "-b", repo["branch"], repo["url"], path])
-            if res.returncode:
-                (run.warn if not repo["required"] else run.warn)(
-                    f"{repo['path']} could not be cloned" + (f" ({repo.get('note')})" if repo.get("note") else ""))
+        level = run.do if repo["required"] else run.warn
+        level(f"{repo['path']} is missing: git clone --depth 1 -b {repo['branch']} {repo['url']} {path}"
+              + (f"  ({repo.get('note')})" if repo.get("note") else ""))
+    third = os.path.join(root, "third-party")
+    if os.path.isdir(third):
+        run.ok(f"third-party ({', '.join(sorted(os.listdir(third))) or 'empty'})")
+    else:
+        run.warn(f"no {third}: create it for the third-party addons the projects use (it is in addons_path)")
 
 
 def step_venv(run, spec, root, python):
-    print("\n== 3. venv")
+    print("\n== 3. venv (you create it)")
     venv_py = os.path.join(root, "venv", "Scripts", "python.exe")
+    extra = os.path.join(TOOLS_DIR, spec.get("requirements_extra", "setup/requirements-extra.txt"))
+    install = (f"{venv_py} -m pip install -r {os.path.join(root, 'odoo', 'requirements.txt')} -r {extra}")
     if not os.path.isfile(venv_py):
-        if not python:
-            run.warn("no venv and no Python " + spec["python"] + ": install Python first")
-            return None
-        if run.do(f"create venv with {python}"):
-            subprocess.run([python, "-m", "venv", os.path.join(root, "venv")], check=True)
-    else:
-        run.ok(f"venv ({venv_py})")
-    if not os.path.isfile(venv_py):
+        run.do(f"no venv: py -{spec['python']} -m venv {os.path.join(root, 'venv')}   then   {install}")
         return None
-    req = os.path.join(root, "odoo", "requirements.txt")
-    missing = _missing_packages(venv_py, spec["pip_extra"])
-    if os.path.isfile(req):
-        # requirements: trust pip to be idempotent; extras: install only what is missing
-        if missing and run.do(f"pip install {len(missing)} package(s): {', '.join(missing)}"):
-            subprocess.run([venv_py, "-m", "pip", "install", "-q", "-r", req], check=False)
-            subprocess.run([venv_py, "-m", "pip", "install", "-q", *missing], check=False)
-        elif not missing:
-            run.ok(f"packages ({len(spec['pip_extra'])} extra beyond Odoo's requirements)")
+    run.ok(f"venv ({venv_py})")
+    wanted = [l.strip() for l in open(extra, encoding="utf-8") if l.strip() and not l.startswith("#")]
+    missing = _missing_packages(venv_py, wanted)
+    if missing:
+        run.do(f"{len(missing)} package(s) missing ({', '.join(missing)}):   {install}")
     else:
-        run.warn("no odoo/requirements.txt: clone the sources first")
+        run.ok(f"packages ({len(wanted)} beyond Odoo's requirements, {os.path.basename(extra)})")
     return venv_py
 
 
@@ -140,21 +133,13 @@ def _missing_packages(venv_py, wanted):
     return [w for w in wanted if w.split("==")[0].lower().replace("_", "-") not in have]
 
 
-def step_third_party(run, root):
-    print("\n== 4. third-party addons")
-    source = os.path.join(TOOLS_DIR, "third-party")
-    target = os.path.join(root, "third-party")
-    if not os.path.isdir(source):
-        run.ok("these tools carry no third-party addons")
-        return
-    if os.path.isdir(target):
-        same = sorted(os.listdir(source)) == sorted(n for n in os.listdir(target) if n != "__pycache__")
-        (run.ok if same else run.warn)(
-            f"third-party exists ({', '.join(sorted(os.listdir(target))) or 'empty'})"
-            + ("" if same else f" - the tools carry {', '.join(sorted(os.listdir(source)))}"))
-        return
-    if run.do(f"link {target} -> {source}"):
-        subprocess.run(["cmd", "/c", "mklink", "/J", target, source], check=True, capture_output=True)
+def step_projects(run, root):
+    print("\n== 4. projects folder")
+    path = os.path.join(root, "projects")
+    if os.path.isdir(path):
+        run.ok(f"{path}")
+    elif run.do(f"create {path}"):
+        os.makedirs(path)
 
 
 def step_conf(run, spec, root, pg):
@@ -256,11 +241,10 @@ def run_setup(check=False, db_role=False):
     root = fs(f"C:/odoo/odoo{TOOLS_VERSION}")
     run = Run(check)
     print(f"[SETUP] Odoo {spec['version']} in {root}" + ("   (--check: nothing is changed)" if check else ""))
-    os.makedirs(os.path.join(root, "projects"), exist_ok=True)
     found = step_prerequisites(run, spec)
     step_sources(run, spec, root)
     step_venv(run, spec, root, found.get("python"))
-    step_third_party(run, root)
+    step_projects(run, root)
     conf = step_conf(run, spec, root, found.get("pg"))
     step_db_role(run, spec, conf, found.get("pg"), db_role)
     step_launcher(run)
