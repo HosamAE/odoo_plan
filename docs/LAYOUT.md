@@ -5,7 +5,6 @@ One folder per Odoo version, holding everything of that version: its source, its
 ```text
 C:\odoo\
 ├── bin\                         odoo-ai launcher, on PATH, shared by every version
-├── odoo-kg\                     knowledge-graph engine (one per machine)
 ├── backups\                     what a cleanup moved aside
 └── odoo<NN>\                    one Odoo version, not in git
     ├── odoo\  venv\  odoo.conf  Odoo source, its Python, its server config
@@ -15,6 +14,7 @@ C:\odoo\
     │   ├── .pylintrc  .flake8   lint configuration of this version
     │   ├── pylint_plugins\      only where the version needs one (19, 20)
     │   ├── vscode-extension\    Odoo CI extension (build output .vsix is not in git)
+    │   ├── kg\                  knowledge-graph engine; kg\config\local\<project>.toml per project
     │   ├── launcher\            source of C:\odoo\bin
     │   └── setup\               one-off setup scripts of this version, when it has any
     └── projects\
@@ -46,7 +46,7 @@ With no version anywhere, `workspace`, `doctor`, `info` and `move-projects` run 
 
 ## The knowledge graph stays per project
 
-Each project has its own graph config (`C:\odoo\odoo-kg\config\local\<project>.toml`), its own data and its own `.mcp.json`. `odoo-ai workspace` writes them with the tools of the project's version; the graph is never committed.
+Each project has its own graph: its config in its version's tools (`C:\odoo\odoo<NN>\tools\kg\config\local\<project>.toml`, never committed), its data in `%LOCALAPPDATA%\odoo-kg\projects\<project>`, and its own `.mcp.json`. The engine itself is part of every version's tools (`tools\kg`), so a version's graph is built by that version's engine. `odoo-ai workspace` writes them with the tools of the project's version; the graph is never committed.
 
 ## A new machine
 
