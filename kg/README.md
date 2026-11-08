@@ -1,6 +1,6 @@
 > **This copy belongs to these tools (2026-11-08).** The engine used to stand alone in
 > `C:\odoo\odoo-kg` (repository hasanshamia/odoo-kg, commit 65a07f5). Every Odoo version now
-> carries its own copy in `C:\odoo\odoo<NN>	ools\kg`, like the rest of its tools; a change made
+> carries its own copy in `C:\odoo\odoo<NN>\tools\kg`, like the rest of its tools; a change made
 > here reaches another version only by cherry-pick. Project configs: `kg\config\local\<project>.toml`
 > (never committed); graph data: `%LOCALAPPDATA%\odoo-kg\projects\<project>`.
 
