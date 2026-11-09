@@ -212,10 +212,10 @@ def step_extension(run):
     pkg = json.load(open(os.path.join(TOOLS_DIR, "vscode-extension", "package.json"), encoding="utf-8"))
     listed = subprocess.run([code, "--list-extensions", "--show-versions"], capture_output=True, text=True,
                             shell=code.endswith(".cmd")).stdout
-    if f"acme.odoo-ci@{pkg['version']}" in listed:
-        run.ok(f"acme.odoo-ci {pkg['version']}")
+    if f"HosamAE.odoo-ci@{pkg['version']}" in listed:
+        run.ok(f"HosamAE.odoo-ci {pkg['version']}")
         return
-    if run.do(f"build and install acme.odoo-ci {pkg['version']}"):
+    if run.do(f"build and install HosamAE.odoo-ci {pkg['version']}"):
         subprocess.run(["python", os.path.join(TOOLS_DIR, "vscode-extension", "build_vsix.py")], check=True)
         vsix = os.path.join(TOOLS_DIR, "vscode-extension", f"odoo-ci-{pkg['version']}.vsix")
         subprocess.run([code, "--install-extension", vsix, "--force"], shell=code.endswith(".cmd"), check=False)

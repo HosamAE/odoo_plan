@@ -141,3 +141,23 @@ except:
         "output": out,
         "failures": "\n".join(failures)
     }
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Odoo Fast Clean Test Engine")
+    parser.add_argument("action", nargs="?", default="init", choices=["init", "test"], help="Action: init base template or test module")
+    parser.add_argument("-v", "--version", default="19", help="Odoo version (17, 18, 19, 20)")
+    parser.add_argument("-m", "--module", default=None, help="Module technical name")
+    args = parser.parse_args()
+
+    if args.action == "init":
+        create_template_db(version=args.version)
+    elif args.action == "test":
+        if not args.module:
+            print("[ERROR] Please provide --module (-m) to test.")
+            sys.exit(1)
+        res = run_fast_clean_test(args.module, version=args.version)
+        sys.exit(0 if res["success"] else 1)
+
+

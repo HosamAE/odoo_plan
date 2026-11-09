@@ -1,16 +1,39 @@
 {
   "name": "odoo-ci",
-  "displayName": "Odoo CI (local)",
-  "description": "Run the project's CI before pushing: the static checks of ci.yml, then a fresh install and every test. Works in every Odoo project workspace (ProjectsOdooNN/<project>) without setup.",
-  "publisher": "acme",
-  "version": "1.2.0",
-  "license": "UNLICENSED",
+  "displayName": "Odoo Studio & CI Pro",
+  "description": "Unified Odoo Multi-Server Studio & CI Suite (v17-20): Server Control, 3s Fast Testing, XPath Validator & DB Snapshots.",
+  "publisher": "HosamAE",
+  "author": {
+    "name": "HosamAE",
+    "url": "https://github.com/HosamAE"
+  },
+  "homepage": "https://github.com/HosamAE/odoo_plan",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HosamAE/odoo_plan.git"
+  },
+  "icon": "media/icon.png",
+  "version": "1.4.0",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
     "Testing",
+    "Programming Languages",
     "Other"
+  ],
+  "keywords": [
+    "odoo",
+    "odoo19",
+    "odoo18",
+    "odoo17",
+    "odoo20",
+    "ci",
+    "testing",
+    "xpath",
+    "i18n",
+    "studio"
   ],
   "activationEvents": [
     "workspaceContains:**/__manifest__.py",
@@ -20,10 +43,40 @@
   "contributes": {
     "commands": [
       {
+        "command": "odooCi.serverRun",
+        "title": "Start Odoo Server",
+        "category": "Odoo Studio",
+        "icon": "$(play)"
+      },
+      {
+        "command": "odooCi.serverStop",
+        "title": "Stop Odoo Server",
+        "category": "Odoo Studio",
+        "icon": "$(stop-circle)"
+      },
+      {
+        "command": "odooCi.serverRestart",
+        "title": "Restart Odoo Server",
+        "category": "Odoo Studio",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "odooCi.serverOpen",
+        "title": "Open Server in Browser",
+        "category": "Odoo Studio",
+        "icon": "$(globe)"
+      },
+      {
         "command": "odooCi.static",
         "title": "Run static checks (seconds)",
         "category": "Odoo CI",
         "icon": "$(checklist)"
+      },
+      {
+        "command": "odooCi.fastTest",
+        "title": "Fast DB Test (Template DB - 3s)",
+        "category": "Odoo Studio",
+        "icon": "$(zap)"
       },
       {
         "command": "odooCi.full",
@@ -37,6 +90,54 @@
         "category": "Odoo CI"
       },
       {
+        "command": "odooCi.xpathCheck",
+        "title": "Validate XML Views & XPath",
+        "category": "Odoo Studio",
+        "icon": "$(check)"
+      },
+      {
+        "command": "odooCi.dbSnapSave",
+        "title": "Take Instant DB Snapshot (~1s)",
+        "category": "Odoo Studio",
+        "icon": "$(camera)"
+      },
+      {
+        "command": "odooCi.dbSnapRestore",
+        "title": "Restore DB from Snapshot (~2s)",
+        "category": "Odoo Studio",
+        "icon": "$(history)"
+      },
+      {
+        "command": "odooCi.i18nScan",
+        "title": "Scan Module Translations (i18n)",
+        "category": "Odoo Studio",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "odooCi.newAddon",
+        "title": "Scaffold New Compliant Addon",
+        "category": "Odoo Studio",
+        "icon": "$(add)"
+      },
+      {
+        "command": "odooCi.doctor",
+        "title": "Run Odoo-AI Doctor Check",
+        "category": "Odoo Studio",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "odooCi.setupWizard",
+        "title": "Quick Project Setup Wizard",
+        "category": "Odoo Studio",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "odooCi.initFastDb",
+        "title": "Initialize Fast Template DB (3s Test)",
+        "category": "Odoo Studio",
+        "icon": "$(database)"
+      },
+      {
         "command": "odooCi.cancel",
         "title": "Cancel the running check",
         "category": "Odoo CI",
@@ -44,47 +145,66 @@
       },
       {
         "command": "odooCi.menu",
-        "title": "Choose a check",
-        "category": "Odoo CI"
+        "title": "Studio & CI Action Menu",
+        "category": "Odoo Studio"
       },
       {
         "command": "odooCi.showOutput",
-        "title": "Show the output",
+        "title": "Show Odoo CI Output",
         "category": "Odoo CI",
         "icon": "$(output)"
       },
       {
         "command": "odooCi.openLog",
-        "title": "Open the Odoo test log",
+        "title": "Open Odoo Test Log",
         "category": "Odoo CI",
         "icon": "$(file-text)"
+      },
+      {
+        "command": "odooCi.refresh",
+        "title": "Refresh Studio Status",
+        "category": "Odoo Studio",
+        "icon": "$(refresh)"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "odooCi",
-          "title": "Odoo CI",
-          "icon": "media/ci.svg"
+          "id": "odooStudio",
+          "title": "Odoo Studio & CI Pro",
+          "icon": "media/studio.svg"
         }
       ]
     },
     "views": {
-      "odooCi": [
+      "odooStudio": [
+        {
+          "id": "odooCi.actions",
+          "name": "Project Control Panel"
+        },
         {
           "id": "odooCi.steps",
-          "name": "Checks"
+          "name": "CI Checks & Progress"
         }
       ]
     },
     "viewsWelcome": [
       {
+        "view": "odooCi.actions",
+        "contents": "Odoo Studio & CI Pro by HosamAE:\n[$(gear) Setup Wizard](command:odooCi.setupWizard)\n[$(play) Start Server](command:odooCi.serverRun)\n[$(globe) Open Browser](command:odooCi.serverOpen)\n[$(zap) Fast Test (3s)](command:odooCi.fastTest)\n[$(camera) DB Snapshot](command:odooCi.dbSnapSave)\n[$(checklist) Static Checks](command:odooCi.static)\n[$(beaker) Full CI Suite](command:odooCi.full)\n[$(add) New Addon](command:odooCi.newAddon)"
+      },
+      {
         "view": "odooCi.steps",
-        "contents": "Run this project's CI here before you push.\n[$(checklist) Static checks (seconds)](command:odooCi.static)\n[$(beaker) Full CI (about 20 minutes)](command:odooCi.full)\nThe full run installs every module on a fresh database and runs every test, the way GitHub does."
+        "contents": "Run this project's CI here before you push.\n[$(checklist) Static checks (seconds)](command:odooCi.static)\n[$(beaker) Full CI (about 20 minutes)](command:odooCi.full)\nThe full run installs every module on a fresh database and runs every test."
       }
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "odooCi.refresh",
+          "when": "view == odooCi.actions",
+          "group": "navigation@1"
+        },
         {
           "command": "odooCi.static",
           "when": "view == odooCi.steps && !odooCi.running",
@@ -113,12 +233,27 @@
         "odooCi.python": {
           "type": "string",
           "default": "",
-          "description": "Python that runs odoo-ai. Empty: the project's own venv (C:/odoo/odoo<NN>/venv), which has what odoo-ai needs."
+          "description": "Python executable that runs odoo-ai. Empty defaults to C:\\odoo\\odoo<NN>\\venv\\Scripts\\python.exe."
         },
         "odooCi.cliPath": {
           "type": "string",
           "default": "",
-          "description": "odoo-ai to run. Empty: the tools of the project's Odoo version (C:/odoo/odoo<NN>/tools/cli.py)."
+          "description": "CLI script to run. Empty defaults to C:\\odoo\\odoo<NN>\\tools\\cli.py."
+        },
+        "odooCi.defaultLang": {
+          "type": "string",
+          "default": "",
+          "description": "Default language code for i18n translation scanning and sync (e.g. 'sv', 'ar', 'de', 'fr')."
+        },
+        "odooCi.version": {
+          "type": "string",
+          "default": "",
+          "description": "Target Odoo major version ('17', '18', '19', '20'). Default auto-detects from workspace."
+        },
+        "odooCi.serverPort": {
+          "type": "number",
+          "default": 0,
+          "description": "Odoo server HTTP port for this project (e.g. 1900, 8069). 0 auto-detects from .conf file."
         }
       }
     }
