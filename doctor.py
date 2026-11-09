@@ -146,7 +146,7 @@ def check_launcher(r, fix):
     if code:
         listed = subprocess.run([code, "--list-extensions", "--show-versions"], capture_output=True, text=True,
                                 shell=code.endswith(".cmd")).stdout
-        mine = next((l for l in listed.splitlines() if l.lower().startswith("acme.odoo-ci@")), "")
+        mine = next((l for l in listed.splitlines() if l.lower().startswith("HosamAE.odoo-ci@")), "")
         r.check(bool(mine), f"VS Code extension {mine}", "Odoo CI extension not installed",
                 "build it with vscode-extension/build_vsix.py, then code --install-extension")
         if mine and mine.split("@")[1] != pkg["version"]:
