@@ -553,7 +553,7 @@ def insert_tasks(text, tasks):
 def new_workspace(version, name, kg_python, config_win):
     v = version
     proj = project_dir(v, name)
-    py = f"{WIN_ROOT}/odoo{v}/venv/Scripts/python.exe"
+    py = f"C:\\odoo\\odoo{v}\\venv\\Scripts\\python.exe"
     lint = {
         "label": "odoo-ai: lint this module", "type": "process", "command": py,
         "args": [tools_cli(v), "lint", "-p", "${file}", "-v", v],
@@ -593,7 +593,7 @@ def new_workspace(version, name, kg_python, config_win):
     return {
         "folders": [{"name": "odoo", "path": "../../odoo"}, {"name": "Project", "path": "."}],
         "extensions": {"recommendations": [
-            "odoo.odoo", "acme.odoo-ci", "ms-python.python", "ms-python.debugpy",
+            "odoo.odoo", "HosamAE.odoo-ci", "ms-python.python", "ms-python.debugpy",
             "ms-python.vscode-pylance", "ms-python.black-formatter", "ms-python.pylint", "ms-python.isort",
             "esbenp.prettier-vscode", "redhat.vscode-xml", "mechatroner.rainbow-csv", "eamodio.gitlens",
         ]},
@@ -898,9 +898,6 @@ def odools_text(version, name, conf):
         "[config.diagnostic_settings]",
         'OLS03001 = "Info"   # model not in the module\'s dependencies',
         'OLS03003 = "Info"   # module used but not in depends',
-        'OLS03028 = "Info"   # field/method only reachable through an undeclared module',
-        'OLS06001 = "Info"   # XML: module not in depends',
-        'OLS05071 = "Hint"   # template name without the module prefix',
         'OLS03024 = "Hint"   # model class declared inside a function (tests)',
         "",
         "# The project only: Odoo itself and the venv are analysed, not reported.",
@@ -983,7 +980,7 @@ def drop_setting(text, key):
 #: Extensions the workspaces must not propose (owner's decisions): Copilot (2026-11-08,
 #: "the message must not show again") and the old Odoo extension OdooLS replaced.
 UNWANTED_EXTENSIONS = ("github.copilot", "github.copilot-chat", "trinhanhngoc.vscode-odoo")
-WANTED_EXTENSIONS = ("acme.odoo-ci",)
+WANTED_EXTENSIONS = ("HosamAE.odoo-ci",)
 
 
 def tidy_recommendations(text):
