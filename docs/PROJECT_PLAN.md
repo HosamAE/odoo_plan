@@ -1,73 +1,95 @@
-# How an Odoo 18 project is built on this structure
+# Blueprint & Tools Reference Plan: Odoo Unified Studio Architecture
+# مرجع خطة الأدوات الموحدة والمنظومة الشاملة داخل بيئة أودو
 
-This is the plan every project under `C:\odoo\odoo18\projects\` follows: where it lives, what it carries, which rules its code keeps, and how a change goes from an idea to a push. The tools enforce most of it; what they cannot check, a reviewer does.
+**تاريخ التوثيق:** 2026-11-09  
+**النطاق:** توثيق دور كل ملف، معمارية السيرفرات والبورتات، محركات الاختبار النظيف السريع، ومولدات الموديولات الشاملة عبر جميع الإصدارات (17، 18، 19، 20).
 
-## 1. Where it lives
+---
 
-- One folder per project: `C:\odoo\odoo18\projects\<PROJECT>`, its own git repository.
-- Next to its addons, five local files that never reach the repository: `<PROJECT>.code-workspace`, `<PROJECT>.conf`, `odools.toml`, `.mcp.json`, `CLAUDE.md`. They come from `tools\project\` (see its README) and `odoo-ai new-project` / `odoo-ai workspace` write them.
-- Its knowledge graph: config `tools\kg\config\local\<project>-odoo18.toml`, data `%LOCALAPPDATA%\odoo-kg\projects\<project>-odoo18`.
-- Open it through its workspace, never through the folder alone: the workspace carries the interpreter, lint, OdooLS, the run/test configurations and the graph.
+## 1. الهيكل المعماري الشامل وتوزيع المسؤوليات (Shared Runtime vs Isolated Projects)
 
-## 2. What the repository carries
+المبدأ الأساسي هو عزل محرك السيرفر والأدوات المشتركة عن كود وتطبيقات كل مشروع:
 
-| Path | Purpose |
-| --- | --- |
-| `<module>\` | one folder per addon, `__manifest__.py` with a `18.0.x.y.z` version |
-| `.github\modules.txt` | every module classified: `gate` (ours: installed, its tests decide the build), `ship` (third-party in production: installed; its tests run only if we wrote them), `skip` (not in production, with the reason) |
-| `.github\workflows\ci.yml` | the CI: static checks, then a fresh install of every gate+ship module and every test |
-| `.github\scripts\` | the gates the CI and `odoo-ai ci` run (below) |
-| `<module>\help\en\`, `help\sv\` | the module's user documentation (gate modules must have it) |
-| `<module>\tests\` | its tests (`test_*.py`) |
+```text
+C:\odoo\
+├── bin\                                    # Launcher موحد على مستوى النظام (odoo-ai)
+│
+├── odoo<NN>\                               # بيئة تشغيل الإصدار (The Engine & Shared Tools Hub)
+│   ├── odoo\                               # سورس أودو الرسمي للكور والـ ORM
+│   ├── venv\                               # بيئة بايثون المعزولة الخاصة بالإصدار
+│   ├── odoo.conf                           # إعدادات السيرفر الافتراضية
+│   └── tools\                              # مستودع الأدوات المركزي المشترك (odoo_plan)
+│       ├── cli.py                          # أداة التحكم الشاملة (odoo-ai CLI)
+│       ├── db_fast.py                      # محرك الاختبار النظيف السريع عبر الـ Clean Template
+│       ├── scaffold_plus.py                # مولد الموديولات المتكامل (بايثون + XML Views + ACLs)
+│       ├── ai_diagnoser.py                 # مشخص الأخطاء الذكي المربوط بالـ Knowledge Graph
+│       ├── doctor.py                       # فاحص صحة البيئة والشبكة (Postgres 5432 + Port 8069)
+│       ├── test_runner.py                  # مشغل الاختبارات الدقيق مع الفلترة بالـ Tags والوقت
+│       ├── ci_local.py                     # محاكي الـ CI المحلي التفاعلي
+│       ├── workspace_sync.py               # مزامنة مساحات العمل وتوليد ملفات الإعداد
+│       ├── gates\                          # بوابات الجودة والفحص الصارم لكسر التوافقية
+│       │   ├── check_odoo19_rules.py       # فحص قواعد R1-R10 الخاصة بـ Odoo 19
+│       │   ├── check_python_names.py       # كشف الأسماء غير المعرفة والـ Imports غير المستخدمة
+│       │   └── check_dependencies.py       # مطابقة الاعتماديات بين الموديولات والـ AST
+│       ├── kg\                             # محرك المعرفة وقاعدة بيانات الـ AST وخادم الـ MCP
+│       └── vscode-extension\               # إضافة VS Code المدمجة (acme.odoo-ci)
+│
+└── ProjectsOdoo<NN>\                       # مجمع المشاريع المستقلة كلياً
+    └── <ProjectName>\                      # مستودع Git مستقل للمشروع
+        ├── <ProjectName>.code-workspace    # مساحة العمل التي تربط المشروع بمحرك الإصدار
+        ├── <ProjectName>.conf              # إعدادات تشغيل السيرفر الخاصة (البورت المخصص xxyy)
+        ├── odools.toml                     # إعدادات الـ Language Server للمشروع
+        ├── .mcp.json                       # ربط المشروع بخادم الـ Knowledge Graph المحلي
+        └── <custom_addons>\                # موديولات المشروع المخصصة فقط
+```
 
-A new module is added to `modules.txt` in the same commit; the CI refuses a folder the register does not know.
+---
 
-## 3. The rules the code keeps
+## 2. دليل الأدوات التنفيذية ودور كل ملف (Tool Roles & Usage)
 
-Checked by the version's gates (`tools\gates\`, run by `odoo-ai ci` on every project of this version; a project that also carries them in `.github\scripts` - `odoo-ai gates --install` - has GitHub's CI run them too, and from then on they fail the run instead of warning):
+### أ. محرك الاختبار السريع والنظيف (`db_fast.py` / `odoo-ai test --fast`)
+* **الدور:** يحل معضلة الـ 20 دقيقة في تثبيت الكور عند كل اختبار.
+* **الآلية:** ينشئ داتابيز مرجعية نظيفة لسورس أودو (`odoo<NN>_clean_base`). وعند طلب الاختبار، يستنسخها في **ثانيتين** (`TEMPLATE`)، يثبت موديول المشروع ويختبره، ثم يحذف الداتابيز المؤقتة فوراً.
+* **الضمان:** عزل ونظافة تامة بنسبة 100% دون وراثة أي بيانات ملوثة.
 
-| Rule | Gate |
-| --- | --- |
-| no undefined names, no unused imports | `check_python_names.py` |
-| translations through the environment: `self.env._()`, `request.env._()` in controllers, `env._()` with an env, `_lt = LazyTranslate(__name__)` with none; never `from odoo import _` | `check_python_names.py` |
-| values passed to the translation, not formatted after it: `_("%(name)s", name=x)` | `check_odoo18_rules.py` R10 |
-| domains with `odoo.osv.expression` (`Domain` arrives in 19) | review |
-| `search_count()`, not `len(search())` | R3 |
-| `default_res_ids: [id]` for the mail composer (`default_res_id` raises) | R2 |
-| defaults as `lambda self: self._method()`, not the method itself | R4 |
-| a compute writes only fields that name it as their `compute=` (and a `search=` if filtered on) | R5 |
-| `<search>` groups hold only `<filter>`; no `parent.` in view contexts | R6, R7 |
-| `_compute_display_name`, not `name_get` | R9 |
-| a module depends on every module whose models, fields or XML ids it uses - or asks first (`"model" in self.env`, `raise_if_not_found=False`) | `check_dependencies.py` |
-| no framework warnings from our modules in the Odoo log | `check_test_log.py` |
+### ب. مولد الموديولات الشامل (`scaffold_plus.py` / `odoo-ai new-addon`)
+* **الدور:** توليد موديول كامل مطابق لكل معايير الإصدار بضغطة زر.
+* **المخرجات:**
+  1. ملفات بايثون مع `self.env._()` و `odoo.fields.Domain`.
+  2. ملفات XML كاملة: Search view بقواعد الفلترة السليمة (R6)، Form view، List view، و Action.
+  3. ملفات الصلاحيات `security/ir.model.access.csv`.
+  4. تسجيل الموديول تلقائياً في `.github/modules.txt` كـ `gate`.
 
-Kept by review (from `C:\odoo\AGENTS.md` and `C:\odoo\odoo18\AGENTS.md`):
+### ج. المشخص الذكي المربوط بالجراف (`ai_diagnoser.py`)
+* **الدور:** تحليل أخطاء الـ Traceback وربطها بقاعدة بيانات الـ AST.
+* **المخرجات:** سحب مقتطف الكود المسبب للخطأ بمؤشر `>>`، واستخراج كلاسات وموديلات الـ Knowledge Graph المتأثرة لعرضها في البرومبت لحل المشكلة فوراً.
 
-- No raw SQL where the ORM can do it; when SQL is needed, values are parameters, never pasted into the query.
-- No hard-coded database ids: `env.ref("module.xmlid")`.
-- No direct DOM manipulation in OWL: `useState`, `useRef`.
-- Every company-owned model has a record rule (`('company_id', 'in', company_ids)`; in Acme also `user.hx_branch_company_ids`).
-- "Today" is the user's or the company's day, never the server's: `fields.Date.context_today(record.with_context(tz=...))`.
-- Inspect before changing: manifests, dependents (the graph: `kg_find_modules`, `kg_dependents`, `kg_impact`), nearby code, tests.
+### د. طبيب البيئة والشبكة (`doctor.py` / `odoo-ai doctor`)
+* **الدور:** التأكد من سلامة البيئة بنقرة واحدة (سورس أودو، الـ venv، مجلدات المشاريع، خادم MCP، فحص خدمة بوستجريس 5432، وفحص بورتات السيرفر 8069).
 
-## 4. Tests
+---
 
-- Every fix comes with the test that would have caught it; every feature with tests of its rules.
-- A test that needs a module its own module does not depend on says so and skips where that module is absent (Acme: `@skip_unless_installed("other_module")` from `acme_base.tools.testing`; another project gives itself the same helper).
-- A test that means "today" uses the user's clock (`fields.Date.context_today(user.with_context(tz=user.tz))`, `datetime.now(tz)`), so it holds after midnight in Stockholm and on a server anywhere.
-- `odoo-ai ci --at "2026-11-07 23:30"` runs the suite at a chosen UTC moment (the database's own clock stays real).
+## 3. قاعدة تسمية البورتات المعتمدة (`xxyy`)
 
-## 5. From a change to a push
+كل مشروع يتم تشغيله على بورت مستقل ومحدد داخل ملف الـ Conf الخاص به:
+* $\mathbf{xx}$: رقم الإصدار (17, 18, 19, 20).
+* $\mathbf{yy}$: كود المشروع داخل الفيرجن.
+* **أمثلة معتمدة:**
+  * Odoo 19 - `Acme`: بورت **`1900`**
+  * Odoo 19 - `sample_engine`: بورت **`1911`**
+  * Odoo 20 - `Acme 20`: بورت **`2002`**
+  * Odoo 17 - `acme` (Test): بورت **`1700`**
+  * Odoo 18 - `SampleProject18`: بورت **`1806`**
 
-1. Once per project: `odoo-ai gates --install`, and add the printed steps to its `ci.yml`, so the version's gates bind it on GitHub too.
-2. Work on the project's branch; keep the graph fresh (`odoo-ai kg index` after commits that matter).
-3. Before committing: the **CI** button in VS Code (static checks in seconds; the full run installs everything on a fresh database and runs every test, about 20 minutes) - or `odoo-ai ci` / `odoo-ai ci --static-only`.
-4. Bump the version of every module the commit touches (`18.0.x.y.z+1`; modules not deployed anywhere yet may skip it). A version that carries a migration is the migration's folder name.
-5. Commit in Odoo's form: `[FIX] module: summary`, `[ADD]`, `[IMP]`, `[REF]`, `[REM]`; the body says why.
-6. Pull, then push. The CI on GitHub runs the same gates.
+---
 
-## 6. When the structure itself must change
+## 4. إرشادات الاستخدام على أي جهاز جديد (Setup on a New Machine)
 
-- A rule every project should keep: add it to a gate in `.github\scripts\` (or `check_odoo18_rules.py`), fix what it finds, then it holds.
-- What every project gets (workspace, conf): `tools\project\` on this branch.
-- The tools, the CI runner, the graph engine, lint: on this branch only. Another version gets the change by `git cherry-pick`, on purpose.
+1. استنساخ سورس أودو وإنشاء الـ `venv` في `C:\odoo\odoo<NN>\`.
+2. استنساخ فرع الأدوات المناسب:  
+   `git clone -b <NN>.0 https://github.com/HosamAE/odoo_plan.git C:\odoo\odoo<NN>\tools`
+3. تشغيل الطبيب لضبط المسارات والروابط:  
+   `python C:\odoo\odoo<NN>\tools\cli.py doctor --fix`
+4. استنساخ مشاريعك في مسارها الخارجي: `C:\odoo\ProjectsOdoo<NN>\<ProjectName>`.
+5. تشغيل مزامنة مساحات العمل:  
+   `odoo-ai workspace`

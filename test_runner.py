@@ -10,7 +10,7 @@ import sys
 import time
 
 
-def find_odoo_paths(version="18"):
+def find_odoo_paths(version="19"):
     base_dir = f"C:\\odoo\\odoo{version}"
     python_exe = os.path.join(base_dir, "venv", "Scripts", "python.exe")
     odoo_bin = os.path.join(base_dir, "odoo", "odoo-bin")
@@ -21,7 +21,7 @@ def find_odoo_paths(version="18"):
     return python_exe, odoo_bin
 
 
-def run_odoo_test(module_name, version="18", db_name="test_db", config_file=None, tags=None):
+def run_odoo_test(module_name, version="19", db_name="test_db", config_file=None, tags=None):
     python_exe, odoo_bin = find_odoo_paths(version)
     
     if not os.path.exists(odoo_bin):
