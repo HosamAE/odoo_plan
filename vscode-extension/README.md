@@ -1,35 +1,39 @@
 # Odoo Studio & CI Pro
 
 <p align="center">
-  <img src="media/icon.png" width="128" height="128" alt="Odoo Studio & CI Pro Logo" />
+  <img src="https://raw.githubusercontent.com/HosamAE/odoo_plan/19.0/vscode-extension/media/icon.png" width="128" height="128" alt="Odoo Studio & CI Pro Logo" />
 </p>
 
-**The Unified Odoo Multi-Server Studio & Local CI Suite for Professional Odoo Developers.**
+<p align="center">
+  <strong>The Unified Odoo Multi-Server Studio & Local CI Suite for Professional Developers.</strong>
+</p>
 
-* **Conceived, Architected & Developed by:** [HosamAE](https://github.com/HosamAE)
-* **Target Frameworks:** Odoo 17.0, 18.0, 19.0, 20.0
-* **Repository:** [https://github.com/HosamAE/odoo_plan](https://github.com/HosamAE/odoo_plan)
-* **License:** MIT (All original architecture and design rights reserved to HosamAE)
+<p align="center">
+  <img src="https://img.shields.io/badge/Odoo-17%20%7C%2018%20%7C%2019%20%7C%2020-714B67?logo=odoo" alt="Odoo Versions" />
+  <img src="https://img.shields.io/badge/Fast%20DB%20Test-3s-0ea5e9" alt="Fast Test" />
+  <img src="https://img.shields.io/badge/DB%20Snapshots-1s-22c55e" alt="DB Snapshots" />
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License" />
+</p>
 
 ---
 
 <p align="center">
-  <img src="media/studio_architecture.png" width="100%" alt="Odoo Studio & CI Pro Architecture" />
+  <img src="https://raw.githubusercontent.com/HosamAE/odoo_plan/19.0/vscode-extension/media/studio_architecture.png" width="100%" alt="Odoo Studio & CI Pro Architecture" />
 </p>
 
-## 🌟 Key Highlights
+## 🌟 Key Features
 
-### ⚡ 1. Ephemeral Clean Template DB Testing (3s)
+### ⚡ 1. Ephemeral Clean Template DB Testing (3 Seconds)
 Run unit tests on a pristine, isolated PostgreSQL database clone in **3 seconds** instead of the typical 20-minute core install. The test database is cloned via PostgreSQL `TEMPLATE` and dropped automatically upon completion.
 
 <p align="center">
-  <img src="media/fast_test_benchmark.png" width="100%" alt="Fast Test Benchmark Comparison" />
+  <img src="https://raw.githubusercontent.com/HosamAE/odoo_plan/19.0/vscode-extension/media/fast_test_benchmark.png" width="100%" alt="Fast Test Benchmark Comparison" />
 </p>
 
 ### 🖥️ 2. Integrated Project Server Manager
-Dedicated server control per workspace with automatic `xxyy` port recognition:
+Dedicated server control per workspace with automatic port recognition:
 - **`[▶ Start Server]`**: Launches Odoo server in an integrated terminal with `--dev=all`.
-- **`[⏹ Stop Server]`**: Terminating active processes bound to the project port.
+- **`[⏹ Stop Server]`**: Terminates active processes bound to the project port.
 - **`[🌐 Open in Browser]`**: One-click direct navigation to `http://localhost:<port>`.
 
 ### ⚙️ 3. Quick Project Setup Wizard (Works on ANY Project)
@@ -44,10 +48,10 @@ Detects XML and XPath structural errors before runtime:
 - Verifies `expr` syntax, unbalanced brackets, missing `@` on attribute tests, and trailing slashes.
 - Integrates with the native VS Code **Problems panel** (`Ctrl+Shift+M`) with red squiggly underlines on the exact XML line.
 
-### 📸 5. Instant Database Snapshots & Rollbacks (1-2s)
+### 📸 5. Instant Database Snapshots & Rollbacks (1-2 Seconds)
 Take instant checkpoints before testing schema modifications or addon upgrades:
-- `odoo-ai db-snap save <label>`: Takes a block-level database clone in ~1 second.
-- `odoo-ai db-snap restore <label>`: Reverts database to the saved state in ~2 seconds.
+- **Save Snapshot**: Takes a block-level database clone in ~1 second.
+- **Restore Snapshot**: Reverts database to the saved state in ~2 seconds.
 
 ### 🌐 6. Multilingual Translation & i18n Synchronization
 Engineered for multilingual projects across any target language (e.g. Swedish, Arabic, French, German, Spanish):
@@ -65,34 +69,13 @@ Generate standard-compliant Odoo addons in seconds:
 
 ## 🚀 Quick Setup & Usage
 
-### Inside any Odoo Project Workspace:
-1. Open any Odoo project folder or `.code-workspace` in VS Code or Antigravity IDE.
+1. Open any Odoo project folder in VS Code or Antigravity IDE.
 2. Click the **Odoo Studio & CI** icon in the Activity Bar.
-3. Click **`[⚙ Setup Wizard]`** to confirm Python, Port, and Default Language.
+3. Click **`[⚙ Setup Wizard]`** to confirm Python path, Server Port, and Default Language.
 4. Use the **Project Control Panel** for server management, testing, and developer tools.
-5. Click the **Odoo Status Bar** item in the bottom-left corner for quick-action shortcuts.
-
-### Build and Package:
-```bat
-python C:\odoo\odoo19\tools\vscode-extension\build_vsix.py
-code --install-extension C:\odoo\odoo19\tools\vscode-extension\odoo-ci-1.4.0.vsix --force
-```
 
 ---
 
-## 👤 Author & Copyright
-
-**HosamAE**  
-GitHub: [https://github.com/HosamAE](https://github.com/HosamAE)  
-Project Plan & Master Repository: [https://github.com/HosamAE/odoo_plan](https://github.com/HosamAE/odoo_plan)
-python C:\odoo\odoo19\tools\vscode-extension\build_vsix.py
-code --install-extension C:\odoo\odoo19\tools\vscode-extension\odoo-ci-1.4.0.vsix --force
-```
-
----
-
-## 👤 Author & Copyright
-
-**HosamAE**  
-GitHub: [https://github.com/HosamAE](https://github.com/HosamAE)  
-Project Plan & Master Repository: [https://github.com/HosamAE/odoo_plan](https://github.com/HosamAE/odoo_plan)
+<p align="center">
+  <sub>Developed & Maintained by <a href="https://github.com/HosamAE">HosamAE</a> • Licensed under the MIT License</sub>
+</p>
