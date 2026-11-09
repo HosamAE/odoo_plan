@@ -1,11 +1,14 @@
 """
 Odoo AI Test Runner Engine
-Runs Odoo unittests via correct python virtual environment, captures tracebacks & logs.
+Runs Odoo unittests via correct python virtual environment, captures tracebacks & logs,
+supports test filtering via --test-tags, and measures precise execution duration.
 """
 
 import os
 import subprocess
 import sys
+import time
+
 
 def find_odoo_paths(version="17"):
     base_dir = f"C:\\odoo\\odoo{version}"
@@ -17,14 +20,16 @@ def find_odoo_paths(version="17"):
         
     return python_exe, odoo_bin
 
-def run_odoo_test(module_name, version="17", db_name="test_db", config_file=None):
+
+def run_odoo_test(module_name, version="17", db_name="test_db", config_file=None, tags=None):
     python_exe, odoo_bin = find_odoo_paths(version)
     
     if not os.path.exists(odoo_bin):
         return {
             "success": False,
             "error": f"Odoo bin executable not found at {odoo_bin}",
-            "traceback": ""
+            "traceback": "",
+            "duration": 0
         }
 
     cmd = [
@@ -37,12 +42,17 @@ def run_odoo_test(module_name, version="17", db_name="test_db", config_file=None
         "--log-level=test"
     ]
     
+    if tags:
+        cmd.extend(["--test-tags", tags])
+
     if config_file and os.path.exists(config_file):
         cmd.extend(["-c", config_file])
 
-    print(f"[TEST RUNNER] Running Odoo {version} Unit Tests for module: '{module_name}'...")
+    tag_info = f" [tags: {tags}]" if tags else ""
+    print(f"[TEST RUNNER] Running Odoo {version} Unit Tests for module: '{module_name}'{tag_info}...")
     print(f"Command: {' '.join(cmd)}\n")
 
+    t0 = time.perf_counter()
     try:
         process = subprocess.run(
             cmd,
@@ -51,6 +61,7 @@ def run_odoo_test(module_name, version="17", db_name="test_db", config_file=None
             text=True,
             timeout=300
         )
+        duration = round(time.perf_counter() - t0, 2)
         
         output = process.stdout + "\n" + process.stderr
         success = process.returncode == 0 and "ERROR" not in output and "FAIL" not in output
@@ -63,18 +74,23 @@ def run_odoo_test(module_name, version="17", db_name="test_db", config_file=None
         return {
             "success": success,
             "returncode": process.returncode,
+            "duration": duration,
             "output": output,
             "failures": "\n".join(failures)
         }
     except subprocess.TimeoutExpired:
+        duration = round(time.perf_counter() - t0, 2)
         return {
             "success": False,
+            "duration": duration,
             "error": "Test execution timed out after 300 seconds.",
             "failures": "Timeout"
         }
     except Exception as e:
+        duration = round(time.perf_counter() - t0, 2)
         return {
             "success": False,
+            "duration": duration,
             "error": str(e),
             "failures": str(e)
         }

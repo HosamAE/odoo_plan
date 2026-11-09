@@ -21,7 +21,7 @@ import sys
 WIN_ROOT = "C:/odoo"
 # A project lives with its Odoo version: C:/odoo/odoo<NN>/projects/<name> (since 2026-11-08;
 # LEGACY_PROJECTS is where they were before, read only to move old paths).
-PROJECT_RX = re.compile(r"odoo(\d+)/projects/([^/]+)", re.IGNORECASE)
+PROJECT_RX = re.compile(r"(?:odoo|ProjectsOdoo)(\d+)(?:/projects)?/([^/]+)", re.IGNORECASE)
 LEGACY_PROJECTS = "ProjectsOdoo"
 # These tools live in C:/odoo/odoo<NN>/tools: one copy per Odoo version, each free to differ.
 TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -50,6 +50,9 @@ SKIP_DIRS = {".git", ".history", "venv", ".venv", "node_modules", "__pycache__",
 # --------------------------------------------------------------------- helpers
 
 def projects_root(version):
+    external = f"{WIN_ROOT}/ProjectsOdoo{version}"
+    if os.path.isdir(fs(external)):
+        return external
     return f"{WIN_ROOT}/odoo{version}/projects"
 
 
@@ -602,7 +605,7 @@ def new_workspace(version, name, kg_python, config_win):
         "settings": {
             "python.languageServer": "None",
             "python.analysis.typeCheckingMode": "off",
-            "python.defaultInterpreterPath": py,
+            "python.defaultInterpreterPath": py.replace("/", "\\\\"),
             # The odoo source only: an addons folder on PYTHONPATH shadows the stdlib.
             "python.analysis.extraPaths": [f"{WIN_ROOT}/odoo{v}/odoo"],
             "python.analysis.diagnosticMode": "openFilesOnly",

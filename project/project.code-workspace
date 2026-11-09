@@ -510,7 +510,7 @@
     "peacock.color": "#1b85b8",
     "python.languageServer": "None",
     "python.analysis.typeCheckingMode": "basic",
-    "python.defaultInterpreterPath": "C:/odoo/odoo17/venv/Scripts/python.exe",
+    "python.defaultInterpreterPath": "C:\\odoo\\odoo17\\venv\\Scripts\\python.exe",
     "python.analysis.extraPaths": ["C:/odoo/odoo17/odoo"],
     "python.autoComplete.extraPaths": ["C:/odoo/odoo17/odoo"],
     "python.analysis.diagnosticMode": "openFilesOnly",
