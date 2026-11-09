@@ -19,6 +19,8 @@ from setup_version import run_setup
 from new_project import run_new_project
 from gates_cmd import run_gates
 from port_cmd import run_port
+from db_fast import run_fast_clean_test
+from scaffold_plus import create_scaffold_module
 
 VERSION = "1.3.0"
 SUPPORTED_VERSIONS = ["17", "18", "19", "20"]
@@ -83,6 +85,7 @@ def main():
     test_parser.add_argument("--db", "-d", default="test_db", help="Database name (default: test_db)")
     test_parser.add_argument("--conf", "-c", default=None, help="Path to .conf file")
     test_parser.add_argument("--tags", "-t", default=None, help="Filter tests by tag or method (e.g. /module:TestClass.test_func)")
+    test_parser.add_argument("--fast", action="store_true", help="Run on clean cloned template DB in seconds (pure & isolated)")
     test_parser.add_argument("--diagnose", action="store_true", help="Generate AI diagnostic prompt if test fails")
 
     # 2. Lint Command
@@ -162,6 +165,13 @@ def main():
         "move-projects", help="Move C:/odoo/ProjectsOdoo<NN>/* into C:/odoo/odoo<NN>/projects/ (dry run unless --apply)")
     move_parser.add_argument("--apply", action="store_true", help="Do it (close VS Code and stop Odoo first)")
 
+    # 14. New-Addon Command (Scaffold Plus)
+    addon_parser = subparsers.add_parser(
+        "new-addon", help="Generate standard-compliant Odoo module with compliant views, models, and ACLs")
+    addon_parser.add_argument("name", help="Technical name of the addon (e.g. my_custom_feature)")
+    addon_parser.add_argument("--path", "-p", default=".", help="Project path to create the addon in (default: here)")
+    addon_parser.add_argument("--summary", "-s", default="Custom business addon", help="Short summary")
+
     args = parser.parse_args()
 
     if getattr(args, "path", None) and args.command in ("lint", "audit"):
@@ -173,7 +183,11 @@ def main():
 
     if args.command == "test":
         tags = getattr(args, "tags", None)
-        res = run_odoo_test(args.module, args.version, args.db, args.conf, tags=tags)
+        if getattr(args, "fast", False):
+            print(f"[CLI] Running FAST CLEAN TEST on ephemeral clone...")
+            res = run_fast_clean_test(args.module, version=args.version, config_file=args.conf, tags=tags)
+        else:
+            res = run_odoo_test(args.module, args.version, args.db, args.conf, tags=tags)
         dur = res.get("duration", 0)
         if res["success"]:
             print(f"\n[SUCCESS] All Odoo Tests Passed Successfully in {dur}s!")
@@ -215,6 +229,10 @@ def main():
             print("  [OK] __manifest__.py exists.")
         else:
             print("  [ERROR] '__manifest__.py' is MISSING!")
+
+    elif args.command == "new-addon":
+        target = os.path.abspath(args.path)
+        sys.exit(0 if create_scaffold_module(args.name, target, version=args.version, summary=args.summary) else 1)
 
     elif args.command == "kg":
         sys.exit(run_kg(args.action, args.path))
