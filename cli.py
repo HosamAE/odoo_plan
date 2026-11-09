@@ -39,8 +39,8 @@ def module_root(path):
 
 
 def detect_version(path, fallback=TOOLS_VERSION):
-    """Odoo version from a path: C:\\odoo\\odoo19\\... (projects included), else the fallback."""
-    match = re.search(r"[\\/]odoo(1[0-9]|2[0-9])(?:[\\/]|$)", os.path.abspath(path), re.IGNORECASE)
+    """Odoo version from a path: C:\\odoo\\odoo19\\... or C:\\odoo\\ProjectsOdoo19\\..."""
+    match = re.search(r"[\\/](?:odoo|ProjectsOdoo)(1[0-9]|2[0-9])(?:[\\/]|$)", os.path.abspath(path), re.IGNORECASE)
     return match.group(1) if match else fallback
 
 def kg_python():
@@ -82,6 +82,7 @@ def main():
                              help="Odoo version (default: from the current folder, else these tools' version)")
     test_parser.add_argument("--db", "-d", default="test_db", help="Database name (default: test_db)")
     test_parser.add_argument("--conf", "-c", default=None, help="Path to .conf file")
+    test_parser.add_argument("--tags", "-t", default=None, help="Filter tests by tag or method (e.g. /module:TestClass.test_func)")
     test_parser.add_argument("--diagnose", action="store_true", help="Generate AI diagnostic prompt if test fails")
 
     # 2. Lint Command
@@ -171,14 +172,16 @@ def main():
         args.version = detect_version(getattr(args, "path", None) or os.getcwd())
 
     if args.command == "test":
-        res = run_odoo_test(args.module, args.version, args.db, args.conf)
+        tags = getattr(args, "tags", None)
+        res = run_odoo_test(args.module, args.version, args.db, args.conf, tags=tags)
+        dur = res.get("duration", 0)
         if res["success"]:
-            print("\n[SUCCESS] All Odoo Tests Passed Successfully!")
+            print(f"\n[SUCCESS] All Odoo Tests Passed Successfully in {dur}s!")
         else:
-            print("\n[FAIL] Tests Failed or Encountered Errors!")
+            print(f"\n[FAIL] Tests Failed or Encountered Errors after {dur}s!")
             print(res.get("failures", res.get("error")))
             if args.diagnose:
-                print("\n[AI DIAGNOSER] Generating AI Diagnostic Prompt...")
+                print("\n[AI DIAGNOSER] Generating Knowledge Graph Enriched AI Diagnostic Prompt...")
                 prompt = generate_diagnostic_prompt(args.module, res.get("output", ""), version=args.version)
                 print("\n" + prompt)
 
