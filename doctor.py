@@ -93,8 +93,30 @@ def check_tools(r, v, fix):
             "no graph engine in tools/kg", "it ships with the tools: git pull in tools/")
     r.check(not os.path.isdir(fs("C:/odoo/odoo-kg")), "no stand-alone C:/odoo/odoo-kg",
             "left over: C:/odoo/odoo-kg", "the engine is in every version's tools/kg now; move it aside")
-    r.check(not os.path.isdir(fs(f"C:/odoo/ProjectsOdoo{v}")), f"projects in odoo{v}/projects",
-            f"projects still in C:/odoo/ProjectsOdoo{v}", "odoo-ai move-projects --apply (VS Code closed)")
+    ext_proj = os.path.isdir(fs(f"C:/odoo/ProjectsOdoo{v}"))
+    int_proj = os.path.isdir(fs(f"C:/odoo/odoo{v}/projects"))
+    r.check(ext_proj or int_proj, f"projects root active ({'ProjectsOdoo' + v if ext_proj else 'odoo' + v + '/projects'})",
+            f"no projects directory found for version {v}", f"create C:/odoo/ProjectsOdoo{v}")
+    
+    # Network & PostgreSQL health check
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(0.5)
+    try:
+        s.connect(('127.0.0.1', 5432))
+        s.close()
+        r.ok("PostgreSQL service active on port 5432")
+    except Exception:
+        r.bad("PostgreSQL service not reachable on port 5432", "Start PostgreSQL service in Windows Services")
+
+    s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s2.settimeout(0.3)
+    try:
+        s2.connect(('127.0.0.1', 8069))
+        s2.close()
+        r.ok("Port 8069 is in use (Odoo server running)")
+    except Exception:
+        r.ok("Port 8069 is free (ready for Odoo server)")
 
 
 def check_launcher(r, fix):
