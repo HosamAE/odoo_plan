@@ -172,6 +172,10 @@ def main():
     addon_parser.add_argument("--path", "-p", default=".", help="Project path to create the addon in (default: here)")
     addon_parser.add_argument("--summary", "-s", default="Custom business addon", help="Short summary")
 
+    # 18. Initialize Clean Template Database
+    fast_init_parser = subparsers.add_parser("init-fast-db", help="Initialize base clean template DB for 3-second testing")
+    fast_init_parser.add_argument("--version", "-v", default=None, choices=SUPPORTED_VERSIONS, help="Odoo version")
+
     args = parser.parse_args()
 
     if getattr(args, "path", None) and args.command in ("lint", "audit"):
@@ -186,12 +190,22 @@ def main():
         if getattr(args, "fast", False):
             print(f"[CLI] Running FAST CLEAN TEST on ephemeral clone...")
             res = run_fast_clean_test(args.module, version=args.version, config_file=args.conf, tags=tags)
-        else:
+        elif args.command == "init-fast-db":
+        from db_fast import create_template_db
+        ver = args.version or detect_version(os.getcwd()) or "19"
+        create_template_db(version=ver)
+
+    else:
             res = run_odoo_test(args.module, args.version, args.db, args.conf, tags=tags)
         dur = res.get("duration", 0)
         if res["success"]:
             print(f"\n[SUCCESS] All Odoo Tests Passed Successfully in {dur}s!")
-        else:
+        elif args.command == "init-fast-db":
+        from db_fast import create_template_db
+        ver = args.version or detect_version(os.getcwd()) or "19"
+        create_template_db(version=ver)
+
+    else:
             print(f"\n[FAIL] Tests Failed or Encountered Errors after {dur}s!")
             print(res.get("failures", res.get("error")))
             if args.diagnose:
@@ -205,7 +219,12 @@ def main():
             print("\nXML Errors Found:")
             for err in res["xml_errors"]:
                 print(err)
-        else:
+        elif args.command == "init-fast-db":
+        from db_fast import create_template_db
+        ver = args.version or detect_version(os.getcwd()) or "19"
+        create_template_db(version=ver)
+
+    else:
             print("\n[SUCCESS] XML Syntax Clean.")
 
         print("\n--- PYLINT ODOO REPORT ---")
@@ -222,12 +241,22 @@ def main():
         print(f"[AUDIT] Auditing Odoo Module: {module_path}")
         if os.path.exists(sec_file):
             print("  [OK] Security CSV exists.")
-        else:
+        elif args.command == "init-fast-db":
+        from db_fast import create_template_db
+        ver = args.version or detect_version(os.getcwd()) or "19"
+        create_template_db(version=ver)
+
+    else:
             print("  [WARNING] 'security/ir.model.access.csv' is MISSING!")
 
         if os.path.exists(manifest_file):
             print("  [OK] __manifest__.py exists.")
-        else:
+        elif args.command == "init-fast-db":
+        from db_fast import create_template_db
+        ver = args.version or detect_version(os.getcwd()) or "19"
+        create_template_db(version=ver)
+
+    else:
             print("  [ERROR] '__manifest__.py' is MISSING!")
 
     elif args.command == "new-addon":
@@ -273,6 +302,11 @@ def main():
         print("Every version has its own tools: C:/odoo/odoo<NN>/tools (the odoo-ai launcher picks them)")
         print("Registered Rules: AGENTS.md, .clinerules, .cursorrules")
         print("Graph: `odoo-ai kg status|index` in any project folder; `odoo-ai workspace` wires new projects")
+
+    elif args.command == "init-fast-db":
+        from db_fast import create_template_db
+        ver = args.version or detect_version(os.getcwd()) or "19"
+        create_template_db(version=ver)
 
     else:
         parser.print_help()

@@ -13,7 +13,6 @@
     "recommendations": [
       "streetsidesoftware.code-spell-checker",
       "oderwat.indent-rainbow",
-      "odoo.odoo",
       "mstuttgart.odoo-snippets",
       "ms-python.python",
       "ms-python.debugpy",
@@ -44,7 +43,7 @@
       "wayou.vscode-todo-highlight",
       "johnpapa.vscode-peacock",
       "cweijan.vscode-database-client2",
-      "acme.odoo-ci",
+      "HosamAE.odoo-ci",
     ],
     "unwantedRecommendations": ["github.copilot", "github.copilot-chat", "trinhanhngoc.vscode-odoo"],
   },
@@ -56,7 +55,7 @@
         "type": "debugpy",
         "request": "launch",
         "stopOnEntry": false,
-        "python": "C:/odoo/odoo19/venv/Scripts/python.exe",
+        "python": "C:\\odoo\\odoo19\\venv\\Scripts\\python.exe",
         "program": "C:/odoo/odoo19/odoo/odoo-bin",
         "args": [
           "--config=C:/odoo/odoo19/projects/{{PROJECT}}/{{CONF}}",
@@ -71,7 +70,7 @@
         "type": "debugpy",
         "request": "launch",
         "stopOnEntry": false,
-        "python": "C:/odoo/odoo19/venv/Scripts/python.exe",
+        "python": "C:\\odoo\\odoo19\\venv\\Scripts\\python.exe",
         "program": "C:/odoo/odoo19/odoo/odoo-bin",
         "args": ["--config=C:/odoo/odoo19/projects/{{PROJECT}}/{{CONF}}", "--dev=all"],
         "cwd": "C:/odoo/odoo19/odoo",
@@ -86,7 +85,7 @@
       {
         "label": "odoo-ai: lint this module",
         "type": "process",
-        "command": "C:/odoo/odoo19/venv/Scripts/python.exe",
+        "command": "C:\\odoo\\odoo19\\venv\\Scripts\\python.exe",
         "args": [
           "C:/odoo/odoo19/tools/cli.py",
           "lint",
@@ -196,7 +195,7 @@
       {
         "label": "odoo-ai: lint the project",
         "type": "process",
-        "command": "C:/odoo/odoo19/venv/Scripts/python.exe",
+        "command": "C:\\odoo\\odoo19\\venv\\Scripts\\python.exe",
         "args": [
           "C:/odoo/odoo19/tools/cli.py",
           "lint",
@@ -302,7 +301,7 @@
       {
         "label": "odoo-ai: audit this module",
         "type": "process",
-        "command": "C:/odoo/odoo19/venv/Scripts/python.exe",
+        "command": "C:\\odoo\\odoo19\\venv\\Scripts\\python.exe",
         "args": [
           "C:/odoo/odoo19/tools/cli.py",
           "audit",
@@ -428,7 +427,7 @@
       {
         "label": "odoo-kg: status",
         "type": "process",
-        "command": "C:/odoo/odoo19/venv/Scripts/python.exe",
+        "command": "C:\\odoo\\odoo19\\venv\\Scripts\\python.exe",
         "args": [
           "C:/odoo/odoo19/tools/kg_open.py",
           "--config",
@@ -526,7 +525,7 @@
     "black-formatter.args": ["--line-length=150"],
     "debugpy.showPythonInlineValues": true,
     "pylint.enabled": true,
-    "pylint.interpreter": ["C:/odoo/odoo19/venv/Scripts/python.exe"],
+    "pylint.interpreter": ["C:\\odoo\\odoo19\\venv\\Scripts\\python.exe"],
     "pylint.args": [
       "--rcfile=C:/odoo/odoo19/tools/.pylintrc",
       "--max-line-length=150",

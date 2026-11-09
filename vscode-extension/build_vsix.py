@@ -10,7 +10,16 @@ import zipfile
 from xml.sax.saxutils import escape
 
 HERE = pathlib.Path(__file__).resolve().parent
-FILES = ["package.json", "extension.js", "README.md", "media/ci.svg"]
+FILES = [
+    "package.json",
+    "extension.js",
+    "README.md",
+    "media/ci.svg",
+    "media/studio.svg",
+    "media/icon.png",
+    "media/fast_test_benchmark.png",
+    "media/studio_architecture.png"
+]
 
 pkg = json.loads((HERE / "package.json").read_text(encoding="utf-8"))
 out = HERE / f"{pkg['name']}-{pkg['version']}.vsix"
@@ -20,6 +29,7 @@ content_types = """<?xml version="1.0" encoding="utf-8"?>
 <Default Extension=".json" ContentType="application/json"/>
 <Default Extension=".js" ContentType="application/javascript"/>
 <Default Extension=".svg" ContentType="image/svg+xml"/>
+<Default Extension=".png" ContentType="image/png"/>
 <Default Extension=".md" ContentType="text/markdown"/>
 <Default Extension=".vsixmanifest" ContentType="text/xml"/>
 </Types>
@@ -31,9 +41,10 @@ manifest = f"""<?xml version="1.0" encoding="utf-8"?>
     <Identity Language="en-US" Id="{pkg['name']}" Version="{pkg['version']}" Publisher="{pkg['publisher']}" />
     <DisplayName>{escape(pkg['displayName'])}</DisplayName>
     <Description xml:space="preserve">{escape(pkg['description'])}</Description>
-    <Tags>odoo,ci</Tags>
+    <Tags>odoo,odoo19,odoo18,odoo17,odoo20,ci,testing,xpath,i18n,studio</Tags>
     <Categories>{','.join(pkg['categories'])}</Categories>
     <GalleryFlags>Public</GalleryFlags>
+    <Icon>extension/media/icon.png</Icon>
     <Properties>
       <Property Id="Microsoft.VisualStudio.Code.Engine" Value="{pkg['engines']['vscode']}" />
       <Property Id="Microsoft.VisualStudio.Code.ExtensionDependencies" Value="" />
@@ -49,6 +60,7 @@ manifest = f"""<?xml version="1.0" encoding="utf-8"?>
   <Assets>
     <Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true" />
     <Asset Type="Microsoft.VisualStudio.Services.Content.Details" Path="extension/README.md" Addressable="true" />
+    <Asset Type="Microsoft.VisualStudio.Services.Icons.Default" Path="extension/media/icon.png" Addressable="true" />
   </Assets>
 </PackageManifest>
 """
@@ -58,4 +70,5 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
     zf.writestr("extension.vsixmanifest", manifest)
     for rel in FILES:
         zf.write(HERE / rel, f"extension/{rel}")
-print(out)
+
+print(f"Built package: {out}")
