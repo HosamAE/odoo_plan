@@ -13,7 +13,7 @@ plus versions/<NN>/files, plus MANIFEST "replace". Nothing here pushes: --apply
 writes a local branch sync/<NN>.0 for review; pushing is a human decision.
 
   python sync_versions.py fetch                         get the 17.0/18.0/20.0 branches (a clone has only one)
-  python sync_versions.py report   [--version 17]      what each branch would change
+  python sync_versions.py report   [--version 17] [--check]   what each branch would change (--check: exit 1 on drift)
   python sync_versions.py build    --version 17 --out DIR
   python sync_versions.py snapshot --version 17 --ref origin/17.0   (re)make versions/17 from a branch
   python sync_versions.py apply    --version 17        local branch sync/17.0, never pushed
@@ -175,6 +175,7 @@ def main(argv=None):
     parser.add_argument("--repo", default=None, help="git repository holding the <NN>.0 branches (default: --root)")
     parser.add_argument("--ref", default=None, help="branch to compare with / snapshot from (default: origin/<NN>.0)")
     parser.add_argument("--out", default=None, help="build: output directory")
+    parser.add_argument("--check", action="store_true", help="report: exit 1 when a branch differs from what main builds")
     args = parser.parse_args(argv)
     repo = args.repo or args.root
     versions = [args.version] if args.version else list(VERSIONS)
@@ -195,11 +196,13 @@ def main(argv=None):
             raise SystemExit("build needs --version and --out")
         print(f"{len(build_tree(args.root, args.version, args.out))} files in {args.out}")
         return 0
+    drift = 0
     for version in versions:
         ref = args.ref or f"origin/{version}.0"
         with tempfile.TemporaryDirectory() as out:
             build_tree(args.root, version, out)
             gone, new, changed = compare_with_ref(repo, ref, out)
+            drift += len(gone) + len(new) + len(changed)
             print(f"{version}.0 vs {ref}: {len(changed)} changed, {len(new)} new, {len(gone)} not in main-built tree")
             if args.action == "report":
                 for label, paths in (("changed", changed), ("new", new), ("dropped", gone)):
@@ -207,7 +210,7 @@ def main(argv=None):
                         print(f"   {label:8} {path}")
             else:
                 print(f"   local branch sync/{version}.0 = {apply_local_branch(repo, ref, out, version)[:8]} (not pushed)")
-    return 0
+    return 1 if args.check and drift else 0
 
 
 if __name__ == "__main__":

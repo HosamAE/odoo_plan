@@ -1,6 +1,6 @@
 """odoo-ai new-project <name> --git <url> [--branch <b>]: a project, ready to work on.
 
-  1. clones it into C:/odoo/odoo<NN>/projects/<name> (or uses the folder if it is there)
+  1. clones it into C:/odoo/ProjectsOdoo<NN>/<name> (or odoo<NN>/projects/<name>; or uses the folder if it is there)
   2. odoo-ai workspace for it: <name>.conf (from the version's odoo.conf, its own
      port), the workspace, odools.toml, the graph config, .mcp.json, CLAUDE.md -
      all inside the project and kept out of its git
