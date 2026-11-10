@@ -236,20 +236,8 @@ def main():
         print(res["flake8"] or "No Flake8 warnings.")
 
     elif args.command == "audit":
-        module_path = args.path
-        sec_file = os.path.join(module_path, "security", "ir.model.access.csv")
-        manifest_file = os.path.join(module_path, "__manifest__.py")
-        
-        print(f"[AUDIT] Auditing Odoo Module: {module_path}")
-        if os.path.exists(sec_file):
-            print("  [OK] Security CSV exists.")
-        else:
-            print("  [WARNING] 'security/ir.model.access.csv' is MISSING!")
-
-        if os.path.exists(manifest_file):
-            print("  [OK] __manifest__.py exists.")
-        else:
-            print("  [ERROR] '__manifest__.py' is MISSING!")
+        from audit_module import main as audit_main
+        sys.exit(audit_main(os.path.abspath(args.path), TOOLS_VERSION))
 
     elif args.command == "new-addon":
         target = os.path.abspath(args.path)

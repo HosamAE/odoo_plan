@@ -303,7 +303,7 @@ def run_tests(repo, version, name, conf_file, keep_db, at=None):
 def run_ci(path=".", static_only=False, stop_servers=False, keep_db=False, at=None):
     project = resolve_project(os.path.abspath(path))
     if not project:
-        raise SystemExit(f"not inside a project (expected ...\\odoo<version>\\projects\\<Project>): {path}")
+        raise SystemExit(f"not inside a project (expected ...\\ProjectsOdoo<version>\\<Project>): {path}")
     version, name = project[0], project[1]
     repo = fs(project_dir(version, name))
     branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
