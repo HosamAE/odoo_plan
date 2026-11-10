@@ -1050,7 +1050,7 @@ class EnvProvider {
     return [
       item("Set up an Odoo version…", "rocket", "odooCi.newVersion", "one command"),
       item("Doctor (health check)", "pulse", "odooCi.doctor"),
-      item("Tools self-test", "beaker", "odooCi.selfTest"),
+      item("Tools CI (before push)", "beaker", "odooCi.selfTest", "all 4 versions, CI conditions"),
       item("Version branches vs main", "git-compare", "odooCi.syncVersions", "report only"),
       item("Scan staged files for secrets", "shield", "odooCi.secretScan"),
       item("Install secret pre-commit hook", "lock", "odooCi.secretHook", "this repository"),
@@ -1094,7 +1094,8 @@ async function runNewVersion(preset) {
 
 function runSelfTest() {
   const { python, cli, root } = toolsContext();
-  runInTerminal("Odoo tools self-test", cliLine(python, cli, "test-self"), root);
+  // tools-ci builds every version and tests it the way the CI does (no Odoo packages, no C:\odoo); test-self would not
+  runInTerminal("Odoo tools CI (before push)", cliLine(python, cli, "tools-ci"), root);
 }
 
 function runSyncVersions() {
@@ -1257,7 +1258,7 @@ function activate(context) {
         { label: "$(add) Scaffold New Addon", action: "newAddon" },
         { label: "$(pulse) Run Doctor Health Check", action: "doctor" },
         { label: "$(rocket) Set up an Odoo version", action: "newVersion" },
-        { label: "$(beaker) Tools self-test", action: "selfTest" },
+        { label: "$(beaker) Tools CI (before push)", action: "selfTest" },
         { label: "$(git-compare) Version branches vs main", action: "syncVersions" },
         { label: "$(shield) Scan staged files for secrets", action: "secretScan" },
         { label: "$(law) Project gates (Odoo rules)", action: "gates" },
