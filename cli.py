@@ -24,6 +24,10 @@ from scaffold_plus import create_scaffold_module
 
 VERSION = "1.3.0"
 SUPPORTED_VERSIONS = ["17", "18", "19", "20"]
+#: commands whose module has its own main(): name -> (module, function)
+#: commands that take their own options (`--staged`, `--install`...): argparse would refuse a leading `-`
+PASSTHROUGH = ("secrets", "sync-versions", "claude", "xpath-check", "db-snap", "i18n", "init-fast-db")
+DELEGATED = {"xpath-check": ("xpath_lint", "main"), "db-snap": ("db_snap", "main"), "i18n": ("i18n_sync", "main")}
 
 
 def module_root(path):
@@ -177,11 +181,19 @@ def main():
 
     # 16. Secret scanner / pre-commit hook, and building the version branches from main
     for name, text in (("secrets", "Scan for passwords/tokens (--staged, FILE..., --install-hook)"),
-                       ("sync-versions", "Build the 17/18/19/20 tools branches from main (report|build|snapshot|apply)")):
+                       ("sync-versions", "Build the 17/18/19/20 tools branches from main (report|build|snapshot|apply)"),
+                       ("claude", "Give a project's Claude Code the workspace rules: hooks, skill, permissions (--install)"),
+                       ("xpath-check", "Statically validate XML views and XPath expressions"),
+                       ("db-snap", "Instant PostgreSQL snapshot and rollback (save|restore|list|drop)"),
+                       ("i18n", "Translation sync (scan|update|export -m <module> [-l <lang>])"),
+                       ("init-fast-db", "Build the clean template database for `test --fast` [-v <NN>]")):
         extra = subparsers.add_parser(name, help=text, add_help=False)
         extra.add_argument("rest", nargs=argparse.REMAINDER)
 
-    args = parser.parse_args()
+    if len(sys.argv) > 1 and sys.argv[1] in PASSTHROUGH:
+        args = argparse.Namespace(command=sys.argv[1], rest=sys.argv[2:])
+    else:
+        args = parser.parse_args()
 
     if getattr(args, "path", None) and args.command in ("lint", "audit"):
         # A file or a folder inside an addon: that addon. Absolute paths, so an
@@ -270,6 +282,21 @@ def main():
     elif args.command == "secrets":
         from secret_scan import main as secrets_main
         sys.exit(secrets_main(args.rest))
+
+    elif args.command in DELEGATED:   # the module's own main() parses the rest of the line
+        import importlib
+        sys.argv = [args.command] + args.rest
+        sys.exit(getattr(importlib.import_module(DELEGATED[args.command][0]), DELEGATED[args.command][1])() or 0)
+
+    elif args.command == "init-fast-db":
+        from db_fast import create_template_db
+        flags = args.rest
+        version = flags[flags.index("-v") + 1] if "-v" in flags and flags.index("-v") + 1 < len(flags) else None
+        create_template_db(version=version or detect_version(os.getcwd()) or "19")
+
+    elif args.command == "claude":
+        from claude_setup import main as claude_main
+        sys.exit(claude_main(args.rest))
 
     elif args.command == "sync-versions":
         from sync_versions import main as sync_main

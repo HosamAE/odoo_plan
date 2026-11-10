@@ -17,7 +17,13 @@ const vscodeMock = {
   ConfigurationTarget: { Workspace: 2 },
   Uri: { file: (f) => ({ fsPath: f }) },
   env: { shell: "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" },
-  languages: { createDiagnosticCollection: () => ({ clear: noop, set: noop, dispose: noop }) },
+  CodeAction: class { constructor(title, kind) { this.title = title; this.kind = kind; } },
+  CodeActionKind: { QuickFix: "quickfix" },
+  WorkspaceEdit: class { replace() {} insert() {} },
+  languages: {
+    createDiagnosticCollection: () => ({ clear: noop, set: noop, dispose: noop }),
+    registerCodeActionsProvider: (selector, provider) => { registered.codeActions = provider; return { dispose: noop }; },
+  },
   workspace: {
     workspaceFolders: [{ uri: { fsPath: process.env.SMOKE_PROJECT || "C:\odoo\ProjectsOdoo19\Acme" } }],
     workspaceFile: null,
@@ -54,6 +60,18 @@ assert.ok(maintenance.length >= 7 && maintenance.every((m) => m.command && regis
 const v19 = roots.find((r) => r.label.startsWith("Odoo 19"));
 assert.ok(v19.label.includes("this window"), "the window's own version is marked");
 assert.ok(env.getChildren(v19).length >= 3, "a version shows tools/source/venv");
+// R3 quick fix: only where it is safe
+const { fixLenSearch } = ext._test;
+assert.strictEqual(fixLenSearch("n = len(self.env['x'].search([('a', '=', 1)]))"), "n = self.env['x'].search_count([('a', '=', 1)])");
+assert.strictEqual(fixLenSearch("if len(rec.search([], limit=3)) > 1:"), "if rec.search_count([], limit=3) > 1:");
+assert.strictEqual(fixLenSearch("n = len(rec.search([], order='id'))"), null, "search_count has no order");
+assert.strictEqual(fixLenSearch("n = len(rec.mapped('x'))"), null, "not a search");
+assert.strictEqual(fixLenSearch("n = len(self.search([]).filtered(lambda r: r.a))"), null, "search is not the whole argument");
+assert.ok(registered.codeActions, "the quick-fix provider is registered");
+const doc = { uri: "u", languageId: "python", lineAt: () => ({ text: "n = len(rec.search([]))", range: {} }) };
+const diag = { source: "Odoo CI", code: "R3", range: { start: { line: 0 } } };
+const actions = registered.codeActions.provideCodeActions(doc, null, { diagnostics: [diag, { source: "other", code: "R3" }] });
+assert.deepStrictEqual(actions.map((a) => a.title), ["Use search_count()", "This line must break R3: add noqa"]);
 console.log(`smoke OK: ${Object.keys(registered.commands).length} commands, ${Object.keys(registered.trees).length} views, ${roots.length - 1} versions listed`);
 subscriptions.forEach((s) => s.dispose && s.dispose());
 process.exit(0);
