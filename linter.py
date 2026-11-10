@@ -6,12 +6,14 @@ Runs pylint-odoo, flake8, and XML syntax checks on target module.
 import os
 import subprocess
 import xml.etree.ElementTree as ET
+from env_root import get_odoo_root
 
 def find_linter_tools(version="17"):
-    venv_scripts = f"C:\\odoo\\odoo{version}\\venv\\Scripts"
+    root = get_odoo_root()
+    venv_scripts = os.path.join(root, f"odoo{version}", "venv", "Scripts")
     pylint_exe = os.path.join(venv_scripts, "pylint.exe")
     flake8_exe = os.path.join(venv_scripts, "flake8.exe")
-    rcfile = f"C:\\odoo\\odoo{version}\\tools\\.pylintrc"
+    rcfile = os.path.join(root, f"odoo{version}", "tools", ".pylintrc")
     
     return pylint_exe, flake8_exe, rcfile
 
@@ -30,7 +32,7 @@ def check_xml_syntax(module_path):
 def odoo_env(version):
     """The environment pylint needs to import odoo (no false import errors)."""
     env = dict(os.environ)
-    source = f"C:\\odoo\\odoo{version}\\odoo"
+    source = os.path.join(get_odoo_root(), f"odoo{version}", "odoo")
     if os.path.isdir(source):
         env["PYTHONPATH"] = os.pathsep.join(p for p in (source, env.get("PYTHONPATH")) if p)
     return env

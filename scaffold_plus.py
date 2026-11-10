@@ -187,3 +187,4 @@ def create_scaffold_module(name, target_dir, version="19", summary="Custom busin
     print(f"[SUCCESS] Addon '{name}' created cleanly at: {addon_path}")
     print(f"          Models, compliant Views (Search/List/Form), Menus, and ACLs generated.\n")
     return True
+

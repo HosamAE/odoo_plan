@@ -172,21 +172,14 @@ def main():
     addon_parser.add_argument("--path", "-p", default=".", help="Project path to create the addon in (default: here)")
     addon_parser.add_argument("--summary", "-s", default="Custom business addon", help="Short summary")
 
-    # 15. XPath & XML View Validator
-    xpath_parser = subparsers.add_parser("xpath-check", help="Statically validate XML views and XPath expressions")
-    xpath_parser.add_argument("path", nargs="?", default=".", help="Path to XML file or addon directory (default: here)")
+    # 15. Self-test command for Tools Suite
+    subparsers.add_parser("test-self", help="Run automated test suite for Odoo Studio & CI Pro tools")
 
-    # 16. Fast Database Snapshots & Rollbacks
-    dbsnap_parser = subparsers.add_parser("db-snap", help="Instant PostgreSQL database snapshot and rollback manager")
-    dbsnap_parser.add_argument("snap_action", choices=["save", "restore", "list", "drop"], help="Action: save, restore, list, drop")
-    dbsnap_parser.add_argument("label", nargs="?", default="", help="Snapshot label name")
-    dbsnap_parser.add_argument("--db", default="", help="Target database name")
-
-    # 17. Translation & i18n Sync Engine
-    i18n_parser = subparsers.add_parser("i18n", help="Translation & i18n synchronization engine")
-    i18n_parser.add_argument("i18n_action", choices=["scan", "update", "export"], help="Action: scan, update, or export")
-    i18n_parser.add_argument("-m", "--module", required=True, help="Module name or path")
-    i18n_parser.add_argument("-l", "--lang", default="", help="Language code (e.g. sv_SE, ar)")
+    # 16. Secret scanner / pre-commit hook, and building the version branches from main
+    for name, text in (("secrets", "Scan for passwords/tokens (--staged, FILE..., --install-hook)"),
+                       ("sync-versions", "Build the 17/18/19/20 tools branches from main (report|build|snapshot|apply)")):
+        extra = subparsers.add_parser(name, help=text, add_help=False)
+        extra.add_argument("rest", nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
 
@@ -224,13 +217,6 @@ def main():
         else:
             print("\n[SUCCESS] XML Syntax Clean.")
 
-        from xpath_lint import scan_directory
-        xp_findings = scan_directory(args.path)
-        if xp_findings:
-            print("\n--- XPATH & VIEW INHERITANCE REPORT ---")
-            for f in xp_findings:
-                print(f)
-
         print("\n--- PYLINT ODOO REPORT ---")
         print(res["pylint"] or "No Pylint warnings.")
 
@@ -257,50 +243,6 @@ def main():
         target = os.path.abspath(args.path)
         sys.exit(0 if create_scaffold_module(args.name, target, version=args.version, summary=args.summary) else 1)
 
-    elif args.command == "xpath-check":
-        from xpath_lint import scan_directory
-        findings = scan_directory(args.path)
-        for f in findings:
-            print(f)
-        errors = [f for f in findings if "[XPATH ERROR]" in f or "[XML SYNTAX ERROR]" in f]
-        if not findings:
-            print("[XPATH CHECK] All XML views and XPath expressions passed validation.")
-        sys.exit(1 if errors else 0)
-
-    elif args.command == "db-snap":
-        from db_snap import get_pg_connection, save_snapshot, restore_snapshot, list_snapshots, drop_snapshot, detect_project_db
-        db_name = args.db or detect_project_db()
-        try:
-            conn = get_pg_connection()
-        except Exception as e:
-            print(f"[ERROR] Could not connect to PostgreSQL on port 5432: {e}")
-            sys.exit(1)
-        try:
-            if args.snap_action == "save":
-                sys.exit(0 if save_snapshot(args.label, db_name, conn) else 1)
-            elif args.snap_action == "restore":
-                sys.exit(0 if restore_snapshot(args.label, db_name, conn) else 1)
-            elif args.snap_action == "list":
-                list_snapshots(args.db, conn)
-            elif args.snap_action == "drop":
-                sys.exit(0 if drop_snapshot(args.label, db_name, conn) else 1)
-        finally:
-            conn.close()
-
-    elif args.command == "i18n":
-        from i18n_sync import resolve_module_dir, cmd_scan, cmd_update, cmd_export
-        try:
-            mod_dir = resolve_module_dir(args.module)
-        except FileNotFoundError as e:
-            print(f"[ERROR] {e}")
-            sys.exit(1)
-        if args.i18n_action == "scan":
-            cmd_scan(mod_dir, args.lang)
-        elif args.i18n_action == "update":
-            cmd_update(mod_dir, args.lang)
-        elif args.i18n_action == "export":
-            cmd_export(mod_dir)
-
     elif args.command == "kg":
         sys.exit(run_kg(args.action, args.path))
 
@@ -324,6 +266,22 @@ def main():
 
     elif args.command == "doctor":
         sys.exit(run_doctor(args.fix))
+
+    elif args.command == "secrets":
+        from secret_scan import main as secrets_main
+        sys.exit(secrets_main(args.rest))
+
+    elif args.command == "sync-versions":
+        from sync_versions import main as sync_main
+        sys.exit(sync_main(args.rest or ["report"]))
+
+    elif args.command == "test-self":
+        import unittest
+        tests_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tests")
+        suite = unittest.defaultTestLoader.discover(tests_dir, pattern="test_*.py")
+        runner = unittest.TextTestRunner(verbosity=2)
+        res = runner.run(suite)
+        sys.exit(0 if res.wasSuccessful() else 1)
 
     elif args.command == "workspace":
         run_workspace_sync(args.path, kg_python=args.kg_python, dry=args.dry_run)

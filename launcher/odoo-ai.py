@@ -13,6 +13,8 @@ installed version; any other command says how to choose one.
 
 Source: launcher/odoo-ai.py in the tools repository. `odoo-ai doctor --fix`
 copies it to C:/odoo/bin.
+
+A new Odoo version on this machine, in one command:  odoo-ai new-version 20
 """
 import glob
 import os
@@ -20,8 +22,19 @@ import re
 import subprocess
 import sys
 
-ROOT = os.environ.get("ODOO_ROOT", r"C:\odoo")
-VERSION_RX = re.compile(r"[\\/]odoo(\d{2})(?:[\\/]|$)", re.IGNORECASE)
+def _root():
+    """$ODOO_ROOT, else the parent of the bin folder this launcher is installed in, else C:\\odoo."""
+    env = os.environ.get("ODOO_ROOT")
+    if env:
+        return env
+    here = os.path.dirname(os.path.abspath(__file__))
+    if os.path.basename(here).lower() == "bin":
+        return os.path.dirname(here)
+    return r"C:\odoo"
+
+
+ROOT = _root()
+VERSION_RX = re.compile(r"[\\/](?:odoo|ProjectsOdoo)(\d{2})(?:[\\/]|$)", re.IGNORECASE)
 EVERY_VERSION = {"workspace", "doctor", "info", "move-projects"}
 
 
@@ -52,8 +65,35 @@ def run(version, args):
     return subprocess.call([sys.executable, cli] + args)
 
 
+def new_version(args):
+    """odoo-ai new-version NN [setup options]: tools of branch NN.0 + projects folder + `setup`. Safe to repeat."""
+    numbers = [a for a in args if a.isdigit()]
+    if not numbers or numbers[0] not in ("17", "18", "19", "20"):
+        sys.exit("usage: odoo-ai new-version <17|18|19|20> [--check]")
+    nn, rest = numbers[0], [a for a in args if a != numbers[0]]
+    remote = os.environ.get("ODOO_PLAN_REMOTE", "https://github.com/HosamAE/odoo_plan.git")
+    tools = os.path.join(ROOT, f"odoo{nn}", "tools")
+    if os.path.isfile(os.path.join(tools, "cli.py")):
+        print(f"[1/3] tools of Odoo {nn} are already in {tools}")
+    else:
+        print(f"[1/3] cloning branch {nn}.0 of the tools into {tools}")
+        os.makedirs(os.path.dirname(tools), exist_ok=True)
+        code = subprocess.call(["git", "clone", "-b", f"{nn}.0", remote, tools])
+        if code:
+            sys.exit(f"odoo-ai: git clone failed ({code}); is the branch {nn}.0 there and do you have access?")
+    projects = os.path.join(ROOT, f"ProjectsOdoo{nn}")
+    os.makedirs(projects, exist_ok=True)
+    print(f"[2/3] projects folder: {projects}")
+    print("[3/3] odoo-ai setup (what is missing is listed with its command; --check changes nothing)")
+    code = run(nn, ["setup"] + rest)
+    print(f"\nNext: clone a project into {projects}, then `odoo-ai workspace -p <project>`.")
+    sys.exit(code)
+
+
 def main():
     args = sys.argv[1:]
+    if args and args[0] == "new-version":
+        new_version(args[1:])
     version = option(args, "-v", "--version")
     if not version:
         path = option(args, "-p", "--path")
@@ -61,6 +101,8 @@ def main():
     if version:
         sys.exit(run(version, args))
     command = next((a for a in args if not a.startswith("-")), None)
+    if command == "sync-versions":   # builds every version from main, which is the Odoo 19 tools
+        sys.exit(run("19", args))
     if command in EVERY_VERSION:
         codes = []
         for each in installed():
@@ -71,7 +113,7 @@ def main():
         print(__doc__)
         print("Installed versions:", ", ".join(installed()) or "none")
         sys.exit(0)
-    sys.exit("odoo-ai: run it inside a project (odoo<NN>\\projects\\<project>) or pass -v <NN>. "
+    sys.exit("odoo-ai: run it inside a project (ProjectsOdoo<NN>\\<project>) or pass -v <NN>. "
              f"Installed versions: {', '.join(installed()) or 'none'}")
 
 
