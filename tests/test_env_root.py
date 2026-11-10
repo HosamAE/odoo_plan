@@ -1,4 +1,7 @@
+import importlib.util
 import os
+import shutil
+import tempfile
 import unittest
 import sys
 from unittest import mock
@@ -16,12 +19,33 @@ class TestEnvRoot(unittest.TestCase):
         # no C:\odoo is assumed: a clean CI runner has none, and the fallback is only a last resort
         self.assertTrue(os.path.isabs(get_odoo_root()))
 
-    def test_root_is_found_from_the_tools_location_when_they_sit_in_a_version_folder(self):
-        version_dir = os.path.dirname(TOOLS_DIR)
-        if not os.path.basename(version_dir).lower().startswith("odoo"):
-            self.skipTest("these tools are not checked out in <root>/odoo<NN>/tools")
-        with mock.patch.dict(os.environ, {k: v for k, v in os.environ.items() if k != "ODOO_ROOT"}, clear=True):
-            self.assertEqual(os.path.normcase(get_odoo_root()), os.path.normcase(os.path.dirname(version_dir)))
+    def load_env_root_from(self, folder):
+        spec = importlib.util.spec_from_file_location("env_root_probe", os.path.join(folder, "env_root.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_root_is_found_from_where_the_tools_sit(self):
+        # hermetic: a copy of env_root.py placed in <tmp>/odoo19/tools, whatever the real checkout is called
+        with tempfile.TemporaryDirectory() as tmp:
+            tools = os.path.join(tmp, "odoo19", "tools")
+            os.makedirs(tools)
+            shutil.copyfile(os.path.join(TOOLS_DIR, "env_root.py"), os.path.join(tools, "env_root.py"))
+            env = {k: v for k, v in os.environ.items() if k != "ODOO_ROOT"}
+            with mock.patch.dict(os.environ, env, clear=True):
+                found = self.load_env_root_from(tools).get_odoo_root()
+            self.assertEqual(os.path.normcase(os.path.realpath(found)), os.path.normcase(os.path.realpath(tmp)))
+
+    def test_a_checkout_folder_called_odoo_something_is_not_mistaken_for_a_version_folder(self):
+        # the CI checks out to <runner>/odoo_plan/odoo_plan: "odoo_plan" is not odoo<NN>
+        with tempfile.TemporaryDirectory() as tmp:
+            tools = os.path.join(tmp, "odoo_plan", "odoo_plan")
+            os.makedirs(tools)
+            shutil.copyfile(os.path.join(TOOLS_DIR, "env_root.py"), os.path.join(tools, "env_root.py"))
+            env = {k: v for k, v in os.environ.items() if k != "ODOO_ROOT"}
+            with mock.patch.dict(os.environ, env, clear=True):
+                found = self.load_env_root_from(tools).get_odoo_root()
+            self.assertNotEqual(os.path.normcase(os.path.realpath(found)), os.path.normcase(os.path.realpath(os.path.join(tmp, "odoo_plan"))))
 
     def test_bin_dir(self):
         bin_dir = get_bin_dir()

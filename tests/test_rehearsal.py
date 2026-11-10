@@ -33,7 +33,8 @@ def git(cwd, *args, check=True):
 def python(*args, cwd=None, env=None, input_text=None):
     # a child that runs doctor/setup must not start the rehearsal again (it would call itself for ever)
     full_env = dict(os.environ, PYTHONIOENCODING="utf-8", ODOO_AI_SKIP_REHEARSAL="1", **(env or {}))
-    return subprocess.run([PY, *args], cwd=cwd, env=full_env, capture_output=True, text=True,
+    full_env.setdefault("ODOO_AI_MAX_DEPTH", "6")   # a loop dies at once and says where (recursion_guard.py)
+    return subprocess.run([PY, *args], cwd=cwd, env=full_env, capture_output=True, text=True, timeout=300,
                           input=input_text, encoding="utf-8", errors="replace", check=False)
 
 
