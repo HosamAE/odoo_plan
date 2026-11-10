@@ -553,6 +553,13 @@ def insert_tasks(text, tasks):
     return new, len(missing)
 
 
+def odoo_source_rel(version, from_win_dir):
+    """Relative path (forward slashes) from a folder to the Odoo source of `version`: ../../odoo beside
+    odoo<NN>/projects/<name>, ../../odoo<NN>/odoo from ProjectsOdoo<NN>/<name> - never assumed."""
+    source = fs(f"{WIN_ROOT}/odoo{version}/odoo")
+    return os.path.relpath(source, fs(from_win_dir)).replace(os.sep, "/")
+
+
 def new_workspace(version, name, kg_python, config_win):
     v = version
     proj = project_dir(v, name)
@@ -594,7 +601,7 @@ def new_workspace(version, name, kg_python, config_win):
         "cwd": f"{WIN_ROOT}/odoo{v}/odoo", "console": console, "justMyCode": False,
     }
     return {
-        "folders": [{"name": "odoo", "path": "../../odoo"}, {"name": "Project", "path": "."}],
+        "folders": [{"name": "odoo", "path": odoo_source_rel(v, proj)}, {"name": "Project", "path": "."}],
         "extensions": {"recommendations": [
             "odoo.odoo", "HosamAE.odoo-ci", "ms-python.python", "ms-python.debugpy",
             "ms-python.vscode-pylance", "ms-python.black-formatter", "ms-python.pylint", "ms-python.isort",
@@ -791,7 +798,7 @@ def fix_folders(text, version, name, inner):
     changed = []
     # The Odoo source, not the version folder: that folder holds the projects too,
     # and VS Code would show (and index) the project twice.
-    odoo_path = "../../odoo" if inner else "../odoo"
+    odoo_path = odoo_source_rel(version, project_dir(version, name) if inner else projects_root(version))
     proj_path = "." if inner else f"./{name}"
     def sub(label, want, t):
         pat = re.compile(r'("name"\s*:\s*"' + label + r'"\s*,\s*"path"\s*:\s*)"([^"]*)"')
@@ -1073,13 +1080,18 @@ def tools_cli(version):
 
 # Paths from before the tools moved into C:/odoo/odoo<NN>/tools (2026-11-08)
 def move_tool_paths(text, version):
+    """Rewrite paths from before the tools moved (2026-11-08) to where they are now. Where they are now is read
+    from the disk (projects_root), never assumed: a project in ProjectsOdoo<NN> keeps its paths."""
     changed = []
+    esc = lambda path: path.replace("/", "\\" * 2)   # the form inside JSON text: C:\odoo\...
+    now = projects_root(version)
+    old_projects = f"{WIN_ROOT}/{LEGACY_PROJECTS}{version}"
     for old, new in ((f"{LEGACY_KG_DIR}/", f"{KG_DIR}/"), (f'"{LEGACY_KG_DIR}"', f'"{KG_DIR}"'),
-                     (f"{WIN_ROOT}/{LEGACY_PROJECTS}{version}/", f"{projects_root(version)}/"),
-                     (f"C:\\\\odoo\\\\{LEGACY_PROJECTS}{version}\\\\", f"C:\\\\odoo\\\\odoo{version}\\\\projects\\\\"),
+                     (f"{old_projects}/", f"{now}/"),
+                     (esc(old_projects) + "\\" * 2, esc(now) + "\\" * 2),
                      (f"{WIN_ROOT}/odoo_ai_cli/cli.py", tools_cli(version)),
                      (f"--rcfile={WIN_ROOT}/odoo{version}/.pylintrc", f"--rcfile={WIN_ROOT}/odoo{version}/tools/.pylintrc")):
-        if old in text:
+        if old != new and old in text:
             text = text.replace(old, new)
             changed.append(f"{old.rstrip('/').rsplit('/', 1)[-1]} -> new path")
     loads_jsonc(text)
@@ -1245,7 +1257,7 @@ def run_workspace_sync(path=None, versions=(TOOLS_VERSION,), kg_python=None, loc
         norm = path.replace("\\", "/")
         m = PROJECT_RX.search(norm)
         if not m:
-            raise SystemExit(f"not a project folder: {path} (expected ...\\odoo<version>\\projects\\<Project>)")
+            raise SystemExit(f"not a project folder: {path} (expected ...\\ProjectsOdoo<version>\\<Project>)")
         if m.group(1) != TOOLS_VERSION:
             raise SystemExit(f"{path} is an Odoo {m.group(1)} project: these are the Odoo {TOOLS_VERSION} tools "
                              f"(run `odoo-ai`, it picks C:\\odoo\\odoo{m.group(1)}\\tools)")

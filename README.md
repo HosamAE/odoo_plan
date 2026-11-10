@@ -76,6 +76,7 @@ C:\odoo\ProjectsOdoo19\<PROJECT>\         a project: its own git; its workspace,
 | Test before pushing | the `CI` button in VS Code, or `odoo-ai ci` |
 | The version's gates in a project's own CI | `odoo-ai gates --install` |
 | Keep a password out of git | `odoo-ai secrets --install-hook` once per repository; `odoo-ai secrets --staged` by hand |
+| Is an addon (or a whole project) loadable and reachable? | `odoo-ai audit -p <addon or project>`: new models without access rows, files the manifest lists that do not exist, an access file the manifest does not load |
 | Test the tools themselves | `odoo-ai test-self` |
 | Claude Code follows the workspace rules (git asks first, secrets refused, edits checked) | `odoo-ai claude --install` in the project (`--check` changes nothing) |
 | Fast tests, snapshots, translations, XML | `odoo-ai init-fast-db` once, then `odoo-ai test -m <module> --fast`; `odoo-ai db-snap save|restore`; `odoo-ai i18n scan -m <module>`; `odoo-ai xpath-check` |
