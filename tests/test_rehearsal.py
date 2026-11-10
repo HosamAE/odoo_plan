@@ -104,6 +104,8 @@ class TestRehearsal(unittest.TestCase):
         self.assertIn("already in", second.stdout)
 
     # 2 ------------------------------------------------------------------ change main, regenerate a version
+    @unittest.skipUnless(os.path.isdir(os.path.join(TOOLS_DIR, "versions")),
+                         "versions/ lives in main (19.0); the generated 17/18/20 branches do not carry it")
     def test_2_change_main_then_regenerate_a_version_branch(self):
         dev = os.path.join(self.tmp, "dev")
         git(self.tmp, "clone", "-q", "-b", "19.0", self.remote, dev)
@@ -115,7 +117,8 @@ class TestRehearsal(unittest.TestCase):
         drift = python(tool, "report", "--check", cwd=dev)
         self.assertEqual(drift.returncode, 1, "the other versions must be reported as behind main")
         self.assertIn("i18n_sync.py", drift.stdout)
-        applied = python(tool, "apply", "-v", "17", cwd=dev)
+        # --no-test: the rehearsal covers apply's mechanics; the guard that runs a tree's tests has its own tests
+        applied = python(tool, "apply", "-v", "17", "--no-test", cwd=dev)
         self.assertEqual(applied.returncode, 0, applied.stderr)
         parent = git(dev, "rev-parse", "sync/17.0^").stdout.strip()
         self.assertEqual(parent, git(dev, "rev-parse", "origin/17.0").stdout.strip(), "built on top of the branch")

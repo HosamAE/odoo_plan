@@ -70,9 +70,16 @@ def read_manifest(root, version):
     return {"remove": data.get("remove", []), "replace": data.get("replace", {})}
 
 
-def build_tree(root, version, out):
-    """Write the tools of `version` into the empty directory `out`, from the main tree at `root`."""
+def build_tree(root, version, out, with_versions=False):
+    """Write the tools of `version` into the empty directory `out`, from the main tree at `root`.
+
+    with_versions: also copy versions/ - main (the 19.0 branch) carries it, a generated branch does not."""
     os.makedirs(out, exist_ok=True)
+    if with_versions:
+        versions_dir = os.path.join(root, "versions")
+        if os.path.isdir(versions_dir):
+            for rel in tools_files(versions_dir):
+                copy(os.path.join(versions_dir, *rel.split("/")), os.path.join(out, "versions", *rel.split("/")))
     manifest = read_manifest(root, version)
     removed = set(manifest["remove"])
     for rel in tools_files(root):
@@ -154,6 +161,17 @@ def compare_with_ref(repo, ref, built_dir):
     return sorted(ref_set - built), sorted(built - ref_set), changed
 
 
+def assert_tree_passes(built_dir, version):
+    """No branch is made from a tree whose own tests fail under the CI's conditions (tools_ci)."""
+    import tools_ci   # imported here: tools_ci imports this module
+    ok, text, output = tools_ci.run_tree(built_dir)
+    if not ok:
+        print("\n".join(output.splitlines()[-40:]))
+        raise SystemExit(f"sync-versions: the {version}.0 tools fail their own tests ({text}); no branch was made. "
+                         f"Fix main first (`odoo-ai tools-ci` shows the same run).")
+    print(f"   {version}.0 tools pass under the CI's conditions ({text})")
+
+
 def apply_local_branch(repo, ref, built_dir, version):
     """Commit the built tree on top of `ref` as local branch sync/<version>.0. Never pushes, never touches HEAD."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -176,6 +194,7 @@ def main(argv=None):
     parser.add_argument("--ref", default=None, help="branch to compare with / snapshot from (default: origin/<NN>.0)")
     parser.add_argument("--out", default=None, help="build: output directory")
     parser.add_argument("--check", action="store_true", help="report: exit 1 when a branch differs from what main builds")
+    parser.add_argument("--no-test", action="store_true", help="apply: do not run the tree's tests first (not advised)")
     args = parser.parse_args(argv)
     repo = args.repo or args.root
     versions = [args.version] if args.version else list(VERSIONS)
@@ -209,6 +228,8 @@ def main(argv=None):
                     for path in paths:
                         print(f"   {label:8} {path}")
             else:
+                if not args.no_test:
+                    assert_tree_passes(out, version)
                 print(f"   local branch sync/{version}.0 = {apply_local_branch(repo, ref, out, version)[:8]} (not pushed)")
     return 1 if args.check and drift else 0
 
