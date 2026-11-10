@@ -143,7 +143,8 @@ def snapshot(root, version, ref, repo):
 
 def compare_with_ref(repo, ref, built_dir):
     """(only_in_ref, only_in_built, changed) path lists between the branch and the built tree."""
-    ref_set = set(ref_files(repo, ref))
+    # versions/ lives in main (and so in the 19.0 branch); it is never part of a built tree
+    ref_set = {p for p in ref_files(repo, ref) if not p.startswith("versions/")}
     built = set(tools_files(built_dir))
     changed = []
     for rel in sorted(ref_set & built):
