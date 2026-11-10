@@ -13,7 +13,7 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -165,6 +165,54 @@
         "title": "Refresh Studio Status",
         "category": "Odoo Studio",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "odooCi.newVersion",
+        "title": "Set up an Odoo Version",
+        "category": "Odoo Studio",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "odooCi.selfTest",
+        "title": "Tools Self-Test",
+        "category": "Odoo Studio",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "odooCi.syncVersions",
+        "title": "Version Branches vs main",
+        "category": "Odoo Studio",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "odooCi.secretScan",
+        "title": "Scan Staged Files for Secrets",
+        "category": "Odoo Studio",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "odooCi.secretHook",
+        "title": "Install Secret Pre-commit Hook",
+        "category": "Odoo Studio",
+        "icon": "$(lock)"
+      },
+      {
+        "command": "odooCi.gates",
+        "title": "Project Gates (Odoo Rules)",
+        "category": "Odoo Studio",
+        "icon": "$(law)"
+      },
+      {
+        "command": "odooCi.openLayout",
+        "title": "Open the Layout Guide",
+        "category": "Odoo Studio",
+        "icon": "$(book)"
+      },
+      {
+        "command": "odooCi.refreshEnv",
+        "title": "Refresh Versions",
+        "category": "Odoo Studio",
+        "icon": "$(refresh)"
       }
     ],
     "viewsContainers": {
@@ -179,6 +227,10 @@
     "views": {
       "odooStudio": [
         {
+          "id": "odooCi.env",
+          "name": "Versions & Environment"
+        },
+        {
           "id": "odooCi.actions",
           "name": "Project Control Panel"
         },
@@ -189,6 +241,10 @@
       ]
     },
     "viewsWelcome": [
+      {
+        "view": "odooCi.env",
+        "contents": "Every Odoo version on this machine.\n[$(rocket) Set up an Odoo version](command:odooCi.newVersion)\n[$(pulse) Doctor](command:odooCi.doctor)"
+      },
       {
         "view": "odooCi.actions",
         "contents": "Odoo Studio & CI Pro by HosamAE:\n[$(gear) Setup Wizard](command:odooCi.setupWizard)\n[$(play) Start Server](command:odooCi.serverRun)\n[$(globe) Open Browser](command:odooCi.serverOpen)\n[$(zap) Fast Test (3s)](command:odooCi.fastTest)\n[$(camera) DB Snapshot](command:odooCi.dbSnapSave)\n[$(checklist) Static Checks](command:odooCi.static)\n[$(beaker) Full CI Suite](command:odooCi.full)\n[$(add) New Addon](command:odooCi.newAddon)"
@@ -224,6 +280,16 @@
           "command": "odooCi.showOutput",
           "when": "view == odooCi.steps",
           "group": "navigation@4"
+        },
+        {
+          "command": "odooCi.refreshEnv",
+          "when": "view == odooCi.env",
+          "group": "navigation@1"
+        },
+        {
+          "command": "odooCi.newVersion",
+          "when": "view == odooCi.env",
+          "group": "navigation@2"
         }
       ]
     },
@@ -254,6 +320,11 @@
           "type": "number",
           "default": 0,
           "description": "Odoo server HTTP port for this project (e.g. 1900, 8069). 0 auto-detects from .conf file."
+        },
+        "odooCi.odooRoot": {
+          "type": "string",
+          "default": "",
+          "description": "The Odoo workspace root (the folder holding odoo17..odoo20 and bin). Empty: ODOO_ROOT, else found from the open project."
         }
       }
     }

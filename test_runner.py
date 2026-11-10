@@ -8,10 +8,11 @@ import os
 import subprocess
 import sys
 import time
+from env_root import get_odoo_root
 
 
 def find_odoo_paths(version="19"):
-    base_dir = f"C:\\odoo\\odoo{version}"
+    base_dir = os.path.join(get_odoo_root(), f"odoo{version}")
     python_exe = os.path.join(base_dir, "venv", "Scripts", "python.exe")
     odoo_bin = os.path.join(base_dir, "odoo", "odoo-bin")
     
