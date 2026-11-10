@@ -26,7 +26,7 @@ VERSION = "1.3.0"
 SUPPORTED_VERSIONS = ["17", "18", "19", "20"]
 #: commands whose module has its own main(): name -> (module, function)
 #: commands that take their own options (`--staged`, `--install`...): argparse would refuse a leading `-`
-PASSTHROUGH = ("secrets", "sync-versions", "claude", "xpath-check", "db-snap", "i18n", "init-fast-db")
+PASSTHROUGH = ("secrets", "sync-versions", "claude", "xpath-check", "db-snap", "i18n", "init-fast-db", "tools-ci")
 DELEGATED = {"xpath-check": ("xpath_lint", "main"), "db-snap": ("db_snap", "main"), "i18n": ("i18n_sync", "main")}
 
 
@@ -186,7 +186,8 @@ def main():
                        ("xpath-check", "Statically validate XML views and XPath expressions"),
                        ("db-snap", "Instant PostgreSQL snapshot and rollback (save|restore|list|drop)"),
                        ("i18n", "Translation sync (scan|update|export -m <module> [-l <lang>])"),
-                       ("init-fast-db", "Build the clean template database for `test --fast` [-v <NN>]")):
+                       ("init-fast-db", "Build the clean template database for `test --fast` [-v <NN>]"),
+                       ("tools-ci", "Run every version's tools tests under the CI's conditions (--install-hook: pre-push)")):
         extra = subparsers.add_parser(name, help=text, add_help=False)
         extra.add_argument("rest", nargs=argparse.REMAINDER)
 
@@ -281,6 +282,10 @@ def main():
         flags = args.rest
         version = flags[flags.index("-v") + 1] if "-v" in flags and flags.index("-v") + 1 < len(flags) else None
         create_template_db(version=version or detect_version(os.getcwd()) or "19")
+
+    elif args.command == "tools-ci":
+        from tools_ci import main as tools_ci_main
+        sys.exit(tools_ci_main(args.rest))
 
     elif args.command == "claude":
         from claude_setup import main as claude_main
