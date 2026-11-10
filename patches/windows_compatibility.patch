@@ -1,0 +1,30 @@
+diff --git a/requirements.txt b/requirements.txt
+index 262dec82..0c6c61e8 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -59,8 +59,8 @@ psutil==5.9.4 ; python_version > '3.10' and python_version < '3.12'
+ psutil==5.9.8 ; python_version >= '3.12' # (Noble) Mostly to have a wheel package
+ psycopg2==2.9.2 ; python_version == '3.10' # (Jammy)
+ psycopg2==2.9.5 ; python_version == '3.11'
+-psycopg2==2.9.9 ; python_version >= '3.12' and python_version < '3.13' # (Noble)
+-psycopg2==2.9.10 ; python_version >= '3.13' # (Trixie)
++psycopg2-binary==2.9.9 ; python_version >= '3.12' and python_version < '3.13' # (Noble)
++psycopg2-binary==2.9.10 ; python_version >= '3.13' # (Trixie)
+ pyopenssl==21.0.0 ; python_version < '3.12'
+ pyopenssl==24.1.0 ; python_version >= '3.12' # (Noble) min 23.2.0, pinned for compatibility with cryptography==42.0.8 and security patches
+ PyPDF2==1.26.0 ; python_version <= '3.10'
+diff --git a/setup.py b/setup.py
+index 66d48fda..85bcd23b 100644
+--- a/setup.py
++++ b/setup.py
+@@ -32,8 +32,8 @@ setup(
+         'cryptography',
+         'docutils',
+         'geoip2',
+-        'gevent',
+-        'greenlet',
++        'gevent; sys_platform != "win32"',
++        'greenlet; sys_platform != "win32"',
+         'idna',
+         'Jinja2',
+         'lxml',  # windows binary http://www.lfd.uci.edu/~gohlke/pythonlibs/

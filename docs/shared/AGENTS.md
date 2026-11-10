@@ -59,11 +59,11 @@ You are an expert Senior Odoo Architect and Lead Principal Engineer working in `
 * Call `kg_status` (or `python -m odoo_kg status --config ...`) before any larger analysis. `stale` = every answer is historical.
 * Use the graph for the collision matrix (`kg_find_modules`, `kg_dependents`, `kg_impact`), then confirm in source.
 * Rebuild after commits that matter: `odoo-ai kg index` from inside the project (or the VS Code task **odoo-kg: build graph**). `odoo-ai kg status` / `odoo-ai info` report freshness; the config is `C:\odoo\odoo<NN>\tools\kg\config\local\<project>.toml`.
-* Projects live in their version folder: `C:\odoo\odoo<NN>\projects\<project>`. What belongs to one project lives inside it: its `.conf`, one workspace, `odoo-ai`'s `odools.toml`, `.mcp.json` and `CLAUDE.md` (all kept out of git); its graph config is `C:\odoo\odoo<NN>\tools\kg\config\local\<project>.toml`. `odoo-ai workspace` keeps that true for new projects.
+* Projects live beside the version folders, one pool per version: `C:\odoo\ProjectsOdoo<NN>\<project>` (the tools also accept `C:\odoo\odoo<NN>\projects\<project>` after `odoo-ai move-projects`; `ProjectsOdoo<NN>` wins when both exist). What belongs to one project lives inside it: its `.conf`, one workspace, `odoo-ai`'s `odools.toml`, `.mcp.json` and `CLAUDE.md` (all kept out of git); its graph config is `C:\odoo\odoo<NN>\tools\kg\config\local\<project>.toml`. `odoo-ai workspace` keeps that true for new projects.
 * **Tools per version**: each version keeps its own tools in `C:\odoo\odoo<NN>\tools` (branch `<NN>.0` of one repository: `cli.py`, `.pylintrc`, `.flake8`, `pylint_plugins`, the Odoo CI extension, setup scripts). `odoo-ai` in `C:\odoo\bin` picks the version from `-v`, `-p` or the current folder. Layout: `C:\odoo\odoo<NN>\tools\docs\LAYOUT.md`. `odoo-ai doctor` checks a version's setup. A change reaches another version only by an explicit cherry-pick.
 * The graph is per developer and per checkout; never commit it. Do not modify the graph engine (`tools\kg`) during an ordinary Odoo task.
 
 ---
 
 ## 🔀 ODOO VERSION AWARENESS
-* Automatically detect the version from the path: everything of a version is under `odoo17`, `odoo18`, `odoo19` or `odoo20` (its projects in `odoo<NN>\projects\<project>`).
+* Automatically detect the version from the path: everything of a version is under `odoo17`, `odoo18`, `odoo19` or `odoo20` (its projects in `ProjectsOdoo<NN>\<project>`, e.g. `ProjectsOdoo19\Acme`).
