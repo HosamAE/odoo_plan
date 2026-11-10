@@ -25,6 +25,8 @@ from scaffold_plus import create_scaffold_module
 VERSION = "1.3.0"
 SUPPORTED_VERSIONS = ["17", "18", "19", "20"]
 #: commands whose module has its own main(): name -> (module, function)
+#: commands that take their own options (`--staged`, `--install`...): argparse would refuse a leading `-`
+PASSTHROUGH = ("secrets", "sync-versions", "claude", "xpath-check", "db-snap", "i18n", "init-fast-db")
 DELEGATED = {"xpath-check": ("xpath_lint", "main"), "db-snap": ("db_snap", "main"), "i18n": ("i18n_sync", "main")}
 
 
@@ -188,7 +190,10 @@ def main():
         extra = subparsers.add_parser(name, help=text, add_help=False)
         extra.add_argument("rest", nargs=argparse.REMAINDER)
 
-    args = parser.parse_args()
+    if len(sys.argv) > 1 and sys.argv[1] in PASSTHROUGH:
+        args = argparse.Namespace(command=sys.argv[1], rest=sys.argv[2:])
+    else:
+        args = parser.parse_args()
 
     if getattr(args, "path", None) and args.command in ("lint", "audit"):
         # A file or a folder inside an addon: that addon. Absolute paths, so an

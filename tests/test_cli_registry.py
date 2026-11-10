@@ -1,6 +1,8 @@
 """The commands the extension, the docs and the AI rules call must exist in cli.py (a missing one was found by hand)."""
 import os
 import re
+import subprocess
+import sys
 import unittest
 
 TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -35,6 +37,26 @@ class TestCliRegistry(unittest.TestCase):
 
     def test_the_four_commands_that_once_went_missing_stay(self):
         self.assertTrue({"db-snap", "xpath-check", "i18n", "init-fast-db"} <= registered_commands())
+
+
+class TestPassThroughOptions(unittest.TestCase):
+    """`odoo-ai secrets --install-hook` once failed: argparse refused the leading dash. Test through cli.py itself."""
+
+    def cli(self, *args):
+        return subprocess.run([sys.executable, os.path.join(TOOLS_DIR, "cli.py"), *args], capture_output=True,
+                              text=True, encoding="utf-8", errors="replace", check=False)
+
+    def test_options_reach_the_command(self):
+        for command, option in (("secrets", "--install-hook"), ("claude", "--install"), ("sync-versions", "--check"),
+                                ("secrets", "--staged")):
+            result = self.cli(command, "--help")
+            self.assertEqual(result.returncode, 0, f"{command}: {result.stderr}")
+            self.assertIn(option, result.stdout, f"{command} --help does not list {option}")
+
+    def test_the_old_commands_still_answer(self):
+        for command in ("db-snap", "i18n", "xpath-check"):
+            result = self.cli(command, "--help")
+            self.assertEqual(result.returncode, 0, f"{command}: {result.stderr}")
 
 
 if __name__ == "__main__":
