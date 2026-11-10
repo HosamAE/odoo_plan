@@ -97,6 +97,7 @@ graph TD
 | `odoo-ai new-version NN [--check]` | تجهيز بيئة نسخة أودو كاملة بأمر واحد |
 | `odoo-ai sync-versions [fetch\|report\|build\|snapshot\|apply]` | بناء فروع النسخ من `main` ومقارنتها (لا يرفع) |
 | `odoo-ai secrets --staged` / `--install-hook` | رفض أي commit فيه باسورد أو توكن (يذكر الملف والسطر دون القيمة) |
+| `odoo-ai tools-ci` | يبني أدوات كل نسخة من main ويشغّل اختباراتها بظروف الـ CI (بدون حزم أودو، وبدون جذر مفترض). `--install-hook` يجعل `git push` يرفض عند الفشل. و`sync-versions apply` يرفض بناء فرع فشلت اختبارات شجرته |
 | `odoo-ai test-self` | 42 اختباراً للأدوات نفسها (الـ gates وxpath وsync وsecrets و`env_root`) |
 | `odoo-ai audit -p <addon\|project>` | فحص حقيقي: موديل جديد بلا صلاحيات، ملف في الـ manifest غير موجود، CSV لا يحمّله الـ manifest، وإصدار خارج السلسلة |
 | `odoo-ai gates` | قواعد Odoo 19 R1–R10 على المشروع (`parent.id` مسموح كما في أودو نفسه) |

@@ -14,7 +14,7 @@ import datetime
 import os
 import re
 import sys
-import psycopg2
+
 
 def read_conf_credentials():
     """Scan current directory and nearby paths for .conf to read DB credentials."""
@@ -46,6 +46,7 @@ def read_conf_credentials():
     return creds
 
 def get_pg_connection(db_name="postgres", db_user=None, db_password=None, db_host="127.0.0.1", db_port=5432):
+    import psycopg2   # here, not at the top: `db-snap --help` and every import work on a machine with no Odoo packages
     conf = read_conf_credentials()
     user = db_user or conf.get("db_user")
     password = db_password or conf.get("db_password")
