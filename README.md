@@ -1,6 +1,6 @@
 # odoo_plan: the structure and tools of one Odoo version
 
-Each branch is one Odoo version (`17.0`, `18.0`, `19.0`, `20.0`), checked out as that version's tools in `C:\odoo\odoo<NN>\tools`. It carries the structure and everything around the code - the CI, the knowledge graph, the AI rules, lint, the project template, the plan projects follow - so nothing has to be built again from the start. A change made on one branch changes that version only.
+Each branch is one Odoo version (`17.0`, `18.0`, `19.0`, `20.0`), checked out as that version's tools in `C:\odoo\odoo<NN>\tools`. It carries the structure and everything around the code - the CI, the knowledge graph, the AI rules, lint, the project template, the plan projects follow - so nothing has to be built again from the start. The branches are generated from `main` (`odoo-ai sync-versions`): a change that every version shares is made once, in `main`; only what really differs between versions lives in `versions/<NN>/`.
 
 What it does **not** carry: Odoo, enterprise, the themes, third-party addons and the venv. You download and create those yourself, as usual; `odoo-ai setup --check` says which are missing and gives the command for each.
 
@@ -26,7 +26,9 @@ python C:\odoo\odoo19\tools\cli.py setup --db-role     # the PostgreSQL role (as
 odoo-ai new-project Acme --git https://github.com/<owner>/<repo> --branch testing19
 ```
 
-Then open `C:\odoo\odoo19\projects\Acme\Acme.code-workspace`.
+Then open `C:\odoo\ProjectsOdoo19\Acme\Acme.code-workspace`.
+
+Another version, in one command: `odoo-ai new-version 20` (clones the `20.0` tools, makes `ProjectsOdoo20`, runs `setup`; add `--check` to change nothing).
 
 ## The version folder
 
@@ -39,7 +41,8 @@ C:\odoo\
     ├── odoo.conf                         written by setup (passwords generated, never committed)
     ├── AGENTS.md  ODOO19_*.md            this version's rules (setup copies them from tools\docs\version)
     ├── tools\                            THIS REPOSITORY, branch 19.0
-    └── projects\<PROJECT>\               a project: its own git; its workspace, conf, odools.toml,
+
+C:\odoo\ProjectsOdoo19\<PROJECT>\         a project: its own git; its workspace, conf, odools.toml,
                                           .mcp.json and CLAUDE.md inside it, never committed
 ```
 
@@ -58,17 +61,26 @@ C:\odoo\
 | `.pylintrc` `.flake8` `pylint_plugins\` | lint configuration of this version |
 | `launcher\` | the `odoo-ai` launcher and `build_graphs.bat` for `C:\odoo\bin` |
 | `docs\LAYOUT.md` | the layout and the everyday commands in more detail |
+| `sync_versions.py` `versions\` | builds the `17.0`/`18.0`/`20.0` branches from `main`; `versions\<NN>` holds only what differs |
+| `secret_scan.py` | refuses a commit that adds a password or token (`odoo-ai secrets`) |
+| `env_root.py` | finds the workspace root (`ODOO_ROOT`, else relative to the tools): no `C:\odoo` in the code |
+| `tests\` | the tools' own tests: `odoo-ai test-self` |
 
 ## Every day
 
 | Task | Command |
 | --- | --- |
 | Is this machine whole? | `odoo-ai doctor` (`--fix` repairs what is safe), `odoo-ai setup --check` |
+| A new Odoo version | `odoo-ai new-version <NN>` (`--check` changes nothing) |
 | A new project | `odoo-ai new-project <name> --git <url>` |
 | Test before pushing | the `CI` button in VS Code, or `odoo-ai ci` |
 | The version's gates in a project's own CI | `odoo-ai gates --install` |
+| Keep a password out of git | `odoo-ai secrets --install-hook` once per repository; `odoo-ai secrets --staged` by hand |
+| Test the tools themselves | `odoo-ai test-self` |
 | The project's graph | `odoo-ai kg status` / `odoo-ai kg index`; all of them: `C:\odoo\bin\build_graphs.bat` |
 
 ## Changing the tools
 
-Change them in the version's own `tools` folder and commit on its branch. Another version gets a change on purpose - never through a shared copy: `odoo-ai port <commit>` tries it on the other versions, `--apply` commits it there.
+Change them in `main`. `odoo-ai sync-versions` shows what each version branch would become; `apply -v NN` builds it as a local branch `sync/NN.0` (on top of `NN.0`, so pushing it is a plain fast-forward). It never pushes: that is yours.
+
+Something only one version needs goes in `versions/<NN>/files/` (a file that replaces main's), `remove` (a file the version must not have) or `replace` (a text substitution that fails loudly when main changes under it) in `versions/<NN>/MANIFEST.json`. A clone has one branch: `odoo-ai sync-versions fetch` gets the others.

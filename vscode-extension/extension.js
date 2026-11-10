@@ -10,7 +10,7 @@ const http = require("http");
 const DUAL_PROJECT_RX = /(?:odoo(\d+)[\\/]projects|ProjectsOdoo(\d+))[\\/]([^\\/]+)/i;
 const FILE_LINE_RX = /^\s*([\w./\\-]+\.(?:py|xml|csv|js|scss|po|yml|txt)):(\d+):\s*(.*)$/;
 
-let output, statusItem, diagnostics, stepsTree, actionsTree, child = null;
+let output, statusItem, diagnostics, stepsTree, actionsTree, envTree, child = null;
 const state = { steps: [], phases: [], logPath: null, result: null, project: null, mode: null, started: null, serverRunning: false };
 
 // ------------------------------------------------------------ the project
@@ -66,6 +66,40 @@ function getProjectPort(project) {
   return parseInt(`${project.version}00`, 10) || 8069;
 }
 
+function getOdooRoot(project) {
+  const cfg = vscode.workspace.getConfiguration("odooCi");
+  const configured = cfg.get("odooRoot");
+  if (configured && configured.trim()) return configured.trim();
+
+  if (process.env.ODOO_ROOT && fs.existsSync(process.env.ODOO_ROOT)) {
+    return process.env.ODOO_ROOT;
+  }
+
+  if (project && project.root) {
+    const parent = path.dirname(project.root);
+    const grandParent = path.dirname(parent);
+    if (fs.existsSync(path.join(grandParent, `odoo${project.version || 19}`))) {
+      return grandParent;
+    }
+    if (fs.existsSync(path.join(parent, `odoo${project.version || 19}`))) {
+      return parent;
+    }
+  }
+
+  const wsFolders = vscode.workspace.workspaceFolders || [];
+  for (const wf of wsFolders) {
+    const p1 = path.dirname(wf.uri.fsPath);
+    const p2 = path.dirname(p1);
+    for (const cand of [p1, p2]) {
+      if (fs.existsSync(path.join(cand, "odoo19")) || fs.existsSync(path.join(cand, "bin"))) {
+        return cand;
+      }
+    }
+  }
+
+  return process.platform === "win32" ? "C:\\odoo" : path.join(process.env.HOME || "", "odoo");
+}
+
 function getPythonExe(project) {
   const cfg = vscode.workspace.getConfiguration("odooCi");
   const configured = cfg.get("python");
@@ -75,10 +109,12 @@ function getPythonExe(project) {
   const pyPath = pyCfg.get("defaultInterpreterPath");
   if (pyPath && pyPath.trim() && fs.existsSync(pyPath.trim())) return pyPath.trim();
 
-  if (project && project.version) {
-    const venvPy = `C:\\odoo\\odoo${project.version}\\venv\\Scripts\\python.exe`;
-    if (fs.existsSync(venvPy)) return venvPy;
-  }
+  const version = (project && project.version) || "19";
+  const root = getOdooRoot(project);
+  const venvPy = process.platform === "win32"
+    ? path.join(root, `odoo${version}`, "venv", "Scripts", "python.exe")
+    : path.join(root, `odoo${version}`, "venv", "bin", "python");
+  if (fs.existsSync(venvPy)) return venvPy;
   return "python";
 }
 
@@ -87,15 +123,19 @@ function getCliPath(project) {
   const configured = cfg.get("cliPath");
   if (configured && configured.trim()) return configured.trim();
 
+  const root = getOdooRoot(project);
   if (project && project.version) {
-    const defaultCli = `C:\\odoo\\odoo${project.version}\\tools\\cli.py`;
+    const defaultCli = path.join(root, `odoo${project.version}`, "tools", "cli.py");
     if (fs.existsSync(defaultCli)) return defaultCli;
   }
-  return "C:\\odoo\\odoo19\\tools\\cli.py";
+  const fallback = path.join(root, "odoo19", "tools", "cli.py");
+  if (fs.existsSync(fallback)) return fallback;
+  return "odoo-ai";
 }
 
 function checkPortOpen(port, cb) {
   const req = http.get(`http://127.0.0.1:${port}/web/health`, (res) => {
+    res.resume();
     cb(true);
   });
   req.on("error", () => {
@@ -328,7 +368,10 @@ function setStatus(kind, label) {
     statusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
   } else {
     statusItem.text = `$(beaker) ${projLabel}`;
-    statusItem.tooltip = "Odoo Studio & CI. Click for menu.";
+    statusItem.tooltip = project
+      ? `Odoo ${project.version} · ${project.name} · port ${getProjectPort(project)}
+Click for the Studio menu.`
+      : "Odoo Studio & CI. Click for menu.";
     statusItem.command = "odooCi.menu";
     statusItem.backgroundColor = undefined;
   }
@@ -470,7 +513,7 @@ function startServer() {
   });
   term.show();
   const confArg = fs.existsSync(conf) ? `-c "${conf}"` : `--http-port=${port}`;
-  term.sendText(`& "${python}" "${bin}" ${confArg} --dev=all`);
+  term.sendText(cliLine(python, bin, `${confArg} --dev=all`));
   vscode.window.showInformationMessage(`Starting Odoo ${project.version} server for ${project.name} on port ${port}...`);
   setTimeout(pollServerStatus, 2500);
 }
@@ -507,7 +550,7 @@ function runFastTest() {
     term.show();
     const python = getPythonExe(project);
     const cli = getCliPath(project);
-    term.sendText(`& "${python}" "${cli}" test -m "${addon}" --fast`);
+    term.sendText(cliLine(python, cli, `test -m "${addon}" --fast`));
   });
 }
 
@@ -523,18 +566,13 @@ function runNewAddon() {
     term.show();
     const python = getPythonExe(project);
     const cli = getCliPath(project);
-    term.sendText(`& "${python}" "${cli}" new-addon "${addon}"`);
+    term.sendText(cliLine(python, cli, `new-addon "${addon}"`));
   });
 }
 
 function runDoctor() {
-  const project = findProject();
-  if (!project) return;
-  const term = vscode.window.createTerminal({ name: "Odoo-AI Doctor" });
-  term.show();
-  const python = getPythonExe(project);
-  const cli = getCliPath(project);
-  term.sendText(`& "${python}" "${cli}" doctor`);
+  const { python, cli, root } = toolsContext();
+  runInTerminal("Odoo-AI Doctor", cliLine(python, cli, "doctor"), root);
 }
 
 function runXPathCheck() {
@@ -595,7 +633,7 @@ function runDbSnapSave() {
     term.show();
     const python = getPythonExe(project);
     const cli = getCliPath(project);
-    term.sendText(`& "${python}" "${cli}" db-snap save "${label}"`);
+    term.sendText(cliLine(python, cli, `db-snap save "${label}"`));
   });
 }
 
@@ -611,7 +649,7 @@ function runDbSnapRestore() {
     term.show();
     const python = getPythonExe(project);
     const cli = getCliPath(project);
-    term.sendText(`& "${python}" "${cli}" db-snap restore "${label}"`);
+    term.sendText(cliLine(python, cli, `db-snap restore "${label}"`));
   });
 }
 
@@ -636,7 +674,7 @@ function runI18nScan() {
       const python = getPythonExe(project);
       const cli = getCliPath(project);
       const langFlag = targetLang ? ` -l "${targetLang}"` : "";
-      term.sendText(`& "${python}" "${cli}" i18n scan -m "${mod}"${langFlag}`);
+      term.sendText(cliLine(python, cli, `i18n scan -m "${mod}"${langFlag}`));
     });
   });
 }
@@ -708,7 +746,7 @@ function runInitFastDb() {
   const fastScript = `C:\\odoo\\odoo${ver}\\tools\\db_fast.py`;
   const term = vscode.window.createTerminal({ name: `Odoo Init Fast DB (${ver})` });
   term.show();
-  term.sendText(`& "${python}" "${fastScript}" init -v "${ver}"`);
+  term.sendText(cliLine(python, fastScript, `init -v "${ver}"`));
 }
 
 function pollServerStatus() {
@@ -721,6 +759,209 @@ function pollServerStatus() {
   });
 }
 
+// ------------------------------------------------------------- shell-aware command line
+
+/** `python cli args` for the terminal the user really has: PowerShell needs `&` before a quoted path, cmd/bash do not. */
+function cliLine(python, script, args) {
+  const shell = (vscode.env.shell || "").toLowerCase();
+  const ps = shell.includes("powershell") || shell.includes("pwsh");
+  return `${ps ? "& " : ""}"${python}" "${script}" ${args || ""}`.trim();
+}
+
+function runInTerminal(name, line, cwd) {
+  const term = vscode.window.createTerminal({ name, cwd });
+  term.show();
+  term.sendText(line);
+}
+
+// ------------------------------------------------------------- versions & environment
+
+const VERSIONS = ["17", "18", "19", "20"];
+
+function readBranch(toolsDir) {
+  try {
+    const head = fs.readFileSync(path.join(toolsDir, ".git", "HEAD"), "utf8").trim();
+    return head.startsWith("ref:") ? head.replace(/^ref:\s*refs\/heads\//, "") : head.slice(0, 8);
+  } catch (e) {
+    return null;
+  }
+}
+
+function listProjects(root, v) {
+  const found = [];
+  for (const base of [path.join(root, `ProjectsOdoo${v}`), path.join(root, `odoo${v}`, "projects")]) {
+    let names = [];
+    try { names = fs.readdirSync(base, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch (e) { continue; }
+    for (const name of names) {
+      const ws = path.join(base, name, `${name}.code-workspace`);
+      if (fs.existsSync(ws)) found.push({ name, ws });
+    }
+  }
+  return found;
+}
+
+/** What one Odoo version has on this machine. */
+function versionInfo(root, v) {
+  const dir = path.join(root, `odoo${v}`);
+  const tools = path.join(dir, "tools");
+  const info = {
+    v,
+    tools: fs.existsSync(path.join(tools, "cli.py")),
+    source: fs.existsSync(path.join(dir, "odoo", "odoo-bin")),
+    venv: fs.existsSync(path.join(dir, "venv")),
+    branch: readBranch(tools),
+    projects: listProjects(root, v),
+  };
+  info.ready = info.tools && info.source && info.venv;
+  return info;
+}
+
+function treeItem(label, opts) {
+  const item = new vscode.TreeItem(label, opts.collapsible || vscode.TreeItemCollapsibleState.None);
+  if (opts.icon) item.iconPath = new vscode.ThemeIcon(opts.icon, opts.color ? new vscode.ThemeColor(opts.color) : undefined);
+  if (opts.description) item.description = opts.description;
+  if (opts.tooltip) item.tooltip = opts.tooltip;
+  if (opts.command) item.command = opts.command;
+  Object.assign(item, opts.extra || {});
+  return item;
+}
+
+class EnvProvider {
+  constructor() {
+    this._emitter = new vscode.EventEmitter();
+    this.onDidChangeTreeData = this._emitter.event;
+  }
+  refresh() { this._emitter.fire(); }
+  getTreeItem(el) { return el; }
+
+  getChildren(el) {
+    const root = getOdooRoot(findProject());
+    if (!el) {
+      const current = (findProject() || {}).version;
+      const nodes = VERSIONS.map((v) => {
+        const info = versionInfo(root, v);
+        const bits = [info.branch ? `branch ${info.branch}` : "no tools", `${info.projects.length} project${info.projects.length === 1 ? "" : "s"}`];
+        return treeItem(`Odoo ${v}${v === current ? "  (this window)" : ""}`, {
+          collapsible: vscode.TreeItemCollapsibleState[v === current ? "Expanded" : "Collapsed"],
+          icon: info.ready ? "pass" : "warning",
+          color: info.ready ? "testing.iconPassed" : "list.warningForeground",
+          description: bits.join(" · "),
+          tooltip: info.ready ? `Odoo ${v} is ready` : `Odoo ${v} is incomplete: use "Set up this version"`,
+          extra: { _kind: "version", _info: info },
+        });
+      });
+      nodes.push(treeItem("Maintenance", { collapsible: vscode.TreeItemCollapsibleState.Expanded, icon: "tools", extra: { _kind: "maint" } }));
+      return nodes;
+    }
+    if (el._kind === "version") return this.versionChildren(el._info);
+    if (el._kind === "maint") return this.maintenanceItems();
+    return [];
+  }
+
+  versionChildren(info) {
+    const out = [];
+    const mark = (ok, label, hint) => treeItem(label, {
+      icon: ok ? "check" : "circle-slash",
+      color: ok ? "testing.iconPassed" : "list.warningForeground",
+      description: ok ? "" : hint,
+    });
+    out.push(mark(info.tools, "Tools", "odoo-ai new-version " + info.v));
+    out.push(mark(info.source, "Odoo source", "download it (setup lists the command)"));
+    out.push(mark(info.venv, "Python venv", "create it (setup lists the command)"));
+    if (!info.ready) {
+      out.push(treeItem(`Set up Odoo ${info.v}…`, {
+        icon: "rocket", command: { command: "odooCi.newVersion", title: "Set up", arguments: [info.v] },
+      }));
+    }
+    for (const p of info.projects) {
+      out.push(treeItem(p.name, {
+        icon: "folder-opened", description: "open in a new window",
+        command: { command: "vscode.openFolder", title: "Open project", arguments: [vscode.Uri.file(p.ws), { forceNewWindow: true }] },
+      }));
+    }
+    return out;
+  }
+
+  maintenanceItems() {
+    const item = (label, icon, command, description) => treeItem(label, { icon, description, command: { command, title: label } });
+    return [
+      item("Set up an Odoo version…", "rocket", "odooCi.newVersion", "one command"),
+      item("Doctor (health check)", "pulse", "odooCi.doctor"),
+      item("Tools self-test", "beaker", "odooCi.selfTest"),
+      item("Version branches vs main", "git-compare", "odooCi.syncVersions", "report only"),
+      item("Scan staged files for secrets", "shield", "odooCi.secretScan"),
+      item("Install secret pre-commit hook", "lock", "odooCi.secretHook", "this repository"),
+      item("Project gates (Odoo rules)", "law", "odooCi.gates"),
+      item("Open the layout guide", "book", "odooCi.openLayout"),
+    ];
+  }
+}
+
+function toolsContext() {
+  const project = findProject();
+  const root = getOdooRoot(project);
+  const version = (project && project.version) || "19";
+  const python = getPythonExe(project || { version });
+  const cli = getCliPath(project || { version });
+  const cwd = (vscode.workspace.workspaceFolders || [])[0] ? vscode.workspace.workspaceFolders[0].uri.fsPath : root;
+  return { project, root, version, python, cli, cwd };
+}
+
+async function runNewVersion(preset) {
+  const { root, python } = toolsContext();
+  let nn = typeof preset === "string" ? preset : null;
+  if (!nn) {
+    const picks = VERSIONS.map((v) => {
+      const info = versionInfo(root, v);
+      return { label: `Odoo ${v}`, description: info.ready ? "ready" : info.tools ? "tools present, incomplete" : "not installed", v };
+    });
+    const choice = await vscode.window.showQuickPick(picks, { placeHolder: "Which Odoo version do you want a working environment for?" });
+    if (!choice) return;
+    nn = choice.v;
+  }
+  const mode = await vscode.window.showQuickPick(
+    [{ label: "Check only", description: "list what is missing, change nothing", flag: " --check" },
+     { label: "Set up", description: "clone the tools, create the folders, fill in what the tools own", flag: "" }],
+    { placeHolder: `Odoo ${nn}` });
+  if (!mode) return;
+  const launcher = path.join(root, "bin", "odoo-ai.py");
+  runInTerminal(`Odoo ${nn} setup`, cliLine(python, launcher, `new-version ${nn}${mode.flag}`), root);
+  if (envTree) setTimeout(() => envTree.refresh(), 4000);
+}
+
+function runSelfTest() {
+  const { python, cli, root } = toolsContext();
+  runInTerminal("Odoo tools self-test", cliLine(python, cli, "test-self"), root);
+}
+
+function runSyncVersions() {
+  const { python, cli, root } = toolsContext();
+  runInTerminal("Odoo version branches", cliLine(python, cli, "sync-versions"), root);
+}
+
+function runSecretScan() {
+  const { python, cli, cwd } = toolsContext();
+  runInTerminal("Secret scan", cliLine(python, cli, "secrets --staged"), cwd);
+}
+
+function runSecretHook() {
+  const { python, cli, cwd } = toolsContext();
+  runInTerminal("Secret hook", cliLine(python, cli, "secrets --install-hook"), cwd);
+}
+
+function runGates() {
+  const { project, python, cli } = toolsContext();
+  if (!project) return vscode.window.showErrorMessage("Odoo CI: open a project first (ProjectsOdoo<NN>/<project>).");
+  runInTerminal("Odoo gates", cliLine(python, cli, `gates --path "${project.root}"`), project.root);
+}
+
+function openLayoutGuide() {
+  const { root } = toolsContext();
+  const guide = path.join(root, "odoo19", "tools", "docs", "LAYOUT.md");
+  if (fs.existsSync(guide)) vscode.commands.executeCommand("markdown.showPreview", vscode.Uri.file(guide));
+  else vscode.window.showWarningMessage(`Not found: ${guide}`);
+}
+
 // ------------------------------------------------------------- activation
 
 function activate(context) {
@@ -729,6 +970,7 @@ function activate(context) {
   statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 25);
   stepsTree = new StepsProvider();
   actionsTree = new ActionsProvider();
+  envTree = new EnvProvider();
 
   context.subscriptions.push(
     output,
@@ -736,6 +978,15 @@ function activate(context) {
     statusItem,
     vscode.window.registerTreeDataProvider("odooCi.steps", stepsTree),
     vscode.window.registerTreeDataProvider("odooCi.actions", actionsTree),
+    vscode.window.registerTreeDataProvider("odooCi.env", envTree),
+    vscode.commands.registerCommand("odooCi.newVersion", runNewVersion),
+    vscode.commands.registerCommand("odooCi.selfTest", runSelfTest),
+    vscode.commands.registerCommand("odooCi.syncVersions", runSyncVersions),
+    vscode.commands.registerCommand("odooCi.secretScan", runSecretScan),
+    vscode.commands.registerCommand("odooCi.secretHook", runSecretHook),
+    vscode.commands.registerCommand("odooCi.gates", runGates),
+    vscode.commands.registerCommand("odooCi.openLayout", openLayoutGuide),
+    vscode.commands.registerCommand("odooCi.refreshEnv", () => envTree.refresh()),
     vscode.commands.registerCommand("odooCi.static", () => run("static")),
     vscode.commands.registerCommand("odooCi.full", () => run("full")),
     vscode.commands.registerCommand("odooCi.fullStop", () => run("fullStop")),
@@ -752,7 +1003,7 @@ function activate(context) {
     vscode.commands.registerCommand("odooCi.doctor", runDoctor),
     vscode.commands.registerCommand("odooCi.setupWizard", runSetupWizard),
     vscode.commands.registerCommand("odooCi.initFastDb", runInitFastDb),
-    vscode.commands.registerCommand("odooCi.refresh", () => { pollServerStatus(); actionsTree.refresh(); }),
+    vscode.commands.registerCommand("odooCi.refresh", () => { pollServerStatus(); actionsTree.refresh(); envTree.refresh(); }),
     vscode.commands.registerCommand("odooCi.cancel", () => {
       if (child) child.kill();
     }),
@@ -776,6 +1027,11 @@ function activate(context) {
         { label: "$(beaker) Run full CI (install and test)", action: "full" },
         { label: "$(add) Scaffold New Addon", action: "newAddon" },
         { label: "$(pulse) Run Doctor Health Check", action: "doctor" },
+        { label: "$(rocket) Set up an Odoo version", action: "newVersion" },
+        { label: "$(beaker) Tools self-test", action: "selfTest" },
+        { label: "$(git-compare) Version branches vs main", action: "syncVersions" },
+        { label: "$(shield) Scan staged files for secrets", action: "secretScan" },
+        { label: "$(law) Project gates (Odoo rules)", action: "gates" },
       ];
       vscode.window.showQuickPick(items).then((choice) => {
         if (!choice) return;
@@ -786,7 +1042,8 @@ function activate(context) {
 
   setStatus("ready");
   pollServerStatus();
-  setInterval(pollServerStatus, 5000);
+  const timer = setInterval(pollServerStatus, 5000);
+  context.subscriptions.push({ dispose: () => clearInterval(timer) });
 }
 
 function deactivate() {

@@ -18,15 +18,19 @@ import os
 import re
 import sys
 
-WIN_ROOT = "C:/odoo"
-# A project can live in C:/odoo/ProjectsOdoo<NN>/<name> or C:/odoo/odoo<NN>/projects/<name>
+from env_root import get_odoo_root
+
+# Dynamic Root Resolution: preserves the exact directory structure while supporting any root drive/folder
+TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+FS_ROOT = get_odoo_root()
+WIN_ROOT = FS_ROOT.replace("\\", "/")
+
+# A project can live in <ROOT>/ProjectsOdoo<NN>/<name> or <ROOT>/odoo<NN>/projects/<name>
 PROJECT_RX = re.compile(r"(?:odoo|ProjectsOdoo)(\d+)(?:/projects)?/([^/]+)", re.IGNORECASE)
 LEGACY_PROJECTS = "ProjectsOdoo"
-# These tools live in C:/odoo/odoo<NN>/tools: one copy per Odoo version, each free to differ.
-TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
-FS_ROOT = os.path.dirname(os.path.dirname(TOOLS_DIR))
+# These tools live in <ROOT>/odoo<NN>/tools: one copy per Odoo version, each free to differ.
 _TOOLS_MATCH = re.search(r"odoo(\d+)[\\/]tools$", TOOLS_DIR, re.IGNORECASE)
-TOOLS_VERSION = _TOOLS_MATCH.group(1) if _TOOLS_MATCH else ""  # "" outside C:/odoo/odoo<NN>/tools
+TOOLS_VERSION = _TOOLS_MATCH.group(1) if _TOOLS_MATCH else ""  # "" outside odoo<NN>/tools
 # The knowledge-graph engine lives in each version's tools (since 2026-11-08), next to
 # the rest of them; LEGACY_KG_DIR is where it stood alone before, read only to move paths.
 KG_DIR = f"{WIN_ROOT}/odoo{TOOLS_VERSION}/tools/kg"

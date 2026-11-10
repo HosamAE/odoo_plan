@@ -1,0 +1,8 @@
+{
+  "remove": [
+    "docs/version/ODOO19_BREAKING_CHANGES_AND_FRAMEWORK_RULES.md",
+    "gates/check_odoo19_rules.py",
+    "pylint_plugins/odoo_namespace.py"
+  ],
+  "replace": {}
+}

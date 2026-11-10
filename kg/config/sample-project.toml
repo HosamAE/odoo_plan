@@ -1,0 +1,25 @@
+# odoo-kg project configuration template -- sample-project
+#
+# Copy this file to kg/config/local/<your-project-id>.toml to configure a project.
+# Files in kg/config/local/ are machine-specific and excluded from git.
+#
+# This file must never contain a secret.
+
+[project]
+project_id = "sample-project"
+repo_root = "ProjectsOdoo19/sample_project"
+core_root = "odoo19"
+
+[storage]
+data_dir = "%LOCALAPPDATA%/odoo-kg/projects/sample-project"
+db_filename = "graph.db"
+
+[odoo]
+expected_series = "19.0"
+
+[origin]
+default = "project"
+
+[origin.modules]
+# Add module classification here (e.g. custom_module = "project", base_addons = "vendor")
+

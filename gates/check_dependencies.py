@@ -78,13 +78,28 @@ def addon_dirs(base):
     return [d for d in base.iterdir() if d.is_dir() and (d / "__manifest__.py").is_file()]
 
 
+def odoo_root():
+    """The workspace root holding odoo<NN>/: $ODOO_ROOT, else the nearest parent of the project with one.
+
+    The gates are copied into each project, so they cannot import the tools' env_root.
+    """
+    env = os.environ.get("ODOO_ROOT")
+    if env and os.path.isdir(env):
+        return pathlib.Path(env)
+    for parent in ROOT.resolve().parents:
+        if any((parent / f"odoo{v}" / "odoo").is_dir() for v in ("17", "18", "19", "20")):
+            return parent
+    return None
+
+
 def find_odoo(explicit):
-    # The project's own version first: C:/odoo/odoo<NN>/projects/<project> is Odoo <NN>,
+    # The project's own version first: <root>/odoo<NN>/projects/<project> is Odoo <NN>,
     # whatever its manifests say and wherever this runs from.
-    by_path = re.search(r"[\\/]odoo(\d+)[\\/]projects[\\/]", str(ROOT))
+    root = odoo_root()
+    by_path = re.search(r"[\\/](?:odoo|ProjectsOdoo)(\d+)(?:[\\/]|$)", str(ROOT))
     candidates = [explicit, os.environ.get("ODOO_SRC"), ROOT / "odoo"]
-    if by_path:
-        candidates.append(pathlib.Path(f"C:/odoo/odoo{by_path.group(1)}/odoo"))
+    if root and by_path:
+        candidates.append(root / f"odoo{by_path.group(1)}" / "odoo")
     candidates += [ROOT.parent / "odoo", pathlib.Path.cwd() / "odoo"]
     version = None
     for d in addon_dirs(ROOT)[:20]:
@@ -92,8 +107,8 @@ def find_odoo(explicit):
         if m and str(m.get("version", "")).count(".") >= 2:
             version = str(m["version"]).split(".")[0]
             break
-    if version:
-        candidates.append(pathlib.Path(f"C:/odoo/odoo{version}/odoo"))
+    if root and version:
+        candidates.append(root / f"odoo{version}" / "odoo")
     for c in candidates:
         if c and (pathlib.Path(c) / "odoo" / "addons" / "base" / "__manifest__.py").is_file():
             return pathlib.Path(c)

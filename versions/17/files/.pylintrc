@@ -1,0 +1,66 @@
+[MASTER]
+# A comma-separated list of package or module names from where C extensions may
+# be loaded. Extensions are loading into the active Python interpreter and may
+# run arbitrary code.
+extension-pkg-whitelist=
+
+# Add files or directories to the blacklist. They should be base names, not paths.
+ignore=CVS,.git,venv,enterprise,design-themes,third-party
+
+# Load plugins if they are available
+load-plugins=pylint_odoo
+
+[MESSAGES CONTROL]
+# Disable the messages which are not relevant or too noisy for Odoo
+disable=
+    # General Python/Pylint style checks that are too noisy in Odoo
+    missing-docstring,
+    too-few-public-methods,
+    duplicate-code,
+    import-outside-toplevel,
+    protected-access,
+    too-many-ancestors,
+    attribute-defined-outside-init,
+    invalid-name,
+    unused-argument,
+    abstract-method,
+
+    # OCA specific manifest/layout checks (not required for proprietary/custom modules)
+    manifest-required-author,
+    manifest-required-key,
+    manifest-deprecated-key,
+    manifest-maintainers-list,
+    license-allowed,
+    manifest-version-format,
+    translation-required,
+    development-status-allowed,
+    missing-readme,
+    no-wizard-in-models,
+    category-allowed,
+    missing-odoo-file,
+    manifest-superfluous-key,
+    category-allowed-app,
+    missing-odoo-file-app,
+    manifest-required-key-app,
+    manifest-summary-multiline,
+    manifest-author-string,
+    website-manifest-key-not-valid-uri,
+    manifest-external-assets,
+    
+    # Custom Odoo design rules that are often preferred to be ignored
+    attribute-string-redundant,
+    method-compute,
+    method-search,
+    method-inverse
+
+[REPORTS]
+output-format=text
+
+[FORMAT]
+# Maximum number of characters on a single line.
+max-line-length=120
+
+[ODOOLINT]
+# Target Odoo version
+valid-odoo-versions=17.0
+

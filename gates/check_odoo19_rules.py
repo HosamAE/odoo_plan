@@ -73,7 +73,8 @@ def python_findings(path, text):
             out.append((node.lineno, "R3", "len(search(...)): use search_count(...)"))
         # R8
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "read_group" \
-                and not (isinstance(node.func.value, ast.Name) and node.func.value.id == "super"):
+                and not (isinstance(node.func.value, ast.Call) and isinstance(node.func.value.func, ast.Name)
+                         and node.func.value.func.id == "super"):
             out.append((node.lineno, "R8", "read_group(): use _read_group() or formatted_read_group()"))
         # R10
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mod) and isinstance(node.left, ast.Call):
@@ -128,8 +129,9 @@ def xml_findings(path, text):
     out = []
     lines = text.splitlines()
     for i, line in enumerate(lines, 1):
-        if re.search(r"""context=["'][^"']*\bparent\.""", line):
-            out.append((i, "R7", "parent. in a view context: compute it in an onchange instead"))
+        # parent.id is allowed: Odoo's own catalog buttons pass context="{'order_id': parent.id}"
+        if re.search(r"""context=(?:"[^"]*\bparent\.(?!id\b)|'[^']*\bparent\.(?!id\b))""", line):
+            out.append((i, "R7", "parent.<field> in a view context: compute it in an onchange instead"))
         if "default_res_id'" in line or 'default_res_id"' in line or "default_res_id:" in line:
             out.append((i, "R2", "default_res_id: the composer reads default_res_ids: [id]"))
     # R6: <search> ... <group> ... </group> with non-filter children. Comments

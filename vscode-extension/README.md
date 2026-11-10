@@ -18,7 +18,7 @@
 ---
 
 <p align="center">
-  <img src="https://files.catbox.moe/nxmx8t.png" width="100%" alt="Odoo Studio & CI Pro Architecture" />
+  <img src="https://files.catbox.moe/8e9emh.png" width="100%" alt="Odoo Studio & CI Pro Architecture" />
 </p>
 
 ## 🌟 Key Features
@@ -66,6 +66,13 @@ Generate standard-compliant Odoo addons in seconds:
 - Security `ir.model.access.csv` and auto-registration in `.github/modules.txt`.
 
 ---
+
+### 🧭 8. Versions & Environment view (new in 1.5)
+One panel lists **Odoo 17, 18, 19 and 20** on this machine: tools, source and venv ticked or flagged, the branch of the tools, and every project of that version (click to open it in a new window). The version of the window you are in is marked.
+
+* **Set up an Odoo version** runs `odoo-ai new-version NN`: it clones the `NN.0` tools, makes `ProjectsOdooNN` and lists what you still download. *Check only* changes nothing.
+* **Maintenance**: Doctor, tools self-test, version branches vs `main`, secret scan of the staged files, the secret pre-commit hook, the project's Odoo gates, and the layout guide.
+* Works with no project open. Terminal commands adapt to PowerShell, cmd or bash.
 
 ## 🚀 Quick Setup & Usage
 

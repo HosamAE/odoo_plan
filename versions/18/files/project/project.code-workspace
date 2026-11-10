@@ -1,0 +1,631 @@
+{
+  "folders": [
+    {
+      "name": "odoo",
+      "path": "../../odoo"
+    },
+    {
+      "name": "Project",
+      "path": "."
+    }
+  ],
+  "extensions": {
+    "recommendations": [
+      "streetsidesoftware.code-spell-checker",
+      "oderwat.indent-rainbow",
+      "mstuttgart.odoo-snippets",
+      "ms-python.python",
+      "ms-python.debugpy",
+      "ms-python.vscode-pylance",
+      "ms-python.black-formatter",
+      "ms-python.pylint",
+      "ms-python.isort",
+      "kevinrose.vsc-python-indent",
+      "davidanson.vscode-markdownlint",
+      "aeschli.vscode-css-formatter",
+      "pranaygp.vscode-css-peek",
+      "mechatroner.rainbow-csv",
+      "esbenp.prettier-vscode",
+      "ms-vscode.vscode-typescript-next",
+      "ms-vscode.js-debug-nightly",
+      "dbaeumer.vscode-eslint",
+      "redhat.vscode-xml",
+      "jock.svg",
+      "simonsiefke.svg-preview",
+      "l13rary.l13-diff",
+      "stxr.iconfont-preview",
+      "mhutchie.git-graph",
+      "eamodio.gitlens",
+      "tobermory.es6-string-html",
+      "njpwerner.autodocstring",
+      "aaron-bond.better-comments",
+      "pkief.material-icon-theme",
+      "wayou.vscode-todo-highlight",
+      "johnpapa.vscode-peacock",
+      "HosamAE.odoo-ci",
+    ]
+  ,
+    "unwantedRecommendations": ["github.copilot", "github.copilot-chat", "trinhanhngoc.vscode-odoo"],},
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Odoo: Run",
+        "type": "debugpy",
+        "request": "launch",
+        "stopOnEntry": false,
+        "python": "C:\\odoo\\odoo18\\venv\\Scripts\\python.exe",
+        "program": "C:/odoo/odoo18/odoo/odoo-bin",
+        "args": [
+          "--config=C:/odoo/odoo18/projects/{{PROJECT}}/{{CONF}}",
+          "--dev=all"
+        ],
+        "cwd": "C:/odoo/odoo18/odoo",
+        "console": "integratedTerminal",
+        "justMyCode": false
+      },
+      {
+        "name": "Odoo: Debug",
+        "type": "debugpy",
+        "request": "launch",
+        "stopOnEntry": false,
+        "python": "C:\\odoo\\odoo18\\venv\\Scripts\\python.exe",
+        "program": "C:/odoo/odoo18/odoo/odoo-bin",
+        "args": [
+          "--config=C:/odoo/odoo18/projects/{{PROJECT}}/{{CONF}}"
+        ],
+        "cwd": "C:/odoo/odoo18/odoo",
+        "console": "internalConsole",
+        "justMyCode": false
+      }
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "odoo-ai: lint this module",
+        "type": "process",
+        "command": "C:\\odoo\\odoo18\\venv\\Scripts\\python.exe",
+        "args": [
+          "C:/odoo/odoo18/tools/cli.py",
+          "lint",
+          "-p",
+          "${file}",
+          "-v",
+          "18"
+        ],
+        "options": {
+          "cwd": "${workspaceFolder:Project}"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "clear": true
+        },
+        "problemMatcher": [
+          {
+            "owner": "odoo-ai",
+            "source": "pylint",
+            "fileLocation": "absolute",
+            "severity": "error",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): ([EF]\\d{4}): (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "pylint",
+            "fileLocation": "absolute",
+            "severity": "warning",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): (W\\d{4}): (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "pylint",
+            "fileLocation": "absolute",
+            "severity": "info",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): ([CR]\\d{4}): (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "flake8",
+            "fileLocation": "absolute",
+            "severity": "warning",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): (F\\d{3}) (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "flake8",
+            "fileLocation": "absolute",
+            "severity": "info",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): ([EWC]\\d{3}) (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "xml",
+            "fileLocation": "absolute",
+            "severity": "error",
+            "pattern": {
+              "regexp": "^\\[XML SYNTAX ERROR\\] (.+?): (.*line (\\d+).*)$",
+              "file": 1,
+              "message": 2,
+              "line": 3
+            }
+          }
+        ],
+        "detail": "pylint-odoo, flake8 and XML check of the addon of the open file (findings in Problems)",
+        "group": {
+          "kind": "test",
+          "isDefault": true
+        }
+      },
+      {
+        "label": "odoo-ai: lint the project",
+        "type": "process",
+        "command": "C:\\odoo\\odoo18\\venv\\Scripts\\python.exe",
+        "args": [
+          "C:/odoo/odoo18/tools/cli.py",
+          "lint",
+          "-p",
+          "${workspaceFolder:Project}",
+          "-v",
+          "18"
+        ],
+        "options": {
+          "cwd": "${workspaceFolder:Project}"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "clear": true
+        },
+        "problemMatcher": [
+          {
+            "owner": "odoo-ai",
+            "source": "pylint",
+            "fileLocation": "absolute",
+            "severity": "error",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): ([EF]\\d{4}): (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "pylint",
+            "fileLocation": "absolute",
+            "severity": "warning",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): (W\\d{4}): (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "pylint",
+            "fileLocation": "absolute",
+            "severity": "info",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): ([CR]\\d{4}): (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "flake8",
+            "fileLocation": "absolute",
+            "severity": "warning",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): (F\\d{3}) (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "flake8",
+            "fileLocation": "absolute",
+            "severity": "info",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): ([EWC]\\d{3}) (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "xml",
+            "fileLocation": "absolute",
+            "severity": "error",
+            "pattern": {
+              "regexp": "^\\[XML SYNTAX ERROR\\] (.+?): (.*line (\\d+).*)$",
+              "file": 1,
+              "message": 2,
+              "line": 3
+            }
+          }
+        ],
+        "detail": "The same for every addon of the project (slow)"
+      },
+      {
+        "label": "odoo-ai: audit this module",
+        "type": "process",
+        "command": "C:\\odoo\\odoo18\\venv\\Scripts\\python.exe",
+        "args": [
+          "C:/odoo/odoo18/tools/cli.py",
+          "audit",
+          "-p",
+          "${file}"
+        ],
+        "options": {
+          "cwd": "${workspaceFolder:Project}"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "clear": true
+        },
+        "problemMatcher": [
+          {
+            "owner": "odoo-ai",
+            "source": "pylint",
+            "fileLocation": "absolute",
+            "severity": "error",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): ([EF]\\d{4}): (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "pylint",
+            "fileLocation": "absolute",
+            "severity": "warning",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): (W\\d{4}): (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "pylint",
+            "fileLocation": "absolute",
+            "severity": "info",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): ([CR]\\d{4}): (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "flake8",
+            "fileLocation": "absolute",
+            "severity": "warning",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): (F\\d{3}) (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "flake8",
+            "fileLocation": "absolute",
+            "severity": "info",
+            "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+): ([EWC]\\d{3}) (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "code": 4,
+              "message": 5
+            }
+          },
+          {
+            "owner": "odoo-ai",
+            "source": "xml",
+            "fileLocation": "absolute",
+            "severity": "error",
+            "pattern": {
+              "regexp": "^\\[XML SYNTAX ERROR\\] (.+?): (.*line (\\d+).*)$",
+              "file": 1,
+              "message": 2,
+              "line": 3
+            }
+          }
+        ],
+        "detail": "Manifest and security CSV of the addon of the open file"
+      },
+      {
+        "label": "odoo-kg: build graph",
+        "type": "process",
+        "command": "{{KG_PYTHON}}",
+        "args": [
+          "-m",
+          "odoo_kg",
+          "index",
+          "--config",
+          "C:/odoo/odoo18/tools/kg/config/local/{{PROJECT_ID}}.toml"
+        ],
+        "options": {
+          "cwd": "C:/odoo/odoo18/tools/kg"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "clear": true
+        },
+        "problemMatcher": [],
+        "detail": "Index this project into the knowledge graph and publish it"
+      },
+      {
+        "label": "odoo-kg: status",
+        "type": "process",
+        "command": "C:\\odoo\\odoo19\\venv\\Scripts\\python.exe",
+        "args": [
+          "C:/odoo/odoo18/tools/kg_open.py",
+          "--config",
+          "C:/odoo/odoo18/tools/kg/config/local/{{PROJECT_ID}}.toml"
+        ],
+        "options": {
+          "cwd": "C:/odoo/odoo18/tools/kg"
+        },
+        "presentation": {
+          "reveal": "silent",
+          "panel": "dedicated",
+          "clear": true
+        },
+        "problemMatcher": [],
+        "runOptions": {
+          "runOn": "folderOpen"
+        },
+        "detail": "On open: keep the graph fresh (rebuilt when a commit left it behind)"
+      },
+      {
+        "label": "odoo-kg: doctor",
+        "type": "process",
+        "command": "{{KG_PYTHON}}",
+        "args": [
+          "-m",
+          "odoo_kg",
+          "doctor",
+          "--config",
+          "C:/odoo/odoo18/tools/kg/config/local/{{PROJECT_ID}}.toml"
+        ],
+        "options": {
+          "cwd": "C:/odoo/odoo18/tools/kg"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "clear": true
+        },
+        "problemMatcher": [],
+        "detail": "Check the odoo-kg configuration (writes nothing)"
+      }
+    ]
+  },
+  "settings": {
+    "terminal.integrated.persistentSessionReviveProcess": "never",
+    "terminal.integrated.enablePersistentSessions": false,
+    "terminal.integrated.environmentChangesIndicator": "off",
+    "terminal.integrated.environmentChangesRelaunch": true,
+    "Odoo.disableJsLanguageServerPopup": true,
+    "cSpell.ignorePaths": ["**/odoo18/odoo/**", "**/odoo18/enterprise/**", "**/odoo18/venv/**", "**/i18n/**", "**/*.po", "**/*.pot", "**/static/lib/**", "**/help/sv/**"],
+    "cSpell.words": ["odoo", "Odoo", "odools", "pylint", "pylintrc", "ormcache", "onchange", "xmlid", "xpath", "qweb", "QWeb", "owl", "OWL", "hr", "res", "uom", "kanban", "sudo", "ondelete"],
+    "cSpell.diagnosticLevel": "Hint",
+    "flake8.enabled": false,
+    "Odoo.selectedProfile": "default",
+    "Odoo.serverConfigPath": "C:/odoo/odoo18/projects/{{PROJECT}}/odools.toml",
+    "mcp": {
+      "servers": {
+        "odoo-kg": {
+          "type": "stdio",
+          "command": "{{KG_PYTHON}}",
+          "args": [
+            "-m",
+            "odoo_kg",
+            "serve",
+            "--config",
+            "C:/odoo/odoo18/tools/kg/config/local/{{PROJECT_ID}}.toml"
+          ],
+          "env": {
+            "PYTHONPATH": "C:/odoo/odoo18/tools/kg"
+          }
+        }
+      }
+    },
+    "peacock.color": "#2e8b57",
+    "python.languageServer": "None",
+    "python.analysis.typeCheckingMode": "off",
+    "python.defaultInterpreterPath": "C:\\odoo\\odoo18\\venv\\Scripts\\python.exe",
+    "python.analysis.extraPaths": ["C:/odoo/odoo18/odoo"],
+    "python.autoComplete.extraPaths": ["C:/odoo/odoo18/odoo"],
+    "python.analysis.diagnosticMode": "openFilesOnly",
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.inlayHints.functionReturnTypes": true,
+    "python.analysis.inlayHints.variableTypes": true,
+    "isort.args": ["--profile", "black"],
+    "black-formatter.args": ["--line-length=120"],
+    "debugpy.showPythonInlineValues": true,
+    "pylint.enabled": true,
+    "pylint.interpreter": ["C:\\odoo\\odoo18\\venv\\Scripts\\python.exe"],
+    "pylint.args": [
+      "--rcfile=C:/odoo/odoo18/tools/.pylintrc",
+      "--init-hook=\"import sys; sys.path.append('C:/odoo/odoo18/odoo')\""
+    ],
+    "pylint.cwd": "C:/odoo/odoo18/projects/{{PROJECT}}",
+    "pylint.importStrategy": "fromEnvironment",
+    "pylint.severity": {
+      "convention": "Hint",
+      "refactor": "Hint",
+      "warning": "Warning",
+      "error": "Error",
+      "fatal": "Error"
+    },
+    "javascript.updateImportsOnFileMove.enabled": "always",
+    "prettier.singleQuote": true,
+    "prettier.printWidth": 120,
+    "files.associations": {
+      "*.xml": "xml",
+      "*.html": "html",
+      "*.py": "python",
+      "*.js": "javascript"
+    },
+    "[python]": {
+      "editor.defaultFormatter": "ms-python.black-formatter",
+      "editor.formatOnSave": true,
+      "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+      }
+    },
+    "[html]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[xml]": {
+      "editor.defaultFormatter": "redhat.vscode-xml"
+    },
+    "[javascript]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "editor.wordWrap": "on",
+    "editor.wordWrapColumn": 120,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "files.autoSave": "afterDelay",
+    "editor.formatOnSave": true,
+    "editor.minimap.enabled": false,
+    "editor.stickyScroll.enabled": true,
+    "workbench.iconTheme": "material-icon-theme",
+    "editor.fontFamily": "'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
+    "editor.fontLigatures": true,
+    "editor.fontSize": 14,
+    "editor.lineHeight": 1.6,
+    "editor.bracketPairColorization.enabled": true,
+    "editor.guides.bracketPairs": "active",
+    "editor.smoothScrolling": true,
+    "editor.cursorBlinking": "smooth",
+    "editor.cursorSmoothCaretAnimation": "on",
+    "workbench.list.smoothScrolling": true,
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "python.terminal.activateEnvironment": true,
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "terminal.integrated.gpuAcceleration": "on",
+    "terminal.integrated.fastScroll": true,
+    "xml.symbols.enabled": false,
+    "files.exclude": {
+      "**/.git": true,
+      "**/.svn": true,
+      "**/.hg": true,
+      "**/CVS": true,
+      "**/.DS_Store": true,
+      "**/Thumbs.db": true,
+      "**/__pycache__": true,
+      "**sessions": true
+    },
+    "search.exclude": {
+      "**/__pycache__": true,
+      "**/sessions": true
+    },
+    "files.watcherExclude": {
+      "**/.git/objects/**": true,
+      "**/.git/subtree-cache/**": true,
+      "**/__pycache__/**": true,
+      "**/venv/**": true,
+      "**/node_modules/*/**": true,
+      "**/sessions/**": true
+    },
+    "workbench.colorCustomizations": {
+      "activityBar.activeBackground": "#3bb16f",
+      "activityBar.background": "#3bb16f",
+      "activityBar.foreground": "#15202b",
+      "activityBar.inactiveForeground": "#15202b99",
+      "activityBarBadge.background": "#eee7f7",
+      "activityBarBadge.foreground": "#15202b",
+      "activityBarTop.activeBackground": "#3bb16f",
+      "activityBarTop.background": "#3bb16f",
+      "activityBarTop.foreground": "#15202b",
+      "activityBarTop.inactiveForeground": "#15202b99",
+      "commandCenter.border": "#e7e7e799",
+      "commandCenter.foreground": "#e7e7e7",
+      "sash.hoverBorder": "#3bb16f",
+      "statusBar.background": "#2e8b57",
+      "statusBar.debuggingBackground": "#2e8b57",
+      "statusBar.debuggingForeground": "#e7e7e7",
+      "statusBar.foreground": "#e7e7e7",
+      "statusBarItem.hoverBackground": "#3bb16f",
+      "statusBarItem.remoteBackground": "#5a3090",
+      "statusBarItem.remoteForeground": "#e7e7e7",
+      "titleBar.activeBackground": "#2e8b57",
+      "titleBar.activeForeground": "#e7e7e7",
+      "titleBar.inactiveBackground": "#2e8b5799",
+      "titleBar.inactiveForeground": "#e7e7e799"
+    }
+  }
+}

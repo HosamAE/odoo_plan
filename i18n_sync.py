@@ -12,10 +12,13 @@ Usage:
 import argparse
 import ast
 import datetime
+import glob
 import os
 import re
 import sys
 import xml.etree.ElementTree as ET
+
+from env_root import get_odoo_root
 
 TRANSLATABLE_XML_ATTRS = {"string", "help", "placeholder", "title", "alt", "confirm", "name"}
 TRANSLATABLE_XML_TAGS = {"menuitem", "label"}
@@ -119,8 +122,10 @@ def resolve_module_dir(mod_arg):
     for root, dirs, files in os.walk(cwd):
         if mod_arg in dirs and os.path.isfile(os.path.join(root, mod_arg, "__manifest__.py")):
             return os.path.join(root, mod_arg)
-    # Search in ProjectsOdoo19
-    for p_root in [r"C:\odoo\ProjectsOdoo19", r"C:\odoo\ProjectsOdoo18", r"C:\odoo\ProjectsOdoo17", r"C:\odoo\ProjectsOdoo20"]:
+    # Search every version's projects (ProjectsOdoo<NN>), wherever the root is
+    root = get_odoo_root()
+    for p_root in sorted(glob.glob(os.path.join(root, "ProjectsOdoo[0-9][0-9]"))) + sorted(
+            glob.glob(os.path.join(root, "odoo[0-9][0-9]", "projects"))):
         if os.path.isdir(p_root):
             for root, dirs, files in os.walk(p_root):
                 if mod_arg in dirs and os.path.isfile(os.path.join(root, mod_arg, "__manifest__.py")):

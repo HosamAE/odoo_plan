@@ -1,0 +1,15 @@
+{
+  "remove": [
+    "docs/version/ODOO19_BREAKING_CHANGES_AND_FRAMEWORK_RULES.md",
+    "gates/check_odoo19_rules.py",
+    "pylint_plugins/odoo_namespace.py"
+  ],
+  "replace": {
+    "gates/check_python_names.py": [
+      [
+        "TRANSLATOR_RULE = True",
+        "TRANSLATOR_RULE = False   # Odoo 17: `from odoo import _` is the right form here"
+      ]
+    ]
+  }
+}
