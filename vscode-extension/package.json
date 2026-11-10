@@ -13,7 +13,7 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -99,7 +99,7 @@
         "command": "odooCi.dbSnapSave",
         "title": "Take Instant DB Snapshot (~1s)",
         "category": "Odoo Studio",
-        "icon": "$(camera)"
+        "icon": "$(device-camera)"
       },
       {
         "command": "odooCi.dbSnapRestore",
@@ -233,10 +233,6 @@
         {
           "id": "odooCi.actions",
           "name": "Project Control Panel"
-        },
-        {
-          "id": "odooCi.steps",
-          "name": "CI Checks & Progress"
         }
       ]
     },
@@ -248,10 +244,6 @@
       {
         "view": "odooCi.actions",
         "contents": "Odoo Studio & CI Pro by HosamAE:\n[$(gear) Setup Wizard](command:odooCi.setupWizard)\n[$(play) Start Server](command:odooCi.serverRun)\n[$(globe) Open Browser](command:odooCi.serverOpen)\n[$(zap) Fast Test (3s)](command:odooCi.fastTest)\n[$(camera) DB Snapshot](command:odooCi.dbSnapSave)\n[$(checklist) Static Checks](command:odooCi.static)\n[$(beaker) Full CI Suite](command:odooCi.full)\n[$(add) New Addon](command:odooCi.newAddon)"
-      },
-      {
-        "view": "odooCi.steps",
-        "contents": "Run this project's CI here before you push.\n[$(checklist) Static checks (seconds)](command:odooCi.static)\n[$(beaker) Full CI (about 20 minutes)](command:odooCi.full)\nThe full run installs every module on a fresh database and runs every test."
       }
     ],
     "menus": {
@@ -263,23 +255,23 @@
         },
         {
           "command": "odooCi.static",
-          "when": "view == odooCi.steps && !odooCi.running",
-          "group": "navigation@1"
-        },
-        {
-          "command": "odooCi.full",
-          "when": "view == odooCi.steps && !odooCi.running",
+          "when": "view == odooCi.actions && !odooCi.running",
           "group": "navigation@2"
         },
         {
-          "command": "odooCi.cancel",
-          "when": "view == odooCi.steps && odooCi.running",
+          "command": "odooCi.full",
+          "when": "view == odooCi.actions && !odooCi.running",
           "group": "navigation@3"
         },
         {
-          "command": "odooCi.showOutput",
-          "when": "view == odooCi.steps",
+          "command": "odooCi.cancel",
+          "when": "view == odooCi.actions && odooCi.running",
           "group": "navigation@4"
+        },
+        {
+          "command": "odooCi.showOutput",
+          "when": "view == odooCi.actions",
+          "group": "navigation@5"
         },
         {
           "command": "odooCi.refreshEnv",

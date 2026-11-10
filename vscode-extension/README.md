@@ -77,6 +77,11 @@ One panel lists **Odoo 17, 18, 19 and 20** on this machine: tools, source and ve
 ### 🛠️ 9. Quick fixes for the Odoo rules (new in 1.6)
 A gate finding such as `R3 len(search(...))` shows in the Problems tab with its rule code. The light bulb offers **Use search_count()** (only where it is safe: not when `order=` is passed) and, for a line that must break a rule on purpose, **add `noqa: odoo19 REASON`**.
 
+### 🔎 10. One control panel, and a server it finds however it was started (new in 1.7)
+**Project Control Panel** is now the only project view: *Server*, *Quality & CI Gates* (with the live progress of the last run under its buttons) and *Developer Tools*. The separate "CI Checks & Progress" window is gone; its buttons moved to the panel's title bar.
+
+The server is not recognised only when this extension started it. It looks at the running Odoo processes of the machine, so a server started from any terminal, a task, the debugger, a script or a service shows as **Running** with its port and pid, and a status-bar item appears (`:1900`, click to open). A server of another project or another configuration is listed as **Another Odoo is running** with its own port. *Stop* ends the server whichever way it was started (and asks before stopping one that is not this project's); *Open in Browser* uses the port actually in use. Something answering on the configured port that is not a local process (Docker, WSL) also counts as running.
+
 ## 🚀 Quick Setup & Usage
 
 1. Open any Odoo project folder in VS Code or Antigravity IDE.

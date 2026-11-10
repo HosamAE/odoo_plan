@@ -98,9 +98,10 @@ graph TD
 | `odoo-ai sync-versions [fetch\|report\|build\|snapshot\|apply]` | بناء فروع النسخ من `main` ومقارنتها (لا يرفع) |
 | `odoo-ai secrets --staged` / `--install-hook` | رفض أي commit فيه باسورد أو توكن (يذكر الملف والسطر دون القيمة) |
 | `odoo-ai test-self` | 42 اختباراً للأدوات نفسها (الـ gates وxpath وsync وsecrets و`env_root`) |
+| `odoo-ai audit -p <addon\|project>` | فحص حقيقي: موديل جديد بلا صلاحيات، ملف في الـ manifest غير موجود، CSV لا يحمّله الـ manifest، وإصدار خارج السلسلة |
 | `odoo-ai gates` | قواعد Odoo 19 R1–R10 على المشروع (`parent.id` مسموح كما في أودو نفسه) |
 | `odoo-ai doctor [--fix]` | فحص البيئة، و`--fix` ينسخ الـ launcher المحدّث |
 | `odoo-ai claude --install` | يجعل Claude Code يلتزم بقواعد المنظومة في المشروع: hooks (git يسأل أولاً، الأسرار تُرفض، فحص كل تعديل)، وskill، وصلاحيات. `--check` لا يغيّر شيئاً |
 | `odoo-ai init-fast-db` | يبني قاعدة القالب النظيفة لاختبار `test --fast` (مرة واحدة لكل نسخة) |
 
-**إضافة VS Code (الإصدار 1.5.0):** لوحة جديدة *Versions & Environment* تعرض النسخ 17–20 (الأدوات والمصدر والـ venv والفرع والمشاريع بنقرة للفتح)، وقسم *Maintenance* لهذه الأوامر، وتعمل دون مشروع مفتوح.
+**إضافة VS Code (الإصدار 1.7.0):** نافذة واحدة *Project Control Panel* (دُمجت فيها نافذة الـ CI)، وكشف السيرفر أياً كانت طريقة تشغيله (من أي terminal أو task أو debugger) مع بند في شريط الحالة، ولوحة *Versions & Environment* تعرض النسخ 17–20 (الأدوات والمصدر والـ venv والفرع والمشاريع بنقرة للفتح)، وقسم *Maintenance* لهذه الأوامر، وتعمل دون مشروع مفتوح.
