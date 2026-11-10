@@ -13,7 +13,7 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
