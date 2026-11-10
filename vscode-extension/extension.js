@@ -10,8 +10,9 @@ const http = require("http");
 const DUAL_PROJECT_RX = /(?:odoo(\d+)[\\/]projects|ProjectsOdoo(\d+))[\\/]([^\\/]+)/i;
 const FILE_LINE_RX = /^\s*([\w./\\-]+\.(?:py|xml|csv|js|scss|po|yml|txt)):(\d+):\s*(.*)$/;
 
-let output, statusItem, diagnostics, stepsTree, actionsTree, envTree, child = null;
-const state = { steps: [], phases: [], logPath: null, result: null, project: null, mode: null, started: null, serverRunning: false };
+let stepsHelper;
+let output, statusItem, serverItem, diagnostics, stepsTree, actionsTree, envTree, child = null;
+const state = { steps: [], phases: [], logPath: null, result: null, project: null, mode: null, started: null, serverRunning: false, servers: [], portOpen: false };
 
 // ------------------------------------------------------------ the project
 
@@ -161,7 +162,39 @@ class ActionsProvider {
   refresh() { this._emitter.fire(); }
   getTreeItem(el) { return el; }
 
+  serverItems(port) {
+    const item = (label, icon, opts) => treeItem(label, Object.assign({ icon }, opts));
+    const mine = state.servers.filter((s) => s.mine);
+    const others = state.servers.filter((s) => !s.mine);
+    const out = [];
+    if (mine.length) {
+      out.push(item("Server: Running", "pass", {
+        color: "testing.iconPassed", description: `localhost:${mine[0].port} · pid ${mine[0].pid}`,
+        tooltip: mine[0].conf ? `Started with ${mine[0].conf}` : "Started without --config",
+      }));
+    } else if (state.portOpen) {
+      out.push(item("Server: Running", "pass", { color: "testing.iconPassed", description: `localhost:${port} · not a local process`,
+        tooltip: "Something answers on this port (Docker, WSL or another machine)." }));
+    } else {
+      out.push(item("Server: Stopped", "circle-outline", { description: `localhost:${port}` }));
+    }
+    for (const other of others) {
+      out.push(item("Another Odoo is running", "warning", {
+        color: "list.warningForeground", description: `:${other.port} · pid ${other.pid}`,
+        tooltip: other.conf ? `${other.conf}
+Click to open it.` : "Started without --config. Click to open it.",
+        command: { command: "odooCi.serverOpen", title: "Open", arguments: [other.port] },
+      }));
+    }
+    out.push(item("Start Odoo Server", "play", { command: { command: "odooCi.serverRun", title: "Start Server" } }));
+    out.push(item("Stop Odoo Server", "stop-circle", { command: { command: "odooCi.serverStop", title: "Stop Server" } }));
+    out.push(item("Open in Browser", "globe", { description: state.serverRunning ? `:${serverPort(findProject())}` : "",
+      command: { command: "odooCi.serverOpen", title: "Open in Browser" } }));
+    return out;
+  }
+
   getChildren(el) {
+    if (el && (el._phase || el._details)) return stepsHelper.getChildren(el);   // the CI progress lives in this tree now
     const project = findProject();
     if (!project) {
       const item = new vscode.TreeItem("No active Odoo project detected", vscode.TreeItemCollapsibleState.None);
@@ -188,25 +221,7 @@ class ActionsProvider {
       return [serverGroup, ciGroup, toolsGroup];
     }
 
-    if (el._kind === "server") {
-      const statusItem = new vscode.TreeItem(state.serverRunning ? "Server: Running" : "Server: Stopped", vscode.TreeItemCollapsibleState.None);
-      statusItem.iconPath = state.serverRunning ? new vscode.ThemeIcon("pass", new vscode.ThemeColor("testing.iconPassed")) : new vscode.ThemeIcon("circle-outline");
-      statusItem.description = `localhost:${port}`;
-
-      const runItem = new vscode.TreeItem("Start Odoo Server", vscode.TreeItemCollapsibleState.None);
-      runItem.iconPath = new vscode.ThemeIcon("play");
-      runItem.command = { command: "odooCi.serverRun", title: "Start Server" };
-
-      const stopItem = new vscode.TreeItem("Stop Odoo Server", vscode.TreeItemCollapsibleState.None);
-      stopItem.iconPath = new vscode.ThemeIcon("stop-circle");
-      stopItem.command = { command: "odooCi.serverStop", title: "Stop Server" };
-
-      const openItem = new vscode.TreeItem("Open in Browser", vscode.TreeItemCollapsibleState.None);
-      openItem.iconPath = new vscode.ThemeIcon("globe");
-      openItem.command = { command: "odooCi.serverOpen", title: "Open in Browser" };
-
-      return [statusItem, runItem, stopItem, openItem];
-    }
+    if (el._kind === "server") return this.serverItems(port);
 
     if (el._kind === "ci") {
       const staticItem = new vscode.TreeItem("Run Static Checks (Lint & Security)", vscode.TreeItemCollapsibleState.None);
@@ -227,7 +242,7 @@ class ActionsProvider {
       fullItem.iconPath = new vscode.ThemeIcon("beaker");
       fullItem.command = { command: "odooCi.full", title: "Full CI" };
 
-      return [staticItem, fastTestItem, xpathItem, fullItem];
+      return [staticItem, fastTestItem, xpathItem, fullItem, ...stepsHelper.getChildren()];
     }
 
     if (el._kind === "tools") {
@@ -240,7 +255,7 @@ class ActionsProvider {
       initDbItem.command = { command: "odooCi.initFastDb", title: "Init Fast DB" };
 
       const snapSaveItem = new vscode.TreeItem("Take Instant DB Snapshot (~1s)", vscode.TreeItemCollapsibleState.None);
-      snapSaveItem.iconPath = new vscode.ThemeIcon("camera");
+      snapSaveItem.iconPath = new vscode.ThemeIcon("device-camera");
       snapSaveItem.command = { command: "odooCi.dbSnapSave", title: "Take Snapshot" };
 
       const snapRestoreItem = new vscode.TreeItem("Restore DB Snapshot (~2s)", vscode.TreeItemCollapsibleState.None);
@@ -364,7 +379,7 @@ function setStatus(kind, label) {
   } else if (kind === "fail") {
     statusItem.text = `$(error) ${projLabel}`;
     statusItem.tooltip = "Odoo CI failed. Click to open Checks.";
-    statusItem.command = "odooCi.steps.focus";
+    statusItem.command = "odooCi.actions.focus";
     statusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
   } else {
     statusItem.text = `$(beaker) ${projLabel}`;
@@ -520,24 +535,179 @@ function startServer() {
   setTimeout(pollServerStatus, 2500);
 }
 
-function stopServer() {
-  const project = findProject();
-  if (!project) return;
-  const term = vscode.window.terminals.find(t => t.name === serverTerminalName(project));
-  if (term) {
-    term.dispose();
+// ------------------------------------------------------------- finding a running server, however it was started
+
+/** Split a process command line into its arguments, keeping quoted paths whole. */
+function splitCommandLine(cmd) {
+  const tokens = [];
+  const rx = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  let m;
+  while ((m = rx.exec(cmd)) !== null) tokens.push(m[1] !== undefined ? m[1] : m[2] !== undefined ? m[2] : m[3]);
+  return tokens;
+}
+
+function normPath(p) {
+  return String(p || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+}
+
+function portFromConf(conf, project) {
+  const candidates = [conf];
+  if (project && project.root) candidates.push(path.join(project.root, conf));
+  for (const file of candidates) {
+    try {
+      const m = fs.readFileSync(file, "utf8").match(/^\s*(?:http_port|xmlrpc_port)\s*=\s*(\d+)/m);
+      if (m) return parseInt(m[1], 10);
+    } catch (e) { /* not readable from here: the next candidate, then the default */ }
   }
-  const port = getProjectPort(project);
-  cp.exec(`powershell -Command "Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"`, () => {
-    vscode.window.showInformationMessage(`Stopped Odoo server on port ${port}.`);
-    setTimeout(pollServerStatus, 1000);
+  return null;
+}
+
+const ODOO_SUBCOMMANDS = new Set(["shell", "scaffold", "db", "deploy", "i18n", "populate", "cloc", "neutralize", "obfuscate", "module", "upgrade_code", "help", "server"]);
+
+/** What a command line says about an Odoo server: {port, conf, mine}, or null when it is not a running server
+ *  (not Odoo, an update/test run with --stop-after-init, or a subcommand such as `shell`). */
+function parseOdooCommand(cmd, project) {
+  if (!/(?:odoo-bin|odoo\.py|-m\s+odoo(?:\s|$))/i.test(cmd)) return null;
+  if (/--stop-after-init/.test(cmd)) return null;
+  const tokens = splitCommandLine(cmd);
+  const bin = tokens.findIndex((t) => /odoo-bin$|odoo\.py$/i.test(t) || t === "odoo");
+  const after = tokens.slice(bin + 1).find((t) => !t.startsWith("-"));
+  if (bin >= 0 && after && ODOO_SUBCOMMANDS.has(after) && after !== "server") return null;
+  let conf = null;
+  let port = null;
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    let m;
+    if ((m = t.match(/^--config=(.+)$/))) conf = m[1];
+    else if (t === "-c" || t === "--config") conf = tokens[i + 1] || conf;
+    else if ((m = t.match(/^--(?:http|xmlrpc)-port=(\d+)$/))) port = parseInt(m[1], 10);
+    else if (t === "--http-port" || t === "--xmlrpc-port" || t === "-p") port = parseInt(tokens[i + 1], 10) || port;
+  }
+  if (port === null && conf) port = portFromConf(conf, project);
+  if (port === null) port = 8069;
+  let mine = false;
+  if (project && project.root) {
+    const root = normPath(project.root);
+    mine = (conf !== null && (normPath(conf).startsWith(root + "/") || path.posix.basename(normPath(conf)) === `${project.name}.conf`.toLowerCase()))
+      || normPath(cmd).includes(root + "/")
+      || normPath(cmd).split(/[\s,;"']+/).some((word) => word.endsWith(root));   // e.g. the last entry of --addons-path=a,b
+  }
+  return { port, conf, mine };
+}
+
+/** Every process on this machine that looks like an Odoo server: [{pid, cmd}]. Works for a terminal, a task, a debugger, a service. */
+function listOdooProcesses() {
+  return new Promise((resolve) => {
+    if (process.platform === "win32") {
+      const script = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'odoo-bin|odoo\\.py|-m odoo' } | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress";
+      cp.execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script],
+        { timeout: 10000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
+          if (err || !String(stdout).trim()) return resolve([]);
+          try {
+            const data = JSON.parse(stdout);
+            resolve((Array.isArray(data) ? data : [data])
+              .map((p) => ({ pid: p.ProcessId, cmd: p.CommandLine || "" }))
+              .filter((p) => !p.cmd.includes("Get-CimInstance")));
+          } catch (e) { resolve([]); }
+        });
+    } else {
+      cp.execFile("ps", ["-eo", "pid=,args="], { timeout: 5000, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
+        if (err) return resolve([]);
+        resolve(String(stdout).split("\n").map((line) => line.match(/^\s*(\d+)\s+(.*)$/))
+          .filter((m) => m && /odoo-bin|odoo\.py|-m odoo/.test(m[2]))
+          .map((m) => ({ pid: parseInt(m[1], 10), cmd: m[2] })));
+      });
+    }
   });
 }
 
-function openServer() {
+/** The Odoo servers running now, each marked `mine` when it serves this project: [{pid, port, conf, mine}]. */
+async function detectServers(project) {
+  const seen = new Map();
+  for (const proc of await listOdooProcesses()) {
+    const info = parseOdooCommand(proc.cmd, project);
+    if (!info) continue;
+    const key = `${proc.cmd}`;
+    // a venv python starts a second process with the same command line: keep the parent (lowest pid)
+    if (!seen.has(key) || seen.get(key).pid > proc.pid) seen.set(key, Object.assign({ pid: proc.pid }, info));
+  }
+  return [...seen.values()];
+}
+
+function killTree(pid) {
+  return new Promise((resolve) => {
+    if (process.platform === "win32") cp.execFile("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true }, () => resolve());
+    else { try { process.kill(pid, "SIGTERM"); } catch (e) { /* already gone */ } resolve(); }
+  });
+}
+
+/** The port to open in the browser: this project's server, else the configured port when it answers, else another Odoo. */
+function serverPort(project) {
+  const mine = state.servers.find((s) => s.mine);
+  if (mine) return mine.port;
+  if (state.portOpen) return getProjectPort(project);
+  return state.servers.length ? state.servers[0].port : getProjectPort(project);
+}
+
+async function stopServer() {
   const project = findProject();
-  const port = getProjectPort(project);
-  vscode.env.openExternal(vscode.Uri.parse(`http://localhost:${port}`));
+  if (!project) return;
+  const term = vscode.window.terminals.find((t) => t.name === serverTerminalName(project));
+  if (term) term.dispose();
+  const servers = await detectServers(project);
+  let targets = servers.filter((s) => s.mine);
+  if (!targets.length && servers.length) {
+    const list = servers.map((s) => `port ${s.port} (pid ${s.pid})`).join(", ");
+    const answer = await vscode.window.showWarningMessage(
+      `No server of ${project.name} is running, but another Odoo is: ${list}. Stop it?`, { modal: true }, "Stop it");
+    if (answer !== "Stop it") return;
+    targets = servers;
+  }
+  for (const s of targets) await killTree(s.pid);
+  if (!targets.length) {   // answering on the port but not a local process we can see: the old way
+    const port = getProjectPort(project);
+    if (process.platform === "win32") {
+      cp.exec(`powershell -Command "Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"`, noop);
+    }
+  }
+  vscode.window.showInformationMessage(targets.length
+    ? `Stopped ${targets.length} Odoo server${targets.length === 1 ? "" : "s"}.` : "No Odoo server found to stop.");
+  setTimeout(pollServerStatus, 1000);
+}
+
+function noop() {}
+
+function openServer(port) {
+  const project = findProject();
+  const target = typeof port === "number" ? port : serverPort(project);
+  vscode.env.openExternal(vscode.Uri.parse(`http://localhost:${target}`));
+}
+
+let polling = false;
+async function pollServerStatus() {
+  const project = findProject();
+  if (polling || !project || (vscode.window.state && vscode.window.state.focused === false)) return;
+  polling = true;
+  try {
+    const port = getProjectPort(project);
+    const [servers, open] = await Promise.all([detectServers(project), new Promise((res) => checkPortOpen(port, res))]);
+    state.servers = servers;
+    state.portOpen = open;
+    state.serverRunning = servers.some((s) => s.mine) || open;
+  } finally {
+    polling = false;
+  }
+  if (serverItem) {
+    if (state.serverRunning) {
+      serverItem.text = `$(server-process) :${serverPort(project)}`;
+      serverItem.tooltip = `Odoo is running on port ${serverPort(project)}. Click to open it.`;
+      serverItem.command = "odooCi.serverOpen";
+      serverItem.show();
+    } else {
+      serverItem.hide();
+    }
+  }
+  actionsTree.refresh();
 }
 
 function runFastTest() {
@@ -751,15 +921,6 @@ function runInitFastDb() {
   term.sendText(cliLine(python, fastScript, `init -v "${ver}"`));
 }
 
-function pollServerStatus() {
-  const project = findProject();
-  if (!project) return;
-  const port = getProjectPort(project);
-  checkPortOpen(port, (isOpen) => {
-    state.serverRunning = isOpen;
-    actionsTree.refresh();
-  });
-}
 
 // ------------------------------------------------------------- shell-aware command line
 
@@ -1032,7 +1193,9 @@ function activate(context) {
   output = vscode.window.createOutputChannel("Odoo CI");
   diagnostics = vscode.languages.createDiagnosticCollection("odoo-ci");
   statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 25);
-  stepsTree = new StepsProvider();
+  serverItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 24);
+  stepsHelper = new StepsProvider();
+  stepsTree = { refresh: () => actionsTree.refresh() };   // one tree now: the progress is part of the control panel
   actionsTree = new ActionsProvider();
   envTree = new EnvProvider();
 
@@ -1040,7 +1203,7 @@ function activate(context) {
     output,
     diagnostics,
     statusItem,
-    vscode.window.registerTreeDataProvider("odooCi.steps", stepsTree),
+    serverItem,
     vscode.window.registerTreeDataProvider("odooCi.actions", actionsTree),
     vscode.window.registerTreeDataProvider("odooCi.env", envTree),
     vscode.languages.registerCodeActionsProvider([{ language: "python" }, { language: "xml" }], new RuleFixes(),
@@ -1086,7 +1249,7 @@ function activate(context) {
         { label: "$(stop-circle) Stop Odoo Server", action: "serverStop" },
         { label: "$(zap) Fast DB Test (3s)", action: "fastTest" },
         { label: "$(check) Validate XML Views & XPath", action: "xpathCheck" },
-        { label: "$(camera) Take Instant DB Snapshot (~1s)", action: "dbSnapSave" },
+        { label: "$(device-camera) Take Instant DB Snapshot (~1s)", action: "dbSnapSave" },
         { label: "$(history) Restore DB Snapshot (~2s)", action: "dbSnapRestore" },
         { label: "$(comment-discussion) Scan Translations (i18n)", action: "i18nScan" },
         { label: "$(checklist) Run static checks (seconds)", action: "static" },
@@ -1116,4 +1279,4 @@ function deactivate() {
   if (child) child.kill();
 }
 
-module.exports = { activate, deactivate, _test: { fixLenSearch } };
+module.exports = { activate, deactivate, _test: { fixLenSearch, parseOdooCommand, splitCommandLine, detectServers, listOdooProcesses } };

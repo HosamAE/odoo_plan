@@ -29,9 +29,11 @@ jobs:
           GIT_COMMITTER_NAME: ci
           GIT_COMMITTER_EMAIL: ci@example.invalid
         run: python -I -m unittest discover -s tests -v
-      - name: Extension smoke test
+      - name: Extension smoke and server-detection tests
         if: matrix.python == '3.12'
-        run: node vscode-extension/test/smoke.test.js
+        run: |
+          node vscode-extension/test/smoke.test.js
+          node vscode-extension/test/detect.test.js
       - name: No secret in the tracked config files
         shell: bash
         run: python secret_scan.py $(git ls-files '*.conf' '*.ini' '*.toml' '*.env')

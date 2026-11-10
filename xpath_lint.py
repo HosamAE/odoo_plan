@@ -47,13 +47,40 @@ def validate_xpath_expr(expr):
     return errors
 
 
+def listed_in_manifest(filepath):
+    """True when the __manifest__.py of the module holding `filepath` names it (Odoo would then load it)."""
+    folder = os.path.dirname(os.path.abspath(filepath))
+    while True:
+        manifest = os.path.join(folder, "__manifest__.py")
+        if os.path.isfile(manifest):
+            rel = os.path.relpath(filepath, folder).replace(os.sep, "/")
+            with open(manifest, encoding="utf-8", errors="replace") as handle:
+                return rel in handle.read()
+        parent = os.path.dirname(folder)
+        if parent == folder:
+            return False
+        folder = parent
+
+
+def has_no_root(content):
+    """An XML document with nothing but whitespace and comments has no root element."""
+    return not re.sub(r"<!--.*?-->|<\?xml[^>]*\?>", "", content, flags=re.S).strip()
+
+
 def check_xml_file(filepath):
     findings = []
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             content = f.read()
     except Exception as e:
-        return [f"{filepath}:0: [ERROR] Could not read file: {e}"]
+        # Odoo reads data files as UTF-8: fatal only for a file a manifest loads (a test fixture is not)
+        kind = "[XML SYNTAX ERROR]" if listed_in_manifest(filepath) else "[XML WARNING]"
+        return [f"{filepath}:0: {kind} Could not read file as UTF-8: {e}"]
+    if has_no_root(content):
+        # no root element: Odoo cannot load it, so it is fatal when a manifest lists it and a dead file when not
+        kind = "[XML SYNTAX ERROR]" if listed_in_manifest(filepath) else "[XML WARNING]"
+        return [f"{filepath}:0: {kind} No root element (empty or only comments)"
+                + ("" if kind == "[XML SYNTAX ERROR]" else ": no manifest loads it, it is a dead file")]
 
     # We also keep line lookup
     lines = content.splitlines()
@@ -124,7 +151,8 @@ def check_xml_file(filepath):
                             findings.append(f"{filepath}:{lineno}: [XPATH ERROR] <attribute> tag inside xpath missing 'name' attribute.")
 
                 # Check empty xpath
-                if pos not in ("replace",) and len(xp) == 0 and not (xp.text and xp.text.strip()):
+                # replace = remove, move = the target is named by the xpath itself: both are valid when empty
+                if pos not in ("replace", "move") and len(xp) == 0 and not (xp.text and xp.text.strip()):
                     findings.append(f"{filepath}:{lineno}: [XPATH WARNING] Empty <xpath expr='{expr}'> has no child nodes.")
 
     return findings
