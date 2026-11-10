@@ -18,7 +18,7 @@
 ---
 
 <p align="center">
-  <img src="https://files.catbox.moe/7ys0x2.png" width="100%" alt="Odoo Studio & CI Pro Architecture" />
+  <img src="https://files.catbox.moe/nxmx8t.png" width="100%" alt="Odoo Studio & CI Pro Architecture" />
 </p>
 
 ## 🌟 Key Features
