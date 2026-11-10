@@ -76,6 +76,8 @@ def run_kg(action, path):
 
 
 def main():
+    from recursion_guard import enter
+    enter("cli " + " ".join(sys.argv[1:3]))   # a command that starts itself again stops here, naming the chain
     parser = argparse.ArgumentParser(
         description="Unified Odoo AI CLI Helper (Test, Lint, Audit & AI Diagnose)"
     )
@@ -279,9 +281,12 @@ def main():
 
     elif args.command == "init-fast-db":
         from db_fast import create_template_db
-        flags = args.rest
-        version = flags[flags.index("-v") + 1] if "-v" in flags and flags.index("-v") + 1 < len(flags) else None
-        create_template_db(version=version or detect_version(os.getcwd()) or "19")
+        fast = argparse.ArgumentParser(prog="odoo-ai init-fast-db",
+                                       description="Build the clean template database that `odoo-ai test --fast` clones "
+                                                   "(runs Odoo once: `-i base --stop-after-init`). Takes about a minute.")
+        fast.add_argument("-v", "--version", choices=SUPPORTED_VERSIONS, default=None, help="Odoo version (default: from the folder)")
+        chosen = fast.parse_args(args.rest)   # --help ends here: it must never start building a database
+        create_template_db(version=chosen.version or detect_version(os.getcwd()) or "19")
 
     elif args.command == "tools-ci":
         from tools_ci import main as tools_ci_main

@@ -69,17 +69,37 @@ def summary(text):
     return f"{ran.group(1) if ran else '?'} tests" + (f", {skipped.group(1)} skipped" if skipped else "")
 
 
+def kill_tree(pid):
+    """Stop a process and everything it started."""
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, check=False)
+    else:
+        try:
+            os.killpg(os.getpgid(pid), 9)
+        except OSError:
+            pass
+
+
 def run_tree(tree, timeout=900):
     """(ok, summary, output) of the tests of one built tree, under the runner's conditions."""
     # Tests run on a COPY: running them writes (caches, temp files) and `tree` may be what becomes a branch.
     with tempfile.TemporaryDirectory() as scratch:
-        work = os.path.join(scratch, "tree")
+        # named like the CI's checkout (<runner>/odoo_plan/odoo_plan): code that guesses from the folder's name
+        # (anything called odoo...) misbehaves there, and a random temp name would never show it
+        work = os.path.join(scratch, "odoo_plan", "odoo_plan")
         shutil.copytree(tree, work, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         shim = make_shim(os.path.join(scratch, "shim"))
-        done = subprocess.run([sys.executable, "-I", "-c", RUNNER, shim], cwd=work, env=clean_env(), capture_output=True,
-                              text=True, encoding="utf-8", errors="replace", timeout=timeout, check=False)
-    output = (done.stdout or "") + (done.stderr or "")
-    return done.returncode == 0, summary(output), output
+        env = clean_env()
+        env.setdefault("ODOO_AI_MAX_DEPTH", "6")
+        child = subprocess.Popen([sys.executable, "-I", "-c", RUNNER, shim], cwd=work, env=env, stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+        try:
+            output, _ = child.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            kill_tree(child.pid)   # subprocess.run would kill only the first process and leave its children running
+            output = (child.communicate()[0] or "") + f"\nTIMED OUT after {timeout}s: the whole process tree was stopped"
+            return False, summary(output), output
+    return child.returncode == 0, summary(output), output
 
 
 def check_versions(versions, root=TOOLS_DIR):
