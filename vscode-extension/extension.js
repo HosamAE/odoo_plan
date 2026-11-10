@@ -570,6 +570,9 @@ function parseOdooCommand(cmd, project) {
   if (!/(?:odoo-bin|odoo\.py|-m\s+odoo(?:\s|$))/i.test(cmd)) return null;
   if (/--stop-after-init/.test(cmd)) return null;
   const tokens = splitCommandLine(cmd);
+  // The program must be a Python interpreter. A shell, a terminal or an editor whose command line merely mentions
+  // odoo-bin is not a server, and Stop must never end one (it would close a terminal or the editor itself).
+  if (!/^pythonw?[\d.]*(?:\.exe)?$/i.test((tokens[0] || "").split(/[\\/]/).pop())) return null;
   const bin = tokens.findIndex((t) => /odoo-bin$|odoo\.py$/i.test(t) || t === "odoo");
   const after = tokens.slice(bin + 1).find((t) => !t.startsWith("-"));
   if (bin >= 0 && after && ODOO_SUBCOMMANDS.has(after) && after !== "server") return null;
@@ -599,7 +602,7 @@ function parseOdooCommand(cmd, project) {
 function listOdooProcesses() {
   return new Promise((resolve) => {
     if (process.platform === "win32") {
-      const script = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'odoo-bin|odoo\\.py|-m odoo' } | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress";
+      const script = "Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^pythonw?[\\d.]*\\.exe$' -and $_.CommandLine -match 'odoo-bin|odoo\\.py|-m odoo' } | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress";
       cp.execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script],
         { timeout: 10000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
           if (err || !String(stdout).trim()) return resolve([]);
@@ -611,11 +614,11 @@ function listOdooProcesses() {
           } catch (e) { resolve([]); }
         });
     } else {
-      cp.execFile("ps", ["-eo", "pid=,args="], { timeout: 5000, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
+      cp.execFile("ps", ["-eo", "pid=,comm=,args="], { timeout: 5000, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
         if (err) return resolve([]);
-        resolve(String(stdout).split("\n").map((line) => line.match(/^\s*(\d+)\s+(.*)$/))
-          .filter((m) => m && /odoo-bin|odoo\.py|-m odoo/.test(m[2]))
-          .map((m) => ({ pid: parseInt(m[1], 10), cmd: m[2] })));
+        resolve(String(stdout).split("\n").map((line) => line.match(/^\s*(\d+)\s+(\S+)\s+(.*)$/))
+          .filter((m) => m && /^python/i.test(m[2]) && /odoo-bin|odoo\.py|-m odoo/.test(m[3]))
+          .map((m) => ({ pid: parseInt(m[1], 10), cmd: m[3] })));
       });
     }
   });
@@ -627,8 +630,9 @@ async function detectServers(project) {
   for (const proc of await listOdooProcesses()) {
     const info = parseOdooCommand(proc.cmd, project);
     if (!info) continue;
-    const key = `${proc.cmd}`;
-    // a venv python starts a second process with the same command line: keep the parent (lowest pid)
+    // A venv's python.exe starts the real interpreter as a second process: same arguments, a different program
+    // path. They are one server, counted once; the parent (lowest pid) is kept, and ending it ends the child.
+    const key = splitCommandLine(proc.cmd).slice(1).join("\u0000");
     if (!seen.has(key) || seen.get(key).pid > proc.pid) seen.set(key, Object.assign({ pid: proc.pid }, info));
   }
   return [...seen.values()];
@@ -1280,4 +1284,4 @@ function deactivate() {
   if (child) child.kill();
 }
 
-module.exports = { activate, deactivate, _test: { fixLenSearch, parseOdooCommand, splitCommandLine, detectServers, listOdooProcesses } };
+module.exports = { activate, deactivate, _test: { fixLenSearch, parseOdooCommand, splitCommandLine, detectServers, listOdooProcesses, killTree } };

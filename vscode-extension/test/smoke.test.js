@@ -107,6 +107,11 @@ assert.strictEqual(parseOdooCommand("python odoo-bin -u my_module --stop-after-i
 assert.strictEqual(parseOdooCommand("python odoo-bin shell -d db", project19), null, "a shell is not a server");
 assert.strictEqual(parseOdooCommand("python -m odoo_kg serve --config x.toml", project19), null, "the graph server is not Odoo");
 assert.strictEqual(parseOdooCommand("python -m http.server 8069", project19), null, "not Odoo at all");
+assert.strictEqual(parseOdooCommand(`cmd.exe /c python odoo-bin -c ${conf} --http-port=1900`, project19), null, "a shell that mentions odoo-bin is not a server");
+assert.strictEqual(parseOdooCommand(`bash -c "python odoo-bin --http-port=1900"`, project19), null, "neither is bash");
+assert.strictEqual(parseOdooCommand(`${win("Users", "me", "Code", "Code.exe")} ${bin}`, project19), null, "nor an editor with odoo-bin open");
+assert.strictEqual(parseOdooCommand(`"${python}" ${bin} -c ${conf} --http-port=1900`, project19).port, 1900, "a venv python is a server");
+assert.strictEqual(parseOdooCommand(`python3.12 odoo-bin --http-port=1901`, project19).port, 1901, "python3.12 is a server");
 console.log(`smoke OK: ${Object.keys(registered.commands).length} commands, ${Object.keys(registered.trees).length} views, ${roots.length - 1} versions listed`);
 subscriptions.forEach((s) => s.dispose && s.dispose());
 process.exit(0);
