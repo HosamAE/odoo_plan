@@ -90,7 +90,24 @@ def new_version(args):
     sys.exit(code)
 
 
+def _enter_chain():
+    """Count this launcher into the chain of odoo-ai commands: a loop must stop, not multiply (see recursion_guard.py)."""
+    depth = int(os.environ.get("ODOO_AI_DEPTH", "0") or 0) + 1
+    limit = int(os.environ.get("ODOO_AI_MAX_DEPTH", "8") or 8)
+    chain = (os.environ.get("ODOO_AI_CHAIN", "") + " > launcher " + " ".join(sys.argv[1:3])).strip(" >")
+    if depth > limit:
+        message = f"odoo-ai: refusing to start: it called itself {depth - 1} levels deep (limit {limit}), a loop.\n  chain: {chain}"
+        log = os.environ.get("ODOO_AI_GUARD_LOG")
+        if log:   # a child's stderr is often swallowed by whoever started it: leave a trace they cannot swallow
+            with open(log, "a", encoding="utf-8") as handle:
+                handle.write(message + "\n")
+        sys.exit(message)
+    os.environ["ODOO_AI_DEPTH"] = str(depth)
+    os.environ["ODOO_AI_CHAIN"] = chain
+
+
 def main():
+    _enter_chain()
     args = sys.argv[1:]
     if args and args[0] == "new-version":
         new_version(args[1:])
