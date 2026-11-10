@@ -5,7 +5,7 @@ Checks the layout agreed on 2026-11-08 for the version these tools belong to:
   C:/odoo/odoo<NN>/            Odoo source, venv, odoo.conf (not in git)
   C:/odoo/odoo<NN>/tools/      these tools, branch <NN>.0 of the tools repository
   C:/odoo/bin/                 the odoo-ai launcher (on PATH), shared by every version
-  C:/odoo/odoo<NN>/projects/<project>/  one workspace inside, its graph config, .mcp.json, odools.toml
+  C:/odoo/ProjectsOdoo<NN>/<project>/  one workspace inside, its graph config, .mcp.json, odools.toml
 
 `--fix` repairs what is safe to repair (launcher, PATH, pylint .pth); it never
 deletes anything, it only names what is left over.
@@ -98,13 +98,16 @@ def check_tools(r, v, fix):
     r.check(ext_proj or int_proj, f"projects root active ({'ProjectsOdoo' + v if ext_proj else 'odoo' + v + '/projects'})",
             f"no projects directory found for version {v}", f"create {WIN_ROOT}/ProjectsOdoo{v}")
 
-    # Tools Self-Test Suite check
+    # Quick self-test of the tools. The rehearsal (tests/test_rehearsal.py) runs `setup`, which runs this doctor:
+    # it is skipped here - `odoo-ai test-self` runs it - or the two would call each other for ever.
     import unittest
     tests_dir = os.path.join(TOOLS_DIR, "tests")
     if os.path.isdir(tests_dir):
+        os.environ["ODOO_AI_SKIP_REHEARSAL"] = "1"
         suite = unittest.defaultTestLoader.discover(tests_dir, pattern="test_*.py")
-        res = unittest.TextTestRunner(stream=open(os.devnull, "w")).run(suite)
-        r.check(res.wasSuccessful(), f"tools self-test suite passed ({res.testsRun} tests)", "tools self-test failed")
+        with open(os.devnull, "w", encoding="utf-8") as sink:
+            res = unittest.TextTestRunner(stream=sink).run(suite)
+        r.check(res.wasSuccessful(), f"tools quick self-tests passed ({res.testsRun} tests)", "tools self-test failed")
     
     # Network & PostgreSQL health check
     import socket

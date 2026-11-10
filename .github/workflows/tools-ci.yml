@@ -1,0 +1,54 @@
+# The tools guard themselves: every push to main or a version branch runs the tools' own tests, and `main`
+# also checks that the version branches are what main builds. Windows, because that is where the tools run.
+name: tools-ci
+
+on:
+  push:
+    branches: ["main", "17.0", "18.0", "19.0", "20.0"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Tools self-tests (the rehearsal needs a git identity)
+        env:
+          GIT_AUTHOR_NAME: ci
+          GIT_AUTHOR_EMAIL: ci@example.invalid
+          GIT_COMMITTER_NAME: ci
+          GIT_COMMITTER_EMAIL: ci@example.invalid
+        run: python -I -m unittest discover -s tests -v
+      - name: Extension smoke test
+        if: matrix.python == '3.12'
+        run: node vscode-extension/test/smoke.test.js
+      - name: No secret in the tracked config files
+        shell: bash
+        run: python secret_scan.py $(git ls-files '*.conf' '*.ini' '*.toml' '*.env')
+
+  versions-in-step:
+    # Only main is the source: the generated branches must equal what main builds.
+    if: github.ref == 'refs/heads/main'
+    needs: tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch the version branches
+        run: python sync_versions.py fetch
+      - name: Version branches equal what main builds
+        run: python sync_versions.py report --check
