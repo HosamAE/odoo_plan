@@ -94,6 +94,8 @@ def main():
     args = sys.argv[1:]
     if args and args[0] == "new-version":
         new_version(args[1:])
+    if args and args[0] == "sync-versions":   # builds every version from main, which is the Odoo 19 tools
+        sys.exit(run("19", args))
     version = option(args, "-v", "--version")
     if not version:
         path = option(args, "-p", "--path")
@@ -101,8 +103,6 @@ def main():
     if version:
         sys.exit(run(version, args))
     command = next((a for a in args if not a.startswith("-")), None)
-    if command == "sync-versions":   # builds every version from main, which is the Odoo 19 tools
-        sys.exit(run("19", args))
     if command in EVERY_VERSION:
         codes = []
         for each in installed():

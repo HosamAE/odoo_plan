@@ -74,6 +74,9 @@ One panel lists **Odoo 17, 18, 19 and 20** on this machine: tools, source and ve
 * **Maintenance**: Doctor, tools self-test, version branches vs `main`, secret scan of the staged files, the secret pre-commit hook, the project's Odoo gates, and the layout guide.
 * Works with no project open. Terminal commands adapt to PowerShell, cmd or bash.
 
+### 🛠️ 9. Quick fixes for the Odoo rules (new in 1.6)
+A gate finding such as `R3 len(search(...))` shows in the Problems tab with its rule code. The light bulb offers **Use search_count()** (only where it is safe: not when `order=` is passed) and, for a line that must break a rule on purpose, **add `noqa: odoo19 REASON`**.
+
 ## 🚀 Quick Setup & Usage
 
 1. Open any Odoo project folder in VS Code or Antigravity IDE.
