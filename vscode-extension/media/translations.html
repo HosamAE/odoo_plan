@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-{{nonce}}'; script-src 'nonce-{{nonce}}';">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odoo Translations</title>
+<style nonce="{{nonce}}">
+:root {
+  --fg: var(--vscode-foreground, #cccccc);
+  --muted: var(--vscode-descriptionForeground, #9d9d9d);
+  --bg: var(--vscode-editor-background, #1e1e1e);
+  --card: var(--vscode-sideBar-background, #252526);
+  --line: var(--vscode-panel-border, #3c3c3c);
+  --accent: var(--vscode-focusBorder, #007fd4);
+  --btn-bg: var(--vscode-button-background, #0e639c);
+  --btn-fg: var(--vscode-button-foreground, #ffffff);
+  --btn2-bg: var(--vscode-button-secondaryBackground, #3a3d41);
+  --btn2-fg: var(--vscode-button-secondaryForeground, #cccccc);
+  --input-bg: var(--vscode-input-background, #3c3c3c);
+  --input-fg: var(--vscode-input-foreground, #cccccc);
+  --ok: var(--vscode-testing-iconPassed, #73c991);
+  --warn: var(--vscode-editorWarning-foreground, #cca700);
+  --bad: var(--vscode-errorForeground, #f48771);
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 14px 18px 24px; color: var(--fg); background: var(--bg); font: 13px/1.45 var(--vscode-font-family, "Segoe UI", sans-serif); }
+h1 { font-size: 15px; margin: 0; font-weight: 600; }
+h2 { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+h3 { font-size: 14px; margin: 0 0 6px; font-weight: 600; }
+.top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.sub { color: var(--muted); }
+.grid { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 12px; }
+@media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+.col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; min-width: 0; }
+.pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid currentColor; }
+.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); } .pill.idle { color: var(--muted); }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
+button { background: var(--btn-bg); color: var(--btn-fg); border: 0; border-radius: 3px; padding: 4px 10px; cursor: pointer; font: inherit; }
+button.secondary { background: var(--btn2-bg); color: var(--btn2-fg); }
+button.small { padding: 1px 7px; font-size: 12px; }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+input[type=text], select { background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--line); border-radius: 3px; padding: 3px 7px; font: inherit; min-width: 0; }
+.bar { height: 8px; background: var(--btn2-bg); border-radius: 4px; overflow: hidden; margin: 4px 0 2px; min-width: 120px; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+.bar.full > i { background: var(--ok); }
+.hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.hint.warn { color: var(--warn); } .hint.bad { color: var(--bad); } .hint.ok { color: var(--ok); }
+.mod { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-bottom: 1px solid var(--line); cursor: pointer; border-radius: 3px; }
+.mod:hover { background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, .06)); }
+.mod.sel { background: var(--vscode-list-activeSelectionBackground, rgba(0, 127, 212, .25)); }
+.mod .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list { max-height: 60vh; overflow: auto; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { color: var(--muted); font-weight: 600; font-size: 11px; }
+.check { color: var(--ok); font-weight: 700; }
+.empty { color: var(--muted); padding: 10px 0; }
+.sr { position: absolute; left: -9999px; }
+</style>
+</head>
+<body>
+<div class="top" id="top"></div>
+<div class="grid">
+  <div class="col">
+    <section class="card" id="modules" aria-label="Modules"></section>
+    <section class="card" id="engine" aria-label="Translator"></section>
+  </div>
+  <div class="col">
+    <section class="card" id="detail" aria-label="The module"></section>
+  </div>
+</div>
+<div class="sr" role="status" aria-live="polite" id="live"></div>
+<script nonce="{{nonce}}">
+(function () {
+  "use strict";
+  var vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : { postMessage: function () {}, getState: function () { return null; }, setState: function () {} };
+  var S = null;
+  var ui = vscode.getState() || { filter: "", newLang: "" };
+  var $ = function (id) { return document.getElementById(id); };
+
+  function h(tag, attrs) {
+    var el = document.createElement(tag);
+    for (var k in (attrs || {})) {
+      if (k === "class") el.className = attrs[k];
+      else if (k === "style") el.style.cssText = attrs[k];
+      else if (k.slice(0, 2) === "on") el.addEventListener(k.slice(2), attrs[k]);
+      else if (attrs[k] !== false && attrs[k] !== null && attrs[k] !== undefined) el.setAttribute(k, attrs[k] === true ? "" : attrs[k]);
+    }
+    for (var i = 2; i < arguments.length; i++) {
+      var c = arguments[i];
+      if (c === null || c === undefined || c === false) continue;
+      el.appendChild(typeof c === "object" ? c : document.createTextNode(String(c)));
+    }
+    return el;
+  }
+  function put(el, nodes) { el.textContent = ""; nodes.forEach(function (n) { if (n) el.appendChild(n); }); }
+  function send(cmd, extra) { var m = { cmd: cmd }; for (var k in (extra || {})) m[k] = extra[k]; vscode.postMessage(m); }
+  function save() { vscode.setState(ui); }
+  function btn(label, cmd, extra, cls, disabled, title) {
+    return h("button", { class: cls || "", disabled: !!disabled, title: title || false, onclick: function (e) { e.stopPropagation(); send(cmd, extra); } }, label);
+  }
+
+  // a module is done when every language that has a file has nothing left (and there is at least one)
+  function summary(m) {
+    var have = m.languages.filter(function (l) { return l.exists; });
+    return { done: have.length > 0 && have.every(function (l) { return l.complete; }), have: have };
+  }
+
+  function renderTop() {
+    put($("top"), [h("h1", {}, "Odoo Translations"), h("span", { class: "sub" }, S.project || ""),
+      h("span", { style: "flex:1" }), btn("Refresh", "refresh", null, "secondary small", S.busy), btn("Settings", "settings", null, "secondary small")]);
+  }
+
+  function renderModules() {
+    var nodes = [h("h2", {}, "Modules")];
+    nodes.push(h("div", { class: "row" },
+      h("input", { type: "text", id: "modfilter", placeholder: "Filter modules…", "aria-label": "Filter modules", value: ui.filter, oninput: function (e) {
+        var at = e.target.selectionStart; ui.filter = e.target.value; save(); renderModules();
+        var again = $("modfilter"); if (again) { again.focus(); again.setSelectionRange(at, at); } } }),
+      btn("Pick a file…", "pick", null, "small", S.busy)));
+    if (!S.modules) { nodes.push(h("div", { class: "empty" }, "Reading the project…")); put($("modules"), nodes); return; }
+    if (S.error) nodes.push(h("div", { class: "hint bad" }, S.error));
+    var list = h("div", { class: "list" });
+    S.modules.filter(function (m) { return !ui.filter || m.module.toLowerCase().indexOf(ui.filter.toLowerCase()) >= 0; }).forEach(function (m) {
+      var s = summary(m);
+      list.appendChild(h("div", { class: "mod" + (S.selected === m.module ? " sel" : ""), tabindex: "0", role: "button",
+        onclick: function () { send("select", { module: m.module }); }, onkeydown: function (e) { if (e.key === "Enter") send("select", { module: m.module }); } },
+        h("span", { class: "name", title: m.module }, m.module),
+        s.done ? h("span", { class: "check", title: "Nothing left to translate" }, "✓")
+          : (s.have.length ? h("span", { class: "pill warn" }, String(Math.max.apply(null, s.have.map(function (l) { return l.missing; }))) + " left") : h("span", { class: "pill idle" }, "no .po"))));
+    });
+    if (!list.firstChild) list.appendChild(h("div", { class: "empty" }, "No module matches."));
+    nodes.push(list);
+    put($("modules"), nodes);
+  }
+
+  function renderEngine() {
+    var t = S.translator || {}, nodes = [h("h2", {}, "Automatic translation")];
+    if (t.configured) {
+      nodes.push(h("div", {}, h("span", { class: "pill ok" }, "ready"), " " + t.model));
+      nodes.push(h("div", { class: "hint" }, t.local ? "On this machine: nothing leaves it." : "At " + t.url + ". The untranslated terms are sent there (asked once per host)."));
+      nodes.push(h("div", { class: "row" }, btn("Set API key…", "setKey", null, "secondary small"), btn("Settings", "settings", null, "secondary small")));
+    } else {
+      nodes.push(h("div", {}, h("span", { class: "pill idle" }, "not set up")));
+      nodes.push(h("div", { class: "hint" }, "Without it the page still adds the missing terms to the .po files and shows what is left. To translate by itself, point it at a model of your own (a local one such as Ollama costs nothing): settings odooCi.i18n.translatorUrl and odooCi.i18n.translatorModel."));
+      nodes.push(h("div", { class: "row" }, btn("Open the settings", "settings", null, "small")));
+    }
+    put($("engine"), nodes);
+  }
+
+  function renderDetail() {
+    var m = S.modules && S.modules.filter(function (x) { return x.module === S.selected; })[0];
+    var nodes = [];
+    if (!m) { nodes.push(h("div", { class: "empty" }, S.modules ? "Pick a module on the left, or press Pick a file…" : "")); put($("detail"), nodes); return; }
+    var s = summary(m);
+    nodes.push(h("h3", {}, m.module, " ", s.done ? h("span", { class: "check", title: "Nothing left to translate" }, "✓") : null));
+    nodes.push(h("div", { class: "hint" }, m.terms + " terms found in this module (field labels, help, selections, messages, view text)."));
+
+    // add a language
+    var have = m.languages.map(function (l) { return l.lang; });
+    var select = h("select", { "aria-label": "Language to add", onchange: function (e) { ui.newLang = e.target.value; save(); } },
+      h("option", { value: "" }, "Add a language…"));
+    (S.common || []).filter(function (c) { return have.indexOf(c) < 0; }).forEach(function (c) { select.appendChild(h("option", { value: c, selected: ui.newLang === c ? "selected" : false }, c)); });
+    var typed = h("input", { type: "text", id: "newlang", placeholder: "or type a code", "aria-label": "Language code", style: "width:110px", value: "" });
+    nodes.push(h("div", { class: "row" }, select, typed,
+      h("button", { class: "small", disabled: !!S.busy, onclick: function () { var lang = (typed.value || select.value || "").trim(); if (lang) send("addLanguage", { module: m.module, lang: lang }); } }, "Add"),
+      h("span", { style: "flex:1" }), btn("Export .pot", "exportPot", { module: m.module }, "secondary small", S.busy)));
+
+    var table = h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, "Language"), h("th", {}, "Status"), h("th", {}, ""))));
+    var body = h("tbody", {});
+    m.languages.forEach(function (l) {
+      var status;
+      if (!l.exists) status = h("div", {}, h("span", { class: "pill idle" }, "no file yet"), h("div", { class: "hint" }, l.total + " terms to add"));
+      else if (l.complete) status = h("div", { class: "check" }, "✓ Nothing left to translate", h("div", { class: "hint" }, l.total + " of " + l.total + " translated"));
+      else status = h("div", {},
+        h("div", { class: "bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(l.percent) }, h("i", { style: "width:" + l.percent + "%" })),
+        h("div", { class: "hint" }, l.translated + " of " + l.total + " translated · " + l.missing + " left" + (l.fuzzy ? " · " + l.fuzzy + " to review" : "") + (l.obsolete ? " · " + l.obsolete + " no longer used" : "")));
+      var t = S.translator || {};
+      body.appendChild(h("tr", {},
+        h("td", {}, h("strong", {}, l.lang)),
+        h("td", {}, status),
+        h("td", {}, l.complete ? btn("Open .po", "openPo", { module: m.module, lang: l.lang }, "secondary small") : h("span", {},
+          btn(l.exists ? "Add missing terms" : "Create .po", "addLanguage", { module: m.module, lang: l.lang }, "secondary small", S.busy), " ",
+          btn("Translate automatically", "translate", { module: m.module, lang: l.lang }, "small", S.busy || !l.exists || !t.configured,
+            !t.configured ? "Set up a translator first (see the card on the left)" : (!l.exists ? "Create the .po first" : "")), " ",
+          l.exists ? btn("Open .po", "openPo", { module: m.module, lang: l.lang }, "secondary small") : null))));
+    });
+    table.appendChild(body);
+    nodes.push(m.languages.length ? table : h("div", { class: "empty" }, "No language yet: add one above."));
+    if (S.job) {
+      var pct = S.job.total ? Math.round(100 * S.job.step / S.job.total) : 0;
+      nodes.push(h("div", { class: "row" }, h("strong", {}, S.job.title), S.job.total ? h("span", {}, S.job.step + " of " + S.job.total) : null));
+      nodes.push(h("div", { class: "bar" }, h("i", { style: "width:" + pct + "%" })));
+    }
+    if (S.last) nodes.push(h("div", { class: "hint " + (S.last.level === "bad" ? "bad" : S.last.level === "warn" ? "warn" : "ok") }, S.last.text));
+    put($("detail"), nodes);
+  }
+
+  function render() {
+    if (!S) return;
+    renderTop(); renderModules(); renderEngine(); renderDetail();
+    send("rendered", { modules: document.querySelectorAll("#modules .mod").length, rows: document.querySelectorAll("#detail tbody tr").length,
+      checks: document.querySelectorAll("#detail .check").length, selected: S.selected });
+  }
+
+  window.addEventListener("message", function (event) {
+    var m = event.data || {};
+    if (m.type !== "state") return;
+    S = m.state;
+    var a = document.activeElement;
+    if (a && a.tagName === "INPUT" && a.type === "text" && a.id === "newlang") { return; }   // someone is typing a code
+    render();
+  });
+  window.__translations = { get: function () { return S; }, render: render };
+  send("ready");
+})();
+</script>
+</body>
+</html>
