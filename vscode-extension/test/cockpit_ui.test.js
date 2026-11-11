@@ -48,7 +48,7 @@ const DBS = [
   { name: "broken_one", size_mb: 8, version: null, modules: null, last_login: null, usable: false, reason: "OperationalError" },
 ];
 const base = {
-  project: { name: "Demo", version: "19", root: "/p" }, port: 1900, servers: [{ mine: true, pid: 42, db: "hx_try" }], serverRunning: true, serverDb: "hx_try",
+  project: { name: "Demo", version: "19", root: "/p" }, port: 1900, servers: [{ mine: true, pid: 42, db: "hx_try", port: 1900 }], focusPort: 1900, launchedPorts: [1900], serverRunning: true, serverDb: "hx_try",
   health: Object.assign({}, verdict, { state: "healthy" }), source: { label: "Server", log: "/tmp/x.log", verdict }, upgrade: null, databases: DBS,
   modulesInfo: null, drift: null, logText: LOG, logFirst: 1, backupDir: "/backups", backupBeforeUpgrade: false,
 };
@@ -57,6 +57,7 @@ const withModules = Object.assign({}, base, { modulesInfo: { db: "hx_try", error
     { name: "behind", state: "installed", status: "version_differs", installed_version: "19.0.1.0", code_version: "19.0.1.5" },
     { name: "extra", state: "uninstalled", status: "available", installed_version: null, code_version: "19.0.1" }] } });
 const upgrading = Object.assign({}, base, { upgrade: { db: "hx_try", what: "all modules", text: "x", errors: 1, warnings: 2, progress: verdict.progress } });
+const two = Object.assign({}, base, { servers: [{ mine: true, pid: 42, db: "hx_try", port: 1900 }, { mine: true, pid: 77, db: "acme_v19", port: 1901 }], focusPort: 1901, launchedPorts: [1901] });
 const stopped = Object.assign({}, base, { serverRunning: false, servers: [], health: null, serverDb: null, logText: "", source: null });
 
 const REMOTE = { hosts: [{ name: "acme17", hostname: "h", user: "root" }, { name: "acme19", hostname: "h", user: "hossam" }], host: "acme19", error: null, needsKey: false,
@@ -84,13 +85,13 @@ const checks = `
   function click(el) { el.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
   function row(name) { return Array.prototype.find.call(document.querySelectorAll("#dbs tbody tr"), function (r) { return r.querySelector("td").firstChild.textContent === name; }); }
   function btn(root, label) { return Array.prototype.find.call(root.querySelectorAll("button"), function (b) { return b.textContent === label; }); }
-  var S = ${JSON.stringify({ base: cockpit.buildState(base), withModules: cockpit.buildState(withModules), upgrading: cockpit.buildState(upgrading), stopped: cockpit.buildState(stopped), remote: cockpit.buildState(remoteState), busy: cockpit.buildState(remoteBusy), key: cockpit.buildState(remoteKey), panel: cockpit.buildState(inPanel) })};
+  var S = ${JSON.stringify({ base: cockpit.buildState(base), withModules: cockpit.buildState(withModules), upgrading: cockpit.buildState(upgrading), stopped: cockpit.buildState(stopped), two: cockpit.buildState(two), remote: cockpit.buildState(remoteState), busy: cockpit.buildState(remoteBusy), key: cockpit.buildState(remoteKey), panel: cockpit.buildState(inPanel) })};
   (async function () {
     await wait(50);
     post(S.base); await wait(80);
     ok(document.querySelector("#top .pill").textContent === "Healthy", "the header says Healthy");
     ok(document.querySelectorAll("#dbs tbody tr").length === 4, "every database is a row");
-    ok(btn(document.getElementById("server"), "Start").disabled && !btn(document.getElementById("server"), "Stop").disabled, "Start is off and Stop is on while the server runs");
+    ok(!btn(document.getElementById("server"), "Start another").disabled && !btn(document.getElementById("server"), "Stop").disabled, "a running server does not block starting another, and Stop is on");
     ok(/serving/.test(document.querySelector("#dbs tbody tr").textContent) || /serving/.test(document.getElementById("dbs").textContent), "the database the server uses is marked");
     ok(/cannot open/.test(document.getElementById("dbs").textContent), "an unusable database says so");
     ok(/Odoo 17/.test(document.getElementById("dbs").textContent), "a database of another Odoo version says so");
@@ -164,10 +165,15 @@ const checks = `
 
     // tabs and the remote servers
     post(S.base); await wait(60);
-    ok(document.querySelectorAll("#tabs .tab").length === 2, "there are two tabs");
-    ok(document.getElementById("page-remote").hidden && !document.getElementById("page-local").hidden, "the machine's own page is the first");
+    ok(document.querySelectorAll("#tabs .tab").length === 6, "the Cockpit door plus the five pages are tabs");
+    ok(!document.getElementById("page-home").hidden && document.getElementById("page-server").hidden && document.getElementById("page-log").hidden, "the Cockpit door is the first page and the others wait");
+    ok(document.querySelectorAll("#home .door").length === 5, "the door offers the five pages");
+    click(Array.prototype.find.call(document.querySelectorAll("#home .door"), function (d) { return /Databases/.test(d.textContent); })); await wait(30);
+    ok(!document.getElementById("page-dbs").hidden && document.getElementById("page-home").hidden, "a door opens its page, whole");
+    click(Array.prototype.find.call(document.querySelectorAll("#tabs .tab"), function (t) { return /^Cockpit$/.test(t.textContent); })); await wait(30);
+    ok(!document.getElementById("page-home").hidden, "and the Cockpit tab returns to the door");
     click(Array.prototype.find.call(document.querySelectorAll("#tabs .tab"), function (t) { return /Remote/.test(t.textContent); })); await wait(30);
-    ok(!document.getElementById("page-remote").hidden && document.getElementById("page-local").hidden, "the Remote tab swaps the pages");
+    ok(!document.getElementById("page-remote").hidden && document.getElementById("page-server").hidden, "the Remote tab swaps the pages");
     post(S.remote); await wait(60);
     var rem = document.getElementById("remote");
     ok(rem.querySelectorAll("select option").length === 3, "the hosts of the ssh config are offered");
@@ -197,15 +203,32 @@ const checks = `
     ok(!/Pulled demo/.test(document.getElementById("remote").textContent), "a list being chosen from is not redrawn under the hand");
     tabs.blur(); await wait(60);
     ok(/Pulled demo/.test(document.getElementById("remote").textContent), "and is redrawn when the hand leaves it");
-    click(Array.prototype.find.call(document.querySelectorAll("#tabs .tab"), function (t) { return /This machine/.test(t.textContent); })); await wait(30);
+    click(Array.prototype.find.call(document.querySelectorAll("#tabs .tab"), function (t) { return /^Server$/.test(t.textContent); })); await wait(30);
 
     // the bottom panel: the same page, laid out to fill what it is given
     post(S.panel); await wait(60);
     ok(document.body.className === "panel", "the bottom panel marks the page for its compact layout");
     ok(getComputedStyle(document.body).height !== "auto" && document.querySelectorAll("#dbs tbody tr").length === 4 && document.querySelectorAll("#log div").length > 0, "and still draws everything");
+    click(btn(document.getElementById("top"), "Open in editor ↗"));
+    ok(window.__sent.some(function (m) { return m.cmd === "move" && m.to === "editor"; }), "in the bottom panel a button moves it up to the editor");
     post(S.base); await wait(60);
     ok(document.body.className === "", "the editor tab is not compact");
+    click(btn(document.getElementById("top"), "Move to bottom panel ↓"));
+    ok(window.__sent.some(function (m) { return m.cmd === "move" && m.to === "panel"; }), "and in the editor a button moves it down to the bottom panel");
 
+    // two servers at once
+    post(S.two); await wait(60);
+    click(Array.prototype.find.call(document.querySelectorAll("#tabs .tab"), function (t) { return /^Server$/.test(t.textContent); })); await wait(30);
+    var rows = document.querySelectorAll("#server table.servers tbody tr");
+    ok(rows.length === 2, "every running server is a row");
+    ok(/1901/.test(document.querySelector("#server tr.focus").textContent), "the one the pages follow is marked");
+    ok(btn(document.getElementById("server"), "Start another") && !btn(document.getElementById("server"), "Start"), "with a server running the button says Start another");
+    click(btn(rows[0], "Follow"));
+    ok(window.__sent.some(function (m) { return m.cmd === "focusServer" && m.port === 1900; }), "Follow switches to that server");
+    click(btn(rows[0], "Stop"));
+    ok(window.__sent.some(function (m) { return m.cmd === "stopAt" && m.port === 1900; }), "a row's Stop stops only that server");
+    click(btn(rows[1], "Open"));
+    ok(window.__sent.some(function (m) { return m.cmd === "open" && m.port === 1901; }), "a row's Open opens that port");
     post(S.base); await wait(60);
     var pre = document.createElement("pre"); pre.id = "result";
     pre.textContent = JSON.stringify({ passed: out.length, failed: fail.concat(window.__errors.map(function (m) { return "PAGE ERROR " + m; })) });
@@ -248,6 +271,12 @@ if (shotIndex > 0) {
   const at = assembled.lastIndexOf(marker);
   fs.writeFileSync(path.join(dir, "panel.html"), assembled.slice(0, at) + marker.replace("S.base", "S.panel") + assembled.slice(at + marker.length));
   run(["--virtual-time-budget=6000", "--window-size=1500,380", `--screenshot=${path.join(folder, "cockpit_panel_dark.png")}`, `file:///${path.join(dir, "panel.html").split(path.sep).join("/")}`]);
+  // every page of the cockpit, in the bottom panel's shape (the door, then each of the five pages; two servers for the Server page)
+  for (const [name, tab, stateKey] of [["home", "home", "panel"], ["server_two_servers", "server", "two"], ["databases", "dbs", "panel"], ["log", "log", "panel"], ["errors", "issues", "panel"], ["remote", "remote", "remote"]]) {
+    const inject = `window.__cockpit.ui.tab = "${tab}"; post(S.${stateKey}); await wait(60);` + String.fromCharCode(10) + "    var pre = document.createElement";
+    fs.writeFileSync(path.join(dir, `page_${name}.html`), assembled.slice(0, at) + inject + assembled.slice(at + marker.length));
+    run(["--virtual-time-budget=6000", "--window-size=1500,420", `--screenshot=${path.join(folder, `page_${name}.png`)}`, `file:///${path.join(dir, `page_${name}.html`).split(path.sep).join("/")}`]);
+  }
   for (const [name, source] of [["dark", file], ["light", path.join(dir, "light.html")]]) {
     run(["--virtual-time-budget=6000", "--window-size=1500,1250", `--screenshot=${path.join(folder, `cockpit_${name}.png`)}`, `file:///${source.replace(/\\/g, "/")}`]);
   }

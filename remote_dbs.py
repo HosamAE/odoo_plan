@@ -36,7 +36,8 @@ SSH_CONFIG = os.path.join(os.path.expanduser("~"), ".ssh", "config")
 CONF_GLOB = "/etc/odoo*/*.conf"
 LIST_SQL = ("SELECT d.datname, (pg_database_size(d.datname)/1048576)::int, pg_get_userbyid(d.datdba), "
             "(SELECT count(*) FROM pg_stat_activity a WHERE a.datname = d.datname) "
-            "FROM pg_database d WHERE NOT d.datistemplate AND d.datname <> 'postgres' ORDER BY 1")
+            "FROM pg_database d WHERE NOT d.datistemplate AND d.datname <> 'postgres' "
+            "AND has_database_privilege(d.datname, 'CONNECT') ORDER BY 1")
 
 
 class RemoteError(Exception):
@@ -94,6 +95,14 @@ def pg_prefix(args):
     if not NAME.fullmatch(user):
         raise RemoteError(f"not a user name: {user!r}")
     return f"sudo -n -u {user} "
+
+
+def files_prefix(args):
+    """How files (confs, filestores) are read: as root, unless the host only opens one account (--sudo-user)."""
+    user = getattr(args, "sudo_user", None)
+    if getattr(args, "no_sudo", False):
+        return ""
+    return f"sudo -n -u {user} " if user and user != "postgres" and NAME.fullmatch(user) else "sudo -n "
 
 
 def explain(stderr):
@@ -156,11 +165,11 @@ def parse_instances(text):
 
 
 def list_remote(host, args):
-    code, out, err = run_remote(host, f"{pg_prefix(args)}psql -At -F'|' -c {shlex.quote(LIST_SQL)}", getattr(args, "interactive", False))
+    code, out, err = run_remote(host, f"{pg_prefix(args)}psql -d postgres -At -F'|' -c {shlex.quote(LIST_SQL)}", getattr(args, "interactive", False))
     if code != 0:
         raise RemoteError(explain(err))
     databases = parse_databases(out)
-    code, out, _ = run_remote(host, INSTANCE_SCRIPT, getattr(args, "interactive", False))
+    code, out, _ = run_remote(host, INSTANCE_SCRIPT.replace("sudo -n ", files_prefix(args)), getattr(args, "interactive", False))
     return {"host": host, "databases": databases, "instances": parse_instances(out) if code == 0 else []}
 
 
@@ -168,7 +177,7 @@ def find_filestore(host, database, args):
     """The remote folder holding a database's files (<data_dir>/filestore/<db>), or None."""
     script = (f"for f in {CONF_GLOB}; do d=$( (cat \"$f\" 2>/dev/null || sudo -n cat \"$f\" 2>/dev/null) | "
               f"sed -n 's/^data_dir *= *//p' | head -1); [ -n \"$d\" ] && sudo -n test -d \"$d/filestore/{database}\" && echo \"$d/filestore/{database}\" && break; done")
-    code, out, _ = run_remote(host, script, getattr(args, "interactive", False))
+    code, out, _ = run_remote(host, script.replace("sudo -n ", files_prefix(args)), getattr(args, "interactive", False))
     return out.strip().splitlines()[0] if code == 0 and out.strip() else None
 
 
@@ -229,9 +238,9 @@ def stream_to_file(command, path):
     return proc.returncode, proc.stderr.decode("utf-8", "replace")
 
 
-def pull_filestore(host, remote_dir, source, local_root, target, interactive=False):
+def pull_filestore(host, remote_dir, source, local_root, target, interactive=False, sudo="sudo -n "):
     """Copy a remote filestore folder into <local_root>/<target>. Returns the number of files."""
-    command = ssh_command(host, f"sudo -n tar -C {shlex.quote(os.path.dirname(remote_dir))} -cf - {shlex.quote(source)}", interactive)
+    command = ssh_command(host, f"{sudo}tar -C {shlex.quote(os.path.dirname(remote_dir))} -cf - {shlex.quote(source)}", interactive)
     os.makedirs(local_root, exist_ok=True)
     count = 0
     proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -322,7 +331,7 @@ def pull(args):
             step(4, total, "copying the filestore")
             remote_dir = find_filestore(host, db, args)
             if remote_dir:
-                files = pull_filestore(host, remote_dir, db, os.path.join(local_data_dir(options), "filestore"), target, args.interactive)
+                files = pull_filestore(host, remote_dir, db, os.path.join(local_data_dir(options), "filestore"), target, args.interactive, files_prefix(args))
             else:
                 warnings.append("no filestore folder found on the host: attachments will be missing")
         neutral = None

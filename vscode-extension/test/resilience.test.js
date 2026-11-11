@@ -11,6 +11,7 @@ const path = require("path");
 
 const registered = { commands: {}, trees: {} };
 const warnings = [];
+const statusItems = [];
 class TreeItem { constructor(label, state) { this.label = label; this.collapsibleState = state || 0; } }
 class ThemeIcon { constructor(id, color) { this.id = id; this.color = color; } }
 class EventEmitter { constructor() { this.event = () => {}; } fire() {} }
@@ -32,7 +33,7 @@ function makeVscode(refusedViews) {
     workspace: { workspaceFolders: [{ uri: { fsPath: process.env.SMOKE_PROJECT || "C:\\odoo\\ProjectsOdoo19\\Acme" } }], workspaceFile: null, getConfiguration: () => ({ get: () => undefined, update: noop }) },
     window: {
       createOutputChannel: () => ({ appendLine: noop, append: noop, show: noop, clear: noop, dispose: noop }),
-      createStatusBarItem: () => ({ show: noop, hide: noop, dispose: noop }),
+      createStatusBarItem: () => { const item = { show: () => { item.shown = true; }, hide: noop, dispose: noop }; statusItems.push(item); return item; },
       registerTreeDataProvider: (id, provider) => {
         if (refusedViews.includes(id)) throw new Error(`No view is registered with id: ${id}`);
         registered.trees[id] = provider;
@@ -59,9 +60,11 @@ assert.ok(!registered.trees["odooCi.issues"], "the refused one is not");
 for (const command of ["odooCi.serverRun", "odooCi.serverRunQuick", "odooCi.serverUpgrade", "odooCi.serverDrift", "odooCi.issueNext", "odooCi.issuePick", "odooCi.static"]) {
   assert.ok(registered.commands[command], `${command} is still registered, after the refused view`);
 }
-assert.strictEqual(warnings.length, 1, "the person is told once");
-assert.ok(/Reload the window/i.test(warnings[0].text), "and told what to do");
-assert.deepStrictEqual(warnings[0].buttons, ["Reload Window"], "with the button that does it");
-console.log("resilience OK: a refused view is caught, every command is still registered, and the person is told to reload the window");
+// no pop-up: a quiet status-bar item says what to do, and one click reloads the window
+assert.strictEqual(warnings.length, 0, "the person is not interrupted by a pop-up");
+const reload = statusItems.find((i) => i.shown && /Reload/i.test(i.text || ""));
+assert.ok(reload, "a status-bar item offers the reload");
+assert.strictEqual(reload.command, "workbench.action.reloadWindow", "and one click does it");
+console.log("resilience OK: a refused view is caught, every command is still registered, and a quiet status-bar item offers the reload");
 subscriptions.forEach((s) => s.dispose && s.dispose());
 process.exit(0);
