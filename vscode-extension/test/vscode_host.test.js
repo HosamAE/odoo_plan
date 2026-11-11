@@ -45,7 +45,7 @@ function runIn(editor) {
   const args = [project, `--extensionDevelopmentPath=${extensionDir}`, `--extensionTestsPath=${path.join(__dirname, "vscode_host", "runner.js")}`,
     `--user-data-dir=${path.join(tmp, "user")}`, `--extensions-dir=${path.join(tmp, "extensions")}`, "--disable-workspace-trust", "--skip-welcome",
     "--skip-release-notes", "--disable-updates", "--disable-telemetry", "--new-window"];
-  const run = cp.spawnSync(editor.exe, args, { env, timeout: 300000, encoding: "utf8", stdio: ["ignore", "ignore", "pipe"] });
+  const run = cp.spawnSync(editor.exe, args, { env, timeout: 540000, encoding: "utf8", stdio: ["ignore", "ignore", "pipe"] });
   let results = null;
   try { results = JSON.parse(fs.readFileSync(out, "utf8")); } catch (e) { /* reported by the caller */ }
   const stderr = String(run.stderr || "");

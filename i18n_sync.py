@@ -254,7 +254,12 @@ def main():
     p_exp = subparsers.add_parser("export", help="Export a clean POT template for a module")
     p_exp.add_argument("-m", "--module", required=True, help="Module name or path")
 
+    import i18n_status   # the per-module status and the translation with a model of your own
+    i18n_status.add_commands(subparsers)
+
     args = parser.parse_args()
+    if args.action in ("status", "translate"):
+        sys.exit(i18n_status.run(args))
 
     try:
         mod_dir = resolve_module_dir(args.module)

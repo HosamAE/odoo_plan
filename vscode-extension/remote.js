@@ -15,16 +15,21 @@ const NAME = /^[\w.-]+$/;
 /** What the page needs: no raw output, no commands, just the plain state. */
 function slimRemote(r) {
   return {
-    hosts: r.hosts, host: r.host, error: r.error, needsKey: !!r.needsKey, busy: r.busy, job: r.job, last: r.last,
+    hosts: r.hosts, host: r.host, error: r.error, needsKey: !!r.needsKey, refused: !!r.refused, account: r.account || null, busy: r.busy, job: r.job, last: r.last,
     info: r.info ? { databases: r.info.databases, instances: r.info.instances.map((i) => ({ conf: i.conf, db_name: i.db_name, db_user: i.db_user })) } : null,
   };
 }
 
 function create(api) {
-  const r = { hosts: null, host: null, info: null, error: null, needsKey: false, busy: false, job: null, last: null };
+  const r = { hosts: null, host: null, info: null, error: null, needsKey: false, refused: false, busy: false, job: null, last: null };
   const changed = () => api.changed();
 
-  const cli = (project, sub, extra, withProject) => (withProject ? api.serverArgs(project, sub, extra) : ["server", sub, ...extra]);
+  /** The account the host opens for postgres and files, when it opens only one (the setting; empty: postgres, as root). */
+  const account = () => {
+    const user = String(vscode.workspace.getConfiguration("odooCi").get("remoteSudoUser") || "").trim();
+    return /^[\w.-]+$/.test(user) ? ["--sudo-user", user] : [];
+  };
+  const cli = (project, sub, extra, withProject) => (withProject ? api.serverArgs(project, sub, [...account(), ...extra]) : ["server", sub, ...account(), ...extra]);
 
   /** Run a tools command. Progress lines (STEP i/n text) come on stderr; the answer is the JSON on stdout. */
   function run(project, args, timeout = 7200000) {
@@ -76,7 +81,7 @@ function create(api) {
   async function select(host) {
     const project = api.findProject();
     if (!project || !host) return;
-    r.host = host; r.info = null; r.error = null; r.needsKey = false;
+    r.host = host; r.info = null; r.error = null; r.needsKey = false; r.refused = false;
     if (api.remember) api.remember("remoteHost", host);
     changed();
     await job(`Reading ${host}`, async () => {
@@ -85,6 +90,7 @@ function create(api) {
       else {
         r.error = res.error || "no answer";
         r.needsKey = /password|another key/i.test(r.error);
+        r.refused = /ACCESS DENIED|not allowed|denied/i.test(r.error);
       }
     });
   }
@@ -199,7 +205,7 @@ function create(api) {
     changed();
   }
 
-  return { state: () => slimRemote(r), loadHosts, select, refresh, pull, push, backup, drop, setupKey, _r: r };
+  return { state: () => slimRemote(Object.assign({}, r, { account: account()[1] || null })), loadHosts, select, refresh, pull, push, backup, drop, setupKey, _r: r };
 }
 
 module.exports = { create, slimRemote };

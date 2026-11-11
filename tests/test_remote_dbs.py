@@ -111,6 +111,25 @@ class TestPrefix(unittest.TestCase):
             remote_dbs.pg_prefix(ns(sudo_user="x; id"))
 
 
+class TestRestrictedHost(unittest.TestCase):
+    """A host can open one account only (its own rule): files are then read as that account, never wider."""
+
+    def test_files_are_read_as_root_unless_one_account_is_given(self):
+        self.assertEqual(remote_dbs.files_prefix(ns()), "sudo -n ")
+        self.assertEqual(remote_dbs.files_prefix(ns(sudo_user="odoo19_demo")), "sudo -n -u odoo19_demo ")
+        self.assertEqual(remote_dbs.files_prefix(ns(sudo_user="postgres")), "sudo -n ")
+        self.assertEqual(remote_dbs.files_prefix(ns(no_sudo=True)), "")
+
+    def test_the_list_asks_only_for_databases_the_account_may_connect_to(self):
+        self.assertIn("has_database_privilege(d.datname, 'CONNECT')", remote_dbs.LIST_SQL)
+
+    def test_a_refusal_is_shown_in_the_hosts_own_words(self):
+        with mock.patch.object(remote_dbs, "run_remote", return_value=(1, "", "ACCESS DENIED" + chr(10) + "Only the demo environment is open to you.")):
+            with self.assertRaises(remote_dbs.RemoteError) as raised:
+                remote_dbs.list_remote("h1", ns())
+        self.assertIn("demo environment", str(raised.exception))
+
+
 class TestTarSafety(unittest.TestCase):
     def member(self, name):
         return tarfile.TarInfo(name)

@@ -1,2 +1,2 @@
-# Test suite for Odoo Studio & CI Pro tools
+# Test suite for Cockpit Odoo tools
 

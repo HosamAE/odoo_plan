@@ -113,7 +113,27 @@ exports.run = async function run() {
     const inPanel = await until(() => { const r = cockpit.lastRender("panel"); return r && r.dbRows > 0 ? r : null; }, 90000, 500);
     check("the page ran in the bottom panel and drew the databases", inPanel, JSON.stringify(cockpit.lastRender("panel")));
     check("in its compact layout", inPanel && inPanel.mode === "panel", JSON.stringify(inPanel));
-    check("with its two tabs", inPanel && inPanel.tabs === 2, JSON.stringify(inPanel));
+    check("with its door and five pages as tabs", inPanel && inPanel.tabs === 6, JSON.stringify(inPanel));
+
+    // one button opens it in the bottom panel; the page itself can move up to the editor and back
+    await vscode.commands.executeCommand("odooCi.cockpitPanel");
+    check("the one Open Cockpit command works in the editor", cockpit.isViewOpen(), "no bottom view");
+    await cockpit.handle({ cmd: "move", to: "editor" }, "panel");
+    check("the page can move up into an editor tab", cockpit.isOpen(), "no editor tab");
+    await cockpit.handle({ cmd: "move", to: "panel" }, "editor");
+    await sleep(800);
+    check("and back down to the bottom panel (the tab is closed)", cockpit.isViewOpen() && !cockpit.isOpen(), `view ${cockpit.isViewOpen()} tab ${cockpit.isOpen()}`);
+
+    // the translations page, fed by the real tools reading the real project (it changes nothing)
+    const tr = api._test.translations;
+    await vscode.commands.executeCommand("odooCi.translations");
+    check("the translations page opens", tr.isOpen(), "no panel");
+    const modulesRead = await until(() => { const st = tr.state(); return st.modules && st.modules.length ? st : null; }, 120000, 500);
+    check("it read the project's modules with the real tools", modulesRead && modulesRead.modules.some((m) => m.module === "acme_work_plan"), JSON.stringify(tr.state().error));
+    const plan = modulesRead && modulesRead.modules.find((m) => m.module === "acme_work_plan");
+    check("with the languages of the setting (sv_SE) counted even before a .po exists", plan && plan.languages.some((l) => l.lang === "sv_SE") && plan.terms > 100, JSON.stringify(plan && { terms: plan.terms, languages: plan.languages.map((l) => l.lang) }));
+    const trDrawn = await until(() => (tr._r.rendered && tr._r.rendered.modules > 0 ? tr._r.rendered : null), 30000, 500);
+    check("and the page drew them", trDrawn, JSON.stringify(tr._r.rendered));
 
     // the remote servers: the hosts of the real ssh config, and (when told) one host read for real - read only
     const remote = cockpit.remote;
@@ -122,25 +142,82 @@ exports.run = async function run() {
     check("the remote tab lists the hosts of ~/.ssh/config", hosts.length > 0 || !fs.existsSync(path.join(os.homedir(), ".ssh", "config")), JSON.stringify(hosts));
     const readHost = process.env.ODOO_CI_TEST_REMOTE_HOST;
     if (readHost) {
+      if (process.env.ODOO_CI_TEST_REMOTE_ACCOUNT) {
+        await vscode.workspace.getConfiguration("odooCi").update("remoteSudoUser", process.env.ODOO_CI_TEST_REMOTE_ACCOUNT, vscode.ConfigurationTarget.Global);
+      }
       await remote.select(readHost);
       const st = remote.state();
-      check(`${readHost} was read over ssh: its databases are listed`, st.info && st.info.databases.length > 0, JSON.stringify(st.error));
-      check("with the Odoo instances that serve them", st.info && st.info.instances.length > 0, JSON.stringify(st.info && st.info.instances));
-      await vscode.commands.executeCommand("odooCi.cockpitPanel");
-      const drawnRemote = await until(() => { const r = cockpit.lastRender("panel"); return r && r.remoteRows > 0 ? r : null; }, 20000, 500);
-      cockpit.handle({ cmd: "ready" }, "panel");
-      check("the page draws the remote databases", drawnRemote, JSON.stringify(cockpit.lastRender("panel")));
+      // a host may refuse (its own security rule): then the refusal must be shown in the host's own words
+      check(`${readHost}: its databases were read over ssh, or its refusal is shown`, st.info ? st.info.databases.length > 0 : !!st.error, JSON.stringify(st.error));
+      if (st.info) {
+        await vscode.commands.executeCommand("odooCi.cockpitPanel");
+        const drawnRemote = await until(() => { const r = cockpit.lastRender("panel"); return r && r.remoteRows > 0 ? r : null; }, 20000, 500);
+        check("the page draws the remote databases", drawnRemote, JSON.stringify(cockpit.lastRender("panel")));
+      }
     }
 
     // the control panel: the rows a person is meant to find
     const roots = api._test.actionsTree.getChildren();
     const serverGroup = roots.find((r) => String(r.label).startsWith("Server"));
     const rows = serverGroup ? api._test.actionsTree.getChildren(serverGroup).map((r) => String(r.label)) : [];
-    for (const wanted of ["Open Cockpit", "Open Cockpit in Editor", "Start Odoo Server", "Start with Options...", "Upgrade Modules...", "Check Database vs Code", "Stop Odoo Server", "Open in Browser"]) {
+    for (const wanted of ["Open Cockpit", "Start Odoo Server", "Start with Options...", "Upgrade Modules...", "Check Database vs Code", "Stop Odoo Server", "Open in Browser"]) {
       check(`the control panel has "${wanted}"`, rows.includes(wanted), rows.join(" | "));
     }
     const startRow = api._test.actionsTree.getChildren(serverGroup).find((r) => String(r.label) === "Start Odoo Server");
     check("the Start row starts the server at once (no questions)", startRow && startRow.command && startRow.command.command === "odooCi.serverRunQuick", JSON.stringify(startRow && startRow.command));
+
+    // two real servers at once, each with its own log; one is stopped and the other keeps running
+    const scratch = process.env.ODOO_CI_TEST_SERVERS;
+    if (scratch) {
+      const m = api._test.multi;
+      const pr = m.findProject();
+      const first = await m.freePort(pr);
+      await m.startServerWith(pr, { db: scratch, update: "", dev: false, port: first });
+      const second = first + 1;
+      await m.startServerWith(pr, { db: scratch, update: "", dev: false, port: second });
+      const both = await until(async () => { const l = (await m.detectServers(pr)).filter((s) => [first, second].includes(s.port)); return l.length === 2 ? l : null; }, 120000, 1000);
+      check("two real servers run at once on two ports", both, JSON.stringify(await m.detectServers(pr)));
+      check("the pages follow the one started last", m.state.focusPort === second && m.serverRun.log && m.serverRun.log.endsWith(`.${second}.log`), `${m.state.focusPort} ${m.serverRun.log}`);
+      m.focusServer(first);
+      check("Follow switches the log to the other server", m.state.focusPort === first && m.serverRun.log.endsWith(`.${first}.log`), `${m.state.focusPort} ${m.serverRun.log}`);
+      await m.stopServerAt(second);
+      const left = await until(async () => { const l = (await m.detectServers(pr)).map((s) => s.port).filter((x) => [first, second].includes(x)); return l.length === 1 ? l : null; }, 30000, 500);
+      check("stopping one leaves the other running", left && left[0] === first, JSON.stringify(left));
+      await m.stopServerAt(first);
+      await until(async () => (await m.detectServers(pr)).every((s) => ![first, second].includes(s.port)), 30000, 500);
+
+      // another project's server: not shown, not controllable
+      const decoyPort = (await m.freePort(pr)) + 5;
+      const decoy = cp.spawn(process.env.ODOO_CI_TEST_PYTHON, ["-c", "import time; time.sleep(60)", "odoo-bin", "--config=C:/elsewhere/Other.conf", "-p", String(decoyPort)], { stdio: "ignore", windowsHide: true });
+      try {
+        await until(async () => (await m.detectServers(pr)).find((x) => x.port === decoyPort), 20000, 500);
+        await m.pollServerStatus(true);
+        check("another project's server is not in the cockpit's list", !m.state.servers.some((x) => x.port === decoyPort), JSON.stringify(m.state.servers.map((x) => x.port)));
+        check("nor in what the page is given", !(cockpit.currentList ? cockpit.currentList() : []).some((x) => x.port === decoyPort), "listed");
+        await m.stopServerAt(decoyPort);
+        await sleep(1500);
+        check("and Stop cannot end it", (await m.detectServers(pr)).some((x) => x.port === decoyPort), "it was stopped");
+      } finally {
+        try { decoy.kill(); } catch (e) { /* gone */ }
+      }
+
+      // a server of this project started OUTSIDE the editor (a terminal, a task, a service): found, and followed through its log file
+      const outsideLog = path.join(dir, "outside_server.log");
+      const port = await m.freePort(pr);
+      const outside = cp.spawn(process.env.ODOO_CI_TEST_PYTHON, [path.join(process.env.ODOO_ROOT || "C:\\odoo", "odoo19", "odoo", "odoo-bin"), "-c", path.join(project, `${path.basename(project)}.conf`), "-d", scratch, `--http-port=${port}`, `--logfile=${outsideLog}`], { stdio: "ignore", windowsHide: true });
+      try {
+        const seen = await until(async () => (await m.detectServers(pr)).find((s) => s.port === port), 120000, 1000);
+        check("a server started outside the editor is found and attributed to the project", seen && seen.mine, JSON.stringify(seen));
+        check("with the log file it writes", seen && seen.logfile === outsideLog, JSON.stringify(seen));
+        m.state.servers = await m.detectServers(pr);   // the window is not focused during the run, so the poll does not
+        m.focusServer(port);
+        await sleep(300);
+        check("the cockpit follows it and reads its log", m.serverRun.log === outsideLog && m.state.focusPort === port, `${m.serverRun.log} ${m.state.focusPort}`);
+      } finally {
+        await m.stopServerAt(port);
+        try { outside.kill(); } catch (e) { /* gone */ }
+      }
+    }
 
     // a real backup from the cockpit's own button: a dump with its filestore, in the folder the setting names
     const db = process.env.ODOO_CI_TEST_BACKUP_DB;

@@ -35,18 +35,26 @@ h2 { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: v
 .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
 @media (min-width: 760px) { .grid { grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.4fr); } .grid > .col:nth-child(3) { grid-column: 1 / -1; } }
 @media (min-width: 1150px) { .grid { grid-template-columns: minmax(280px, 340px) minmax(380px, 1.3fr) minmax(320px, 1fr); } .grid > .col:nth-child(3) { grid-column: auto; } }
-.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: 0 0 12px; }
-.tab { background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 5px 14px; }
+.tabs { display: flex; gap: 2px; overflow-x: auto; flex: none; border-bottom: 1px solid var(--line); margin: 0 0 12px; }
+.tab { white-space: nowrap; background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 5px 14px; }
 .tab.on { color: var(--fg); border-bottom-color: var(--accent); }
 /* In the bottom panel the page has little height: it fills what it is given, and each column scrolls on its own. */
 body.panel { padding: 6px 10px 8px; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 body.panel .top { margin-bottom: 4px; }
 body.panel .tabs { margin-bottom: 6px; }
 body.panel .page { flex: 1; min-height: 0; overflow: auto; }
-body.panel .grid { height: 100%; }
-body.panel .grid > .col { overflow: auto; min-height: 0; }
+body.panel #logcard, body.panel #issues { height: 100%; }
 body.panel .scroll { max-height: none; }
-body.panel #log { height: calc(100vh - 150px); min-height: 120px; }
+body.panel #log { height: calc(100vh - 170px); min-height: 100px; }
+.page[hidden] { display: none; }
+.doors { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.door { text-align: left; background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; min-height: 96px; display: flex; flex-direction: column; gap: 4px; }
+.door:hover, .door:focus-visible { border-color: var(--accent); }
+.door b { font-size: 14px; } .door span { color: var(--muted); font-size: 12px; }
+.door .big { color: var(--fg); font-size: 20px; font-weight: 600; }
+table.servers td, table.servers th { white-space: nowrap; }
+tr.focus td { background: var(--vscode-list-activeSelectionBackground, rgba(0, 127, 212, .25)); }
+.col.wide { max-width: 900px; }
 .progressrow { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; min-width: 0; }
@@ -98,23 +106,28 @@ tr.row-db { cursor: pointer; }
 <body>
 <div class="top" id="top"></div>
 <div class="tabs" id="tabs" role="tablist"></div>
-<div class="page" id="page-local">
-<div class="grid">
-  <div class="col">
+<div class="page" id="page-home" data-tab="home">
+  <section class="doors" id="home" aria-label="Cockpit"></section>
+</div>
+<div class="page" id="page-server" data-tab="server" hidden>
+  <div class="col wide">
     <section class="card" id="server" aria-label="Server"></section>
     <section class="card" id="progress" aria-label="Progress" hidden></section>
-    <section class="card" id="issues" aria-label="Errors and warnings"></section>
   </div>
+</div>
+<div class="page" id="page-dbs" data-tab="dbs" hidden>
   <div class="col">
     <section class="card" id="dbs" aria-label="Databases"></section>
     <section class="card" id="modules" aria-label="Modules" hidden></section>
   </div>
-  <div class="col">
-    <section class="card" id="logcard" aria-label="Server log"></section>
-  </div>
 </div>
+<div class="page" id="page-log" data-tab="log" hidden>
+  <section class="card" id="logcard" aria-label="Server log"></section>
 </div>
-<div class="page" id="page-remote" hidden>
+<div class="page" id="page-issues" data-tab="issues" hidden>
+  <section class="card" id="issues" aria-label="Errors and warnings"></section>
+</div>
+<div class="page" id="page-remote" data-tab="remote" hidden>
   <section class="card" id="remote" aria-label="Remote servers"></section>
 </div>
 <div class="sr" role="status" aria-live="polite" id="live"></div>
@@ -123,8 +136,8 @@ tr.row-db { cursor: pointer; }
   "use strict";
   var vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : { postMessage: function () {}, getState: function () { return null; }, setState: function () {} };
   var S = null;                                  // the last state the host sent
-  var ui = vscode.getState() || { dbSort: "name", dbDesc: false, dbFilter: "", selected: null, logLevel: "all", logSearch: "", modFilter: "attention", autoscroll: true, tab: "local" };
-  if (!ui.tab) ui.tab = "local";
+  var ui = vscode.getState() || { dbSort: "name", dbDesc: false, dbFilter: "", selected: null, logLevel: "all", logSearch: "", modFilter: "attention", autoscroll: true, tab: "home" };
+  if (!ui.tab || ui.tab === "local") ui.tab = "home";
   var $ = function (id) { return document.getElementById(id); };
 
   // Build nodes, never markup strings: log lines and messages are data and may contain anything.
@@ -165,23 +178,68 @@ tr.row-db { cursor: pointer; }
       h("span", { class: "sub" }, p.name + " · Odoo " + p.version + " · port " + p.port),
       pill(S.server.running ? (S.server.health ? S.server.health.state : "starting") : "stopped"),
       h("span", { class: "sub" }, S.server.db ? "database " + S.server.db : (S.server.running ? "no database chosen" : "")),
+      h("span", { style: "flex:1" }),
+      S.mode === "panel" ? btn("Open in editor ↗", "move", { to: "editor" }, "secondary small") : btn("Move to bottom panel ↓", "move", { to: "panel" }, "secondary small"),
     ]);
   }
 
+  function renderServers(nodes) {
+    var list = S.server.list || [];
+    nodes.push(h("h2", {}, "Running servers" + (list.length ? " (" + list.length + ")" : "")));
+    if (!list.length) { nodes.push(h("div", { class: "empty" }, "No Odoo server is running. Start one below.")); return; }
+    var table = h("table", { class: "servers" }, h("thead", {}, h("tr", {}, h("th", {}, ""), h("th", {}, "Port"), h("th", {}, "Database"), h("th", {}, "Of"), h("th", {}, "pid"), h("th", {}, ""))));
+    var body = h("tbody");
+    list.forEach(function (sv) {
+      body.appendChild(h("tr", { class: sv.focus ? "focus" : "" },
+        h("td", {}, sv.focus ? "●" : ""),
+        h("td", {}, ":" + sv.port),
+        h("td", {}, sv.db || "none"),
+        h("td", {}, sv.mine ? "this project" : "another"),
+        h("td", {}, String(sv.pid)),
+        h("td", {}, h("div", { class: "row" },
+          sv.focus ? null : btn("Follow", "focusServer", { port: sv.port }, "secondary small"),
+          btn("Open", "open", { port: sv.port }, "secondary small"),
+          btn("Stop", "stopAt", { port: sv.port }, "danger small")))));
+    });
+    table.appendChild(body);
+    nodes.push(h("div", { class: "scroll" }, table));
+    if (list.length > 1) nodes.push(h("div", { class: "hint" }, "The Log and Errors pages follow the server marked ●. " + (list.some(function (x) { return x.focus && !x.hasLog; }) ? "This one was started outside the editor, so it has no log here." : "")));
+  }
+
   function renderServer() {
-    var sv = S.server, hl = sv.health, nodes = [h("h2", {}, "Server")];
+    var sv = S.server, hl = sv.health, nodes = [];
+    renderServers(nodes);
+    var focus = (sv.list || []).filter(function (x) { return x.focus; })[0];
+    nodes.push(h("h2", { style: "margin-top:14px" }, focus ? "Server on port " + focus.port : "Server"));
     nodes.push(h("div", { class: "kv" },
-      h("span", {}, "State"), h("span", {}, sv.running ? "running" + (sv.pid ? " (pid " + sv.pid + ")" : "") : "stopped"),
-      h("span", {}, "Port"), h("span", {}, String(S.project.port)),
+      h("span", {}, "State"), h("span", {}, sv.running ? "running" + (focus ? " (pid " + focus.pid + ")" : "") : "stopped"),
+      h("span", {}, "Port"), h("span", {}, String(focus ? focus.port : S.project.port)),
       h("span", {}, "Database"), h("span", {}, sv.db || (sv.running ? "none: Odoo visits every database" : "-")),
       hl ? h("span", {}, "Log") : null, hl ? h("span", {}, hl.errors + hl.critical + " error(s) · " + hl.warnings + " warning(s)" + (hl.http_500 ? " · " + hl.http_500 + " HTTP 500" : "")) : null));
     if (hl && hl.hint) nodes.push(h("div", { class: "hint " + (hl.state === "failed" ? "bad" : "warn") }, hl.hint));
     if (sv.running && !sv.db) nodes.push(h("div", { class: "hint warn" }, "Started without a database. Choose one with Start with Options; the Start button then remembers it."));
     nodes.push(h("div", { class: "row" },
-      btn("Start", "start", null, "", sv.running), btn("Start with options…", "startOptions", null, "secondary", false),
+      btn(sv.running ? "Start another" : "Start", "start", null, ""), btn("Start with options…", "startOptions", null, "secondary", false),
       btn("Restart", "restart", null, "secondary", !sv.running), btn("Stop", "stop", null, "danger", !sv.running),
       btn("Open in browser", "open", null, "secondary", !sv.running)));
+    if (sv.running) nodes.push(h("div", { class: "hint" }, "Start never stops a server that is running: the new one takes the next free port. Restart and Stop here act on the server marked ● only."));
     put($("server"), nodes);
+  }
+
+  function renderHome() {
+    var sv = S.server, list = sv.list || [], hl = sv.health, is = S.issues;
+    function door(tab, title, big, line) {
+      return h("button", { class: "door", onclick: function () { ui.tab = tab; save(); render(); } }, h("b", {}, title), h("span", { class: "big" }, big), h("span", {}, line));
+    }
+    var errs = is.errors + (is.warnings || 0);
+    put($("home"), [
+      door("server", "Server", list.length ? list.length + " running" : "stopped",
+        list.length ? list.map(function (x) { return ":" + x.port; }).join(" · ") + (hl ? " · " + hl.state : "") : "Start, stop, open, switch between servers"),
+      door("dbs", "Databases", S.databases ? String(S.databases.length) : "…", "Upgrade, back up, check against the code"),
+      door("log", "Log", S.log.lines.length ? S.log.lines.length + " lines" : "no log yet", "The server's log, with errors and warnings painted"),
+      door("issues", "Errors & warnings", String(errs), is.errors + " error(s) · " + (is.warnings || 0) + " warning(s)"),
+      door("remote", "Remote servers", S.remote && S.remote.host ? S.remote.host : "SSH", "Pull, push and back up databases over SSH"),
+    ]);
   }
 
   function renderProgress() {
@@ -343,13 +401,13 @@ tr.row-db { cursor: pointer; }
 
   // ----------------------------------------------------------------------------- tabs and the remote servers
   function renderTabs() {
-    var tabs = [["local", "This machine"], ["remote", "Remote servers"]];
+    var count = S && S.health ? (S.health.errors || 0) + (S.health.warnings || 0) : 0;
+    var tabs = [["home", "Cockpit"], ["server", "Server"], ["dbs", "Databases"], ["log", "Log"], ["issues", "Errors & warnings" + (count ? " (" + count + ")" : "")], ["remote", "Remote servers"]];
     put($("tabs"), tabs.map(function (t) {
       return h("button", { class: "tab" + (ui.tab === t[0] ? " on" : ""), role: "tab", "aria-selected": ui.tab === t[0] ? "true" : "false",
         onclick: function () { ui.tab = t[0]; save(); render(); } }, t[1]);
     }));
-    $("page-local").hidden = ui.tab !== "local";
-    $("page-remote").hidden = ui.tab !== "remote";
+    Array.prototype.forEach.call(document.querySelectorAll(".page[data-tab]"), function (el) { el.hidden = el.getAttribute("data-tab") !== ui.tab; });
   }
 
   function renderRemote() {
@@ -373,6 +431,8 @@ tr.row-db { cursor: pointer; }
     }
     if (R.error) {
       nodes.push(h("div", { class: "hint bad" }, R.error));
+      if (R.refused) nodes.push(h("div", { class: "hint warn" }, "This host restricts what your account may reach" + (R.account ? " (now using the account " + R.account + ")" : "") +
+        ". If it names an account that is open to you, put it in the setting odooCi.remoteSudoUser and press Refresh. The cockpit never tries another way in."));
       if (R.needsKey) nodes.push(h("div", { class: "row" }, btn("Set up key login for " + R.host + "…", "remoteKey", { host: R.host }, "small"),
         h("span", { class: "hint" }, "A terminal asks for the host's password once; after that no question is asked.")));
     }
@@ -406,7 +466,7 @@ tr.row-db { cursor: pointer; }
     if (!S) return;
     document.body.className = S.mode === "panel" ? "panel" : "";
     renderTabs(); renderRemote();
-    renderTop(); renderServer(); renderProgress(); renderIssues(); renderDbs(); renderModules();
+    renderTop(); renderHome(); renderServer(); renderProgress(); renderIssues(); renderDbs(); renderModules();
     var keepScroll = $("log") ? $("log").scrollTop : 0;
     renderLog();
     if (!ui.autoscroll && $("log")) $("log").scrollTop = keepScroll;
