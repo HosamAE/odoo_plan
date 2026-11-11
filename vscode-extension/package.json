@@ -13,7 +13,7 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "1.7.2",
+  "version": "2.1.0",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -43,8 +43,20 @@
   "contributes": {
     "commands": [
       {
+        "command": "odooCi.cockpit",
+        "title": "Open the Odoo Cockpit in the Editor",
+        "category": "Odoo Studio",
+        "icon": "$(dashboard)"
+      },
+      {
         "command": "odooCi.serverRun",
         "title": "Start Odoo Server",
+        "category": "Odoo Studio",
+        "icon": "$(play)"
+      },
+      {
+        "command": "odooCi.serverRunQuick",
+        "title": "Start Odoo Server (as the .conf says, no questions)",
         "category": "Odoo Studio",
         "icon": "$(play)"
       },
@@ -65,6 +77,24 @@
         "title": "Open Server in Browser",
         "category": "Odoo Studio",
         "icon": "$(globe)"
+      },
+      {
+        "command": "odooCi.serverUpgrade",
+        "title": "Upgrade Modules (all or chosen) on a Database",
+        "category": "Odoo Studio",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "odooCi.serverDrift",
+        "title": "Check a Database Against the Code",
+        "category": "Odoo Studio",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "odooCi.serverHealth",
+        "title": "Show Server Health",
+        "category": "Odoo Studio",
+        "icon": "$(pulse)"
       },
       {
         "command": "odooCi.static",
@@ -213,6 +243,66 @@
         "title": "Refresh Versions",
         "category": "Odoo Studio",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "odooCi.issueOpen",
+        "title": "Open Error or Warning",
+        "category": "Odoo Studio",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "odooCi.issueOpenLog",
+        "title": "Open the Log at This Line",
+        "category": "Odoo Studio",
+        "icon": "$(output)"
+      },
+      {
+        "command": "odooCi.issueOpenSource",
+        "title": "Open the Code Behind This",
+        "category": "Odoo Studio",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "odooCi.issueNext",
+        "title": "Go to Next Error or Warning",
+        "category": "Odoo Studio",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "odooCi.issuePrev",
+        "title": "Go to Previous Error or Warning",
+        "category": "Odoo Studio",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "odooCi.issuePick",
+        "title": "Pick an Error or Warning...",
+        "category": "Odoo Studio",
+        "icon": "$(search)"
+      },
+      {
+        "command": "odooCi.issueFilter",
+        "title": "Filter Errors and Warnings...",
+        "category": "Odoo Studio",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "odooCi.openServerLog",
+        "title": "Open the Server Log (errors red, warnings yellow)",
+        "category": "Odoo Studio",
+        "icon": "$(output)"
+      },
+      {
+        "command": "odooCi.issueShow",
+        "title": "Show Errors and Warnings",
+        "category": "Odoo Studio",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "odooCi.cockpitPanel",
+        "title": "Open the Odoo Cockpit in the Bottom Panel",
+        "category": "Odoo Studio",
+        "icon": "$(dashboard)"
       }
     ],
     "viewsContainers": {
@@ -220,6 +310,13 @@
         {
           "id": "odooStudio",
           "title": "Odoo Studio & CI Pro",
+          "icon": "media/studio.svg"
+        }
+      ],
+      "panel": [
+        {
+          "id": "odooCockpit",
+          "title": "Odoo Cockpit",
           "icon": "media/studio.svg"
         }
       ]
@@ -233,6 +330,17 @@
         {
           "id": "odooCi.actions",
           "name": "Project Control Panel"
+        },
+        {
+          "id": "odooCi.issues",
+          "name": "Errors & Warnings"
+        }
+      ],
+      "odooCockpit": [
+        {
+          "type": "webview",
+          "id": "odooCi.cockpitView",
+          "name": "Cockpit"
         }
       ]
     },
@@ -243,7 +351,7 @@
       },
       {
         "view": "odooCi.actions",
-        "contents": "Odoo Studio & CI Pro by HosamAE:\n[$(gear) Setup Wizard](command:odooCi.setupWizard)\n[$(play) Start Server](command:odooCi.serverRun)\n[$(globe) Open Browser](command:odooCi.serverOpen)\n[$(zap) Fast Test (3s)](command:odooCi.fastTest)\n[$(camera) DB Snapshot](command:odooCi.dbSnapSave)\n[$(checklist) Static Checks](command:odooCi.static)\n[$(beaker) Full CI Suite](command:odooCi.full)\n[$(add) New Addon](command:odooCi.newAddon)"
+        "contents": "Odoo Studio & CI Pro by HosamAE:\n[$(gear) Setup Wizard](command:odooCi.setupWizard)\n[$(play) Start Server](command:odooCi.serverRunQuick)\n[$(globe) Open Browser](command:odooCi.serverOpen)\n[$(zap) Fast Test (3s)](command:odooCi.fastTest)\n[$(camera) DB Snapshot](command:odooCi.dbSnapSave)\n[$(checklist) Static Checks](command:odooCi.static)\n[$(beaker) Full CI Suite](command:odooCi.full)\n[$(add) New Addon](command:odooCi.newAddon)"
       }
     ],
     "menus": {
@@ -282,6 +390,43 @@
           "command": "odooCi.newVersion",
           "when": "view == odooCi.env",
           "group": "navigation@2"
+        },
+        {
+          "command": "odooCi.issuePrev",
+          "when": "view == odooCi.issues",
+          "group": "navigation@1"
+        },
+        {
+          "command": "odooCi.issueNext",
+          "when": "view == odooCi.issues",
+          "group": "navigation@2"
+        },
+        {
+          "command": "odooCi.issuePick",
+          "when": "view == odooCi.issues",
+          "group": "navigation@3"
+        },
+        {
+          "command": "odooCi.issueFilter",
+          "when": "view == odooCi.issues",
+          "group": "navigation@4"
+        },
+        {
+          "command": "odooCi.openServerLog",
+          "when": "view == odooCi.issues",
+          "group": "navigation@5"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "odooCi.issueOpenLog",
+          "when": "view == odooCi.issues && viewItem =~ /^issue/",
+          "group": "inline@1"
+        },
+        {
+          "command": "odooCi.issueOpenSource",
+          "when": "view == odooCi.issues && viewItem == issueWithSource",
+          "group": "inline@2"
         }
       ]
     },
@@ -317,6 +462,16 @@
           "type": "string",
           "default": "",
           "description": "The Odoo workspace root (the folder holding odoo17..odoo20 and bin). Empty: ODOO_ROOT, else found from the open project."
+        },
+        "odooCi.backupDir": {
+          "type": "string",
+          "default": "",
+          "description": "Where database backups go. Empty: a 'backups' folder in the Odoo root."
+        },
+        "odooCi.backupBeforeUpgrade": {
+          "type": "boolean",
+          "default": false,
+          "description": "Back a database up before upgrading it, and stop if the backup fails."
         }
       }
     }

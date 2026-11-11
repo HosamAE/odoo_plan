@@ -34,6 +34,11 @@ jobs:
         run: |
           node vscode-extension/test/smoke.test.js
           node vscode-extension/test/detect.test.js
+          node vscode-extension/test/server.test.js
+          node vscode-extension/test/resilience.test.js
+          node vscode-extension/test/cockpit.test.js
+          node vscode-extension/test/cockpit_ui.test.js
+          node vscode-extension/test/vscode_host.test.js
       - name: No secret in the tracked config files
         shell: bash
         run: python secret_scan.py $(git ls-files '*.conf' '*.ini' '*.toml' '*.env')

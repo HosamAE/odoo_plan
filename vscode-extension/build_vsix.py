@@ -13,6 +13,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 FILES = [
     "package.json",
     "extension.js",
+    "cockpit.js",
+    "remote.js",
+    "media/cockpit.html",
     "README.md",
     "media/ci.svg",
     "media/studio.svg",
