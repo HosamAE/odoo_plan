@@ -228,8 +228,31 @@ exports.run = async function run() {
       const made = fs.existsSync(backups) ? fs.readdirSync(backups).filter((f) => f.startsWith(db + "_") && f.endsWith(".zip")) : [];
       check(`the Backup button wrote a dump of ${db}`, made.length === 1 && fs.statSync(path.join(backups, made[0])).size > 100000, JSON.stringify(made));
     }
-    // for a picture: open the extension's own sidebar, say the cockpit is drawn, and keep the window for a while
-    if (process.env.ODOO_CI_TEST_READY) {
+    // for pictures of REAL work: start a real server on a real database, wait until it is healthy, and show each page
+    if (process.env.ODOO_CI_TEST_READY && process.env.ODOO_CI_TEST_REAL_SERVER) {
+      const m = api._test.multi;
+      const pr = m.findProject();
+      const port = await m.freePort(pr);
+      await m.startServerWith(pr, { db: process.env.ODOO_CI_TEST_REAL_SERVER, update: "", dev: false, port });
+      const healthy = await until(async () => { await m.pollServerStatus(true); return m.state.health && m.state.health.state === "healthy"; }, 180000, 3000);
+      check("a real server on a real database became healthy and the Cockpit says so", healthy, JSON.stringify(m.state.health && m.state.health.state));
+      const seen = (await m.listOdooProcesses()).map((x) => `${x.pid}: ${x.cmd.slice(0, 220)}`);
+      fs.writeFileSync(process.env.ODOO_CI_TEST_PROCESS_LOG || path.join(path.dirname(process.env.ODOO_CI_TEST_READY), "odoo_processes.txt"), seen.join(String.fromCharCode(10)));
+      check("the Cockpit lists exactly the servers that run (no ghost on the default port)", m.state.servers.length === 1, JSON.stringify(m.state.servers.map((x) => [x.port, x.pid])));
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("odooCi.cockpit");                   // the page in the editor area: the whole window shows it
+      await vscode.commands.executeCommand("workbench.action.closeSidebar");
+      await sleep(2500);
+      for (const tab of String(process.env.ODOO_CI_TEST_TABS || "home").split(",")) {
+        cockpit.showTab(tab);
+        cockpit.refresh();
+        await sleep(2500);
+        fs.writeFileSync(`${process.env.ODOO_CI_TEST_READY}.${tab}`, "1");
+        await until(() => fs.existsSync(`${process.env.ODOO_CI_TEST_READY}.${tab}.done`), 60000, 300);
+      }
+      await m.stopServerAt(port);
+      fs.writeFileSync(process.env.ODOO_CI_TEST_READY, "1");
+    } else if (process.env.ODOO_CI_TEST_READY) {
       if (process.env.ODOO_CI_TEST_SHOT === "panel") {
         await vscode.commands.executeCommand("workbench.action.closeAllEditors");
         await vscode.commands.executeCommand("odooCi.cockpitPanel");        // the cockpit in the bottom panel
