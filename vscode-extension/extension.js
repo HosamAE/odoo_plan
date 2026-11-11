@@ -1744,6 +1744,7 @@ class EnvProvider {
       item("Tools CI (before push)", "beaker", "odooCi.selfTest", "all 4 versions, CI conditions"),
       item("Version branches vs main", "git-compare", "odooCi.syncVersions", "report only"),
       item("Scan staged files for secrets", "shield", "odooCi.secretScan"),
+      item("Translations: scan, update, export", "globe", "odooCi.translations"),
       item("Install secret pre-commit hook", "lock", "odooCi.secretHook", "this repository"),
       item("Project gates (Odoo rules)", "law", "odooCi.gates"),
       item("Open the layout guide", "book", "odooCi.openLayout"),
@@ -1808,6 +1809,52 @@ function runGates() {
   const { project, python, cli } = toolsContext();
   if (!project) return vscode.window.showErrorMessage("Odoo CI: open a project first (ProjectsOdoo<NN>/<project>).");
   runInTerminal("Odoo gates", cliLine(python, cli, `gates --path "${project.root}"`), project.root);
+}
+
+/** The module the person is working in (the open file's), then the project's other modules. */
+function projectModules(project) {
+  const names = [];
+  try {
+    for (const entry of fs.readdirSync(project.root, { withFileTypes: true })) {
+      if (entry.isDirectory() && fs.existsSync(path.join(project.root, entry.name, "__manifest__.py"))) names.push(entry.name);
+    }
+  } catch (e) { /* no folder */ }
+  const file = vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.uri.fsPath;
+  const current = file && path.relative(project.root, file).split(path.sep)[0];
+  return names.sort((x, y) => (x === current ? -1 : y === current ? 1 : x.localeCompare(y))).map((name) => ({ name, current: name === current }));
+}
+
+/** Translations: scan a module's terms against its .po files, add the missing ones to a language, or export the .pot. */
+async function runTranslations() {
+  const { project, python, cli } = toolsContext();
+  if (!project) return vscode.window.showErrorMessage("Odoo CI: open a project first (ProjectsOdoo<NN>/<project>).");
+  const modules = projectModules(project);
+  if (!modules.length) return vscode.window.showWarningMessage("No module with a __manifest__.py in this project.");
+  const module_ = await vscode.window.showQuickPick(modules.map((m) => ({ label: `$(package) ${m.name}`, description: m.current ? "the file you are in" : "", value: m.name })),
+    { title: "Translations: which module?", matchOnDescription: true });
+  if (!module_) return;
+  const action = await vscode.window.showQuickPick([
+    { label: "$(search) Scan", description: "which terms are missing or stale, per language", value: "scan" },
+    { label: "$(add) Update a language", description: "append the missing terms to its .po file", value: "update" },
+    { label: "$(export) Export the .pot template", description: "a clean template of every term", value: "export" },
+  ], { title: `Translations: ${module_.value}` });
+  if (!action) return;
+  let lang = "";
+  if (action.value !== "export") {
+    const langs = ["sv_SE", "ar", "ar_001", "en_GB", "de_DE", "fr_FR", "es_ES"];
+    const picked = await vscode.window.showQuickPick([
+      ...(action.value === "scan" ? [{ label: "$(globe) All languages", value: "" }] : []),
+      ...langs.map((l) => ({ label: l, value: l })), { label: "$(edit) Type a language code...", value: "__typed__" }],
+      { title: "Language" });
+    if (!picked) return;
+    lang = picked.value;
+    if (lang === "__typed__") {
+      lang = (await vscode.window.showInputBox({ prompt: "Language code, e.g. sv_SE", validateInput: (v) => (/^[a-z]{2,3}(_[A-Za-z0-9]{2,4})?$/.test(v) ? null : "like sv_SE or ar") })) || "";
+      if (!lang) return;
+    }
+  }
+  const args = `i18n ${action.value} -m ${module_.value}${lang ? ` -l ${lang}` : ""}`;
+  runInTerminal(`Translations: ${module_.value}`, cliLine(python, cli, args), project.root);
 }
 
 function openLayoutGuide() {
@@ -1961,6 +2008,7 @@ function activate(context) {
     vscode.commands.registerCommand("odooCi.secretHook", runSecretHook),
     vscode.commands.registerCommand("odooCi.gates", runGates),
     vscode.commands.registerCommand("odooCi.openLayout", openLayoutGuide),
+    vscode.commands.registerCommand("odooCi.translations", runTranslations),
     vscode.commands.registerCommand("odooCi.refreshEnv", () => envTree.refresh()),
     vscode.commands.registerCommand("odooCi.static", () => run("static")),
     vscode.commands.registerCommand("odooCi.full", () => run("full")),
@@ -2025,6 +2073,7 @@ function activate(context) {
         { label: "$(beaker) Tools CI (before push)", action: "selfTest" },
         { label: "$(git-compare) Version branches vs main", action: "syncVersions" },
         { label: "$(shield) Scan staged files for secrets", action: "secretScan" },
+        { label: "$(globe) Translations: scan, update, export", action: "translations" },
         { label: "$(law) Project gates (Odoo rules)", action: "gates" },
       ];
       vscode.window.showQuickPick(items).then((choice) => {
