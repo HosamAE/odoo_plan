@@ -4,13 +4,15 @@ const Module = require("module");
 const assert = require("assert");
 const path = require("path");
 
-const registered = { commands: {}, trees: {} };
+const registered = { commands: {}, trees: {}, views: {} };
 class TreeItem { constructor(label, state) { this.label = label; this.collapsibleState = state || 0; } }
 class ThemeIcon { constructor(id, color) { this.id = id; this.color = color; } }
 class EventEmitter { constructor() { this.event = () => {}; } fire() {} }
 const noop = () => {};
 const vscodeMock = {
   TreeItem, ThemeIcon, EventEmitter,
+  MarkdownString: class { appendText() { return this; } },
+  OverviewRulerLane: { Full: 7 },
   ThemeColor: class { constructor(id) { this.id = id; } },
   TreeItemCollapsibleState: { None: 0, Collapsed: 1, Expanded: 2 },
   StatusBarAlignment: { Left: 1 },
@@ -33,6 +35,9 @@ const vscodeMock = {
     createOutputChannel: () => ({ appendLine: noop, show: noop, dispose: noop }),
     createStatusBarItem: () => ({ show: noop, hide: noop, dispose: noop }),
     registerTreeDataProvider: (id, provider) => { registered.trees[id] = provider; return { dispose: noop }; },
+    registerWebviewViewProvider: (id, provider) => { registered.views[id] = provider; return { dispose: noop }; },
+    onDidChangeVisibleTextEditors: () => ({ dispose: noop }), visibleTextEditors: [],
+    createTextEditorDecorationType: () => ({ dispose: noop }),
     showErrorMessage: noop, showWarningMessage: noop, createTerminal: () => ({ show: noop, sendText: noop }),
   },
   commands: { registerCommand: (id, fn) => { registered.commands[id] = fn; return { dispose: noop }; }, executeCommand: noop },
@@ -50,6 +55,8 @@ for (const id of Object.keys(registered.commands)) {
   if (id.startsWith("odooCi.")) assert.ok(pkg.contributes.commands.some((c) => c.command === id) || id === "odooCi.steps.focus", `registered but not in package.json: ${id}`);
 }
 for (const v of pkg.contributes.views.odooStudio) assert.ok(registered.trees[v.id], `no tree for view ${v.id}`);
+for (const v of pkg.contributes.views.odooCockpit) assert.ok(registered.views[v.id], `no provider for the bottom view ${v.id}`);
+assert.ok(pkg.contributes.viewsContainers.panel.some((c) => c.id === "odooCockpit"), "the cockpit has a container in the bottom panel");
 
 const env = registered.trees["odooCi.env"];
 const roots = env.getChildren();
@@ -112,6 +119,57 @@ assert.strictEqual(parseOdooCommand(`bash -c "python odoo-bin --http-port=1900"`
 assert.strictEqual(parseOdooCommand(`${win("Users", "me", "Code", "Code.exe")} ${bin}`, project19), null, "nor an editor with odoo-bin open");
 assert.strictEqual(parseOdooCommand(`"${python}" ${bin} -c ${conf} --http-port=1900`, project19).port, 1900, "a venv python is a server");
 assert.strictEqual(parseOdooCommand(`python3.12 odoo-bin --http-port=1901`, project19).port, 1901, "python3.12 is a server");
+// ---- the errors and warnings view: a list to walk through, a filter, and the progress line
+{
+  const { IssuesProvider, setIssuesSource, visibleIssues, occurrences, issueFilter, issueCursor, progressLine, duration, shortText } = ext._test.issues;
+  const tree = registered.trees["odooCi.issues"];
+  assert.ok(tree, "the Errors & Warnings view is registered");
+  const empty = tree.getChildren();
+  assert.strictEqual(empty.length, 1, "with no log yet it says so, once");
+  assert.ok(String(empty[0].label).includes("No server log"), "and says what to do");
+
+  const item = (kind, line, extra) => Object.assign({ kind, line, lines: [line], count: 1, db: "dbx", message: `${kind} at ${line}`, detail: null, module: null, location: null }, extra);
+  const verdict = {
+    state: "problems",
+    items: [item("error", 10, { detail: "ValueError: boom", location: { file: "C:/p/a.py", line: 40 } }), item("warning", 2, { module: "mod_a" }),
+      item("warning", 7, { count: 2, lines: [7, 8], module: "mod_b", db: "other" })],
+    marks: { error: [10], warning: [2, 7, 8] }, progress: null,
+  };
+  setIssuesSource("Server", "C:/tmp/x.log", verdict);
+  const groups = tree.getChildren();
+  assert.deepStrictEqual(groups.map((g) => String(g.label)).slice(1), ["Errors (1)", "Warnings (2)"], "grouped, errors first");
+  const warnings = tree.getChildren(groups[2]);
+  assert.strictEqual(warnings.length, 2);
+  assert.ok(String(warnings[1].description).includes("×2") && String(warnings[1].description).includes("line 7"), "a repeated warning says how often and where");
+  assert.strictEqual(warnings[0].command.command, "odooCi.issueOpen", "a click opens it");
+  assert.strictEqual(tree.getChildren(groups[1])[0].contextValue, "issueWithSource", "an error that ends in your code offers the code");
+  assert.strictEqual(tree.getChildren(groups[2])[0].contextValue, "issue", "one that does not offers only the log");
+
+  // walking through: errors first, then warnings, one stop per line they happened on
+  assert.deepStrictEqual(occurrences().map((o) => o.line), [10, 2, 7, 8]);
+  issueFilter.kind = "warning";
+  assert.deepStrictEqual(visibleIssues().map((i) => i.line), [2, 7], "the filter narrows the list");
+  assert.deepStrictEqual(occurrences().map((o) => o.line), [2, 7, 8]);
+  issueFilter.kind = "all";
+  issueFilter.db = "other";
+  assert.deepStrictEqual(visibleIssues().map((i) => i.line), [7], "by database");
+  issueFilter.db = null;
+  issueFilter.module = "mod_a";
+  assert.deepStrictEqual(visibleIssues().map((i) => i.line), [2], "by module");
+  issueFilter.module = null;
+  assert.strictEqual(issueCursor.at, -1);
+
+  // how far it has got
+  assert.strictEqual(duration(75), "1m 15s");
+  assert.strictEqual(duration(9), "9s");
+  assert.strictEqual(shortText("<b>Access</b>  <br/>Rights   x", 40), "Access Rights x", "markup and spaces are flattened");
+  assert.strictEqual(progressLine({ index: 120, total: 324, percent: 37, module: "website", file: "views/a.xml", eta_s: 70, finished: false }),
+    "120 of 324 modules (37%) · website/views/a.xml · about 1m 10s left");
+  assert.strictEqual(progressLine({ index: 324, total: 324, finished: true, seconds: 121.26, updated: 301 }), "324 modules loaded in 2m 01s, 301 upgraded");
+  assert.strictEqual(progressLine(null), "");
+  setIssuesSource("Server", null, null);
+}
+
 console.log(`smoke OK: ${Object.keys(registered.commands).length} commands, ${Object.keys(registered.trees).length} views, ${roots.length - 1} versions listed`);
 subscriptions.forEach((s) => s.dispose && s.dispose());
 process.exit(0);

@@ -26,8 +26,9 @@ VERSION = "1.3.0"
 SUPPORTED_VERSIONS = ["17", "18", "19", "20"]
 #: commands whose module has its own main(): name -> (module, function)
 #: commands that take their own options (`--staged`, `--install`...): argparse would refuse a leading `-`
-PASSTHROUGH = ("secrets", "sync-versions", "claude", "xpath-check", "db-snap", "i18n", "init-fast-db", "tools-ci")
-DELEGATED = {"xpath-check": ("xpath_lint", "main"), "db-snap": ("db_snap", "main"), "i18n": ("i18n_sync", "main")}
+PASSTHROUGH = ("secrets", "sync-versions", "claude", "xpath-check", "db-snap", "i18n", "init-fast-db", "tools-ci", "server")
+DELEGATED = {"xpath-check": ("xpath_lint", "main"), "db-snap": ("db_snap", "main"), "i18n": ("i18n_sync", "main"),
+             "server": ("server_ctl", "main")}
 
 
 def module_root(path):
@@ -189,7 +190,8 @@ def main():
                        ("db-snap", "Instant PostgreSQL snapshot and rollback (save|restore|list|drop)"),
                        ("i18n", "Translation sync (scan|update|export -m <module> [-l <lang>])"),
                        ("init-fast-db", "Build the clean template database for `test --fast` [-v <NN>]"),
-                       ("tools-ci", "Run every version's tools tests under the CI's conditions (--install-hook: pre-push)")):
+                       ("tools-ci", "Run every version's tools tests under the CI's conditions (--install-hook: pre-push)"),
+                       ("server", "A project's server: dbs | inventory | modules -d <db> | command | upgrade -d <db> [-m all|a,b] | drift -d <db> | backup -d <db> --dir <folder> | drop -d <db> --yes | health --log <file>")):
         extra = subparsers.add_parser(name, help=text, add_help=False)
         extra.add_argument("rest", nargs=argparse.REMAINDER)
 

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-{{nonce}}'; script-src 'nonce-{{nonce}}';">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odoo Cockpit</title>
+<style nonce="{{nonce}}">
+/* Every colour is the editor's own, each with a fallback: a variable a theme does not define would otherwise drop the
+   whole declaration (that is how the day map once lost its grid in dark mode). */
+:root {
+  --fg: var(--vscode-foreground, #cccccc);
+  --muted: var(--vscode-descriptionForeground, #9d9d9d);
+  --bg: var(--vscode-editor-background, #1e1e1e);
+  --card: var(--vscode-sideBar-background, #252526);
+  --line: var(--vscode-panel-border, #3c3c3c);
+  --accent: var(--vscode-focusBorder, #007fd4);
+  --btn-bg: var(--vscode-button-background, #0e639c);
+  --btn-fg: var(--vscode-button-foreground, #ffffff);
+  --btn2-bg: var(--vscode-button-secondaryBackground, #3a3d41);
+  --btn2-fg: var(--vscode-button-secondaryForeground, #cccccc);
+  --input-bg: var(--vscode-input-background, #3c3c3c);
+  --input-fg: var(--vscode-input-foreground, #cccccc);
+  --ok: var(--vscode-testing-iconPassed, #73c991);
+  --warn: var(--vscode-editorWarning-foreground, #cca700);
+  --bad: var(--vscode-errorForeground, #f48771);
+  --mono: var(--vscode-editor-font-family, Consolas, "Courier New", monospace);
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 12px 16px 24px; color: var(--fg); background: var(--bg); font: 13px/1.45 var(--vscode-font-family, "Segoe UI", sans-serif); }
+h1 { font-size: 15px; margin: 0; font-weight: 600; }
+h2 { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+.top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.top .sub { color: var(--muted); }
+.grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 760px) { .grid { grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.4fr); } .grid > .col:nth-child(3) { grid-column: 1 / -1; } }
+@media (min-width: 1150px) { .grid { grid-template-columns: minmax(280px, 340px) minmax(380px, 1.3fr) minmax(320px, 1fr); } .grid > .col:nth-child(3) { grid-column: auto; } }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: 0 0 12px; }
+.tab { background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 5px 14px; }
+.tab.on { color: var(--fg); border-bottom-color: var(--accent); }
+/* In the bottom panel the page has little height: it fills what it is given, and each column scrolls on its own. */
+body.panel { padding: 6px 10px 8px; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+body.panel .top { margin-bottom: 4px; }
+body.panel .tabs { margin-bottom: 6px; }
+body.panel .page { flex: 1; min-height: 0; overflow: auto; }
+body.panel .grid { height: 100%; }
+body.panel .grid > .col { overflow: auto; min-height: 0; }
+body.panel .scroll { max-height: none; }
+body.panel #log { height: calc(100vh - 150px); min-height: 120px; }
+.progressrow { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; min-width: 0; }
+.pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid currentColor; }
+.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); } .pill.idle { color: var(--muted); }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
+.kv { display: grid; grid-template-columns: 90px 1fr; gap: 2px 8px; margin: 6px 0; }
+.kv span:nth-child(odd) { color: var(--muted); }
+button { background: var(--btn-bg); color: var(--btn-fg); border: 0; border-radius: 3px; padding: 4px 10px; cursor: pointer; font: inherit; }
+button.secondary { background: var(--btn2-bg); color: var(--btn2-fg); }
+button.danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+button.small { padding: 1px 7px; font-size: 12px; }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+input[type=text], select { background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--line); border-radius: 3px; padding: 3px 7px; font: inherit; min-width: 0; }
+.bar { height: 8px; background: var(--btn2-bg); border-radius: 4px; overflow: hidden; margin: 6px 0 2px; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.hint.warn { color: var(--warn); } .hint.bad { color: var(--bad); }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 3px 8px 3px 0; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; font-size: 11px; cursor: pointer; user-select: none; }
+td.num, th.num { text-align: right; }
+tr.sel td { background: var(--vscode-list-activeSelectionBackground, rgba(0, 127, 212, .25)); }
+tr.dim td { opacity: .55; }
+tr.row-db { cursor: pointer; }
+.scroll { overflow: auto; max-height: 280px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: 0 9px; cursor: pointer; background: transparent; color: var(--fg); font-size: 12px; }
+.chip.on { background: var(--accent); color: var(--btn-fg); border-color: var(--accent); }
+.issue { display: flex; gap: 6px; padding: 3px 0; border-bottom: 1px solid var(--line); cursor: pointer; align-items: baseline; }
+.issue:hover { background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, .06)); }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; margin-top: 3px; }
+.dot.error { background: var(--bad); } .dot.warning { background: var(--warn); }
+.issue .txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.issue .meta { color: var(--muted); font-size: 11px; white-space: nowrap; }
+#log { font: 12px/1.4 var(--mono); height: 300px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 4px 0; }
+#log div { padding: 0 8px; white-space: pre-wrap; word-break: break-all; border-left: 3px solid transparent; cursor: pointer; }
+#log div.error { background: rgba(244, 71, 71, .16); border-left-color: var(--bad); }
+#log div.warning { background: rgba(204, 167, 0, .14); border-left-color: var(--warn); }
+#log div:hover { outline: 1px solid var(--line); }
+#log .n { color: var(--muted); margin-right: 8px; user-select: none; }
+.toast { position: fixed; right: 14px; bottom: 14px; max-width: 420px; padding: 8px 12px; border-radius: 4px; background: var(--card); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0, 0, 0, .4); }
+.toast.bad { border-color: var(--bad); } .toast.warn { border-color: var(--warn); } .toast.ok { border-color: var(--ok); }
+.empty { color: var(--muted); padding: 8px 0; }
+.sr { position: absolute; left: -9999px; }
+</style>
+</head>
+<body>
+<div class="top" id="top"></div>
+<div class="tabs" id="tabs" role="tablist"></div>
+<div class="page" id="page-local">
+<div class="grid">
+  <div class="col">
+    <section class="card" id="server" aria-label="Server"></section>
+    <section class="card" id="progress" aria-label="Progress" hidden></section>
+    <section class="card" id="issues" aria-label="Errors and warnings"></section>
+  </div>
+  <div class="col">
+    <section class="card" id="dbs" aria-label="Databases"></section>
+    <section class="card" id="modules" aria-label="Modules" hidden></section>
+  </div>
+  <div class="col">
+    <section class="card" id="logcard" aria-label="Server log"></section>
+  </div>
+</div>
+</div>
+<div class="page" id="page-remote" hidden>
+  <section class="card" id="remote" aria-label="Remote servers"></section>
+</div>
+<div class="sr" role="status" aria-live="polite" id="live"></div>
+<script nonce="{{nonce}}">
+(function () {
+  "use strict";
+  var vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : { postMessage: function () {}, getState: function () { return null; }, setState: function () {} };
+  var S = null;                                  // the last state the host sent
+  var ui = vscode.getState() || { dbSort: "name", dbDesc: false, dbFilter: "", selected: null, logLevel: "all", logSearch: "", modFilter: "attention", autoscroll: true, tab: "local" };
+  if (!ui.tab) ui.tab = "local";
+  var $ = function (id) { return document.getElementById(id); };
+
+  // Build nodes, never markup strings: log lines and messages are data and may contain anything.
+  function h(tag, attrs) {
+    var el = document.createElement(tag);
+    for (var k in (attrs || {})) {
+      if (k === "class") el.className = attrs[k];
+      else if (k === "style") el.style.cssText = attrs[k];   // the policy blocks a style ATTRIBUTE in markup; the style OBJECT is allowed
+      else if (k.slice(0, 2) === "on") el.addEventListener(k.slice(2), attrs[k]);
+      else if (attrs[k] !== false && attrs[k] !== null && attrs[k] !== undefined) el.setAttribute(k, attrs[k] === true ? "" : attrs[k]);
+    }
+    for (var i = 2; i < arguments.length; i++) {
+      var c = arguments[i];
+      if (c === null || c === undefined || c === false) continue;
+      el.appendChild(typeof c === "object" ? c : document.createTextNode(String(c)));
+    }
+    return el;
+  }
+  function put(el, nodes) { el.textContent = ""; nodes.forEach(function (n) { if (n) el.appendChild(n); }); }
+  function send(cmd, extra) { var m = { cmd: cmd }; for (var k in (extra || {})) m[k] = extra[k]; vscode.postMessage(m); }
+  function save() { vscode.setState(ui); }
+  function btn(label, cmd, extra, cls, disabled) {
+    return h("button", { class: cls || "", disabled: !!disabled, onclick: function (e) { e.stopPropagation(); send(cmd, extra); } }, label);
+  }
+  function dur(s) { if (s === null || s === undefined) return ""; s = Math.round(s); return s >= 60 ? Math.floor(s / 60) + "m " + String(s % 60).padStart(2, "0") + "s" : s + "s"; }
+
+  // ----------------------------------------------------------------------------- the pieces
+  function pill(state) {
+    var map = { healthy: ["ok", "Healthy"], starting: ["warn", "Starting"], problems: ["warn", "Problems"], failed: ["bad", "Failed"], stopped: ["idle", "Stopped"] };
+    var m = map[state] || ["idle", state || "-"];
+    return h("span", { class: "pill " + m[0] }, m[1]);
+  }
+
+  function renderTop() {
+    var p = S.project;
+    put($("top"), [
+      h("h1", {}, "Odoo Cockpit"),
+      h("span", { class: "sub" }, p.name + " · Odoo " + p.version + " · port " + p.port),
+      pill(S.server.running ? (S.server.health ? S.server.health.state : "starting") : "stopped"),
+      h("span", { class: "sub" }, S.server.db ? "database " + S.server.db : (S.server.running ? "no database chosen" : "")),
+    ]);
+  }
+
+  function renderServer() {
+    var sv = S.server, hl = sv.health, nodes = [h("h2", {}, "Server")];
+    nodes.push(h("div", { class: "kv" },
+      h("span", {}, "State"), h("span", {}, sv.running ? "running" + (sv.pid ? " (pid " + sv.pid + ")" : "") : "stopped"),
+      h("span", {}, "Port"), h("span", {}, String(S.project.port)),
+      h("span", {}, "Database"), h("span", {}, sv.db || (sv.running ? "none: Odoo visits every database" : "-")),
+      hl ? h("span", {}, "Log") : null, hl ? h("span", {}, hl.errors + hl.critical + " error(s) · " + hl.warnings + " warning(s)" + (hl.http_500 ? " · " + hl.http_500 + " HTTP 500" : "")) : null));
+    if (hl && hl.hint) nodes.push(h("div", { class: "hint " + (hl.state === "failed" ? "bad" : "warn") }, hl.hint));
+    if (sv.running && !sv.db) nodes.push(h("div", { class: "hint warn" }, "Started without a database. Choose one with Start with Options; the Start button then remembers it."));
+    nodes.push(h("div", { class: "row" },
+      btn("Start", "start", null, "", sv.running), btn("Start with options…", "startOptions", null, "secondary", false),
+      btn("Restart", "restart", null, "secondary", !sv.running), btn("Stop", "stop", null, "danger", !sv.running),
+      btn("Open in browser", "open", null, "secondary", !sv.running)));
+    put($("server"), nodes);
+  }
+
+  function renderProgress() {
+    var el = $("progress"), up = S.upgrade, hl = S.server.health, p = hl && hl.progress;
+    var active = up || (p && !p.finished && S.server.running && hl.state === "starting");
+    if (!active && !(p && p.finished && S.lastUpgrade)) { el.hidden = true; return; }
+    el.hidden = false;
+    var nodes = [h("h2", {}, up ? "Upgrade · " + up.what + " on " + up.db : "Starting")];
+    var q = up && up.progress ? up.progress : p;
+    if (q) {
+      nodes.push(h("div", { class: "bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(q.percent) }, h("i", { style: "width:" + q.percent + "%" })));
+      nodes.push(h("div", {}, q.finished
+        ? q.total + " modules loaded in " + dur(q.seconds) + (q.updated ? " · " + q.updated + " upgraded" : "")
+        : q.index + " of " + q.total + " modules (" + q.percent + "%) · " + (q.module || "") + (q.file ? "/" + q.file : "")));
+      nodes.push(h("div", { class: "hint" }, q.finished ? "" : (q.remaining + " left" + (q.eta_s !== null && q.eta_s !== undefined ? " · about " + dur(q.eta_s) + " to go" : "") + " · " + dur(q.elapsed_s) + " so far")));
+      if (q.finished && q.slowest && q.slowest.length) nodes.push(h("div", { class: "hint" }, "Slowest: " + q.slowest.map(function (s) { return s.module + " " + s.seconds + "s"; }).join(" · ")));
+    } else {
+      nodes.push(h("div", { class: "empty" }, up ? up.text : "Waiting for the first module…"));
+    }
+    if (up) nodes.push(h("div", { class: "hint" }, (up.errors || 0) + " error(s) · " + (up.warnings || 0) + " warning(s) so far"));
+    put(el, nodes);
+  }
+
+  function renderIssues() {
+    var is = S.issues, nodes = [h("h2", {}, "Errors & warnings" + (is.label ? " · " + is.label : ""))];
+    if (!is.items.length) { nodes.push(h("div", { class: "empty" }, is.has ? "None." : "No log yet.")); put($("issues"), nodes); return; }
+    nodes.push(h("div", { class: "row" },
+      h("span", { class: "pill bad" }, is.errors + " error" + (is.errors === 1 ? "" : "s")),
+      h("span", { class: "pill warn" }, is.warnings + " warning" + (is.warnings === 1 ? "" : "s")),
+      btn("Open the list", "issuesView", null, "secondary small"), btn("Pick one…", "issuePick", null, "secondary small")));
+    var box = h("div", { class: "scroll" });
+    is.items.slice(0, 40).forEach(function (it) {
+      box.appendChild(h("div", { class: "issue", title: it.message, onclick: function () { send("openIssue", { line: it.line, file: it.location ? it.location.file : null, fline: it.location ? it.location.line : null }); } },
+        h("span", { class: "dot " + it.kind }),
+        h("span", { class: "txt" }, (it.detail || it.message)),
+        h("span", { class: "meta" }, [it.module, it.count > 1 ? "×" + it.count : "", "line " + it.line].filter(Boolean).join(" · "))));
+    });
+    nodes.push(box);
+    if (is.items.length > 40) nodes.push(h("div", { class: "hint" }, "…and " + (is.items.length - 40) + " more in the list."));
+    put($("issues"), nodes);
+  }
+
+  function renderDbs() {
+    var nodes = [h("h2", {}, "Databases")];
+    if (!S.databases) { nodes.push(h("div", { class: "empty" }, "Reading the databases…")); put($("dbs"), nodes); return; }
+    var series = S.project.version + ".0";
+    var rows = S.databases.filter(function (d) { return !ui.dbFilter || d.name.toLowerCase().indexOf(ui.dbFilter.toLowerCase()) >= 0; });
+    var key = ui.dbSort;
+    rows.sort(function (a, b) {
+      var x = a[key], y = b[key];
+      if (x === null || x === undefined) x = typeof y === "number" ? -1 : "";
+      if (y === null || y === undefined) y = typeof x === "number" ? -1 : "";
+      var r = typeof x === "number" ? x - y : String(x).localeCompare(String(y));
+      return ui.dbDesc ? -r : r;
+    });
+    nodes.push(h("div", { class: "row" },
+      h("input", { type: "text", id: "dbfilter", placeholder: "Filter databases…", "aria-label": "Filter databases", value: ui.dbFilter, oninput: function (e) {
+        var at = e.target.selectionStart; ui.dbFilter = e.target.value; save(); renderDbs();
+        var again = $("dbfilter"); if (again) { again.focus(); again.setSelectionRange(at, at); } } }),
+      btn("Refresh", "refreshDbs", null, "secondary small"),
+      h("span", { class: "hint" }, rows.length + " of " + S.databases.length + (S.backupDir ? " · backups go to " + S.backupDir : ""))));
+    var head = h("tr", {});
+    [["name", "Database"], ["size_mb", "MB", true], ["version", "Version"], ["modules", "Modules", true], ["last_login", "Last login"]].forEach(function (c) {
+      head.appendChild(h("th", { class: c[2] ? "num" : "", "aria-sort": ui.dbSort === c[0] ? (ui.dbDesc ? "descending" : "ascending") : "none",
+        onclick: function () { if (ui.dbSort === c[0]) ui.dbDesc = !ui.dbDesc; else { ui.dbSort = c[0]; ui.dbDesc = false; } save(); renderDbs(); } }, c[1] + (ui.dbSort === c[0] ? (ui.dbDesc ? " ▼" : " ▲") : "")));
+    });
+    head.appendChild(h("th", {}, ""));
+    head.appendChild(h("th", {}, ""));
+    var table = h("table", {}, h("thead", {}, head));
+    var body = h("tbody", {});
+    rows.forEach(function (d) {
+      var serving = S.server.running && S.server.db === d.name;
+      var mismatch = d.version && d.version.indexOf(S.project.version + ".") !== 0;
+      var tr = h("tr", { class: "row-db" + (ui.selected === d.name ? " sel" : "") + (!d.usable || mismatch ? " dim" : ""), tabindex: "0",
+        onclick: function () { ui.selected = d.name; save(); send("loadModules", { db: d.name }); renderDbs(); },
+        onkeydown: function (e) { if (e.key === "Enter") { ui.selected = d.name; save(); send("loadModules", { db: d.name }); renderDbs(); } } },
+        h("td", {}, d.name, serving ? h("span", { class: "pill ok", style: "margin-left:6px" }, "serving") : null,
+          !d.usable ? h("span", { class: "pill bad", style: "margin-left:6px", title: d.reason || "" }, "cannot open") : null,
+          mismatch ? h("span", { class: "pill idle", style: "margin-left:6px" }, "Odoo " + d.version.split(".")[0]) : null),
+        h("td", { class: "num" }, d.size_mb === null ? "" : String(d.size_mb)), h("td", {}, d.version || ""),
+        h("td", { class: "num" }, d.modules === null || d.modules === undefined ? "" : String(d.modules)), h("td", {}, d.last_login || ""),
+        h("td", {}, d.usable && !mismatch ? h("span", {}, btn("Upgrade", "upgrade", { db: d.name }, "small"), " ", btn("Check", "drift", { db: d.name }, "secondary small"), " ", btn("Backup", "backup", { db: d.name }, "secondary small")) : null),
+        h("td", {}, btn("Drop", "drop", { db: d.name }, "danger small")));
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    nodes.push(h("div", { class: "scroll" }, table));
+    if (S.drift) nodes.push(h("div", { class: "hint " + (S.drift.clean ? "" : "warn") }, S.drift.db + ": " + S.drift.advice));
+    nodes.push(h("label", { class: "row" }, h("input", { type: "checkbox", checked: S.backupBeforeUpgrade ? "checked" : false, onchange: function (e) { send("setBackupBeforeUpgrade", { value: e.target.checked }); } }), "Back up a database before upgrading it"));
+    put($("dbs"), nodes);
+  }
+
+  function renderModules() {
+    var el = $("modules"), m = S.modulesInfo;
+    if (!m) { el.hidden = true; return; }
+    el.hidden = false;
+    var nodes = [h("h2", {}, "Modules · " + m.db)];
+    if (m.error) { nodes.push(h("div", { class: "hint bad" }, "Could not read this database (" + m.error + ")")); put(el, nodes); return; }
+    var c = m.counts || {};
+    var attention = (c.version_differs || 0) + (c.to_upgrade || 0) + (c.to_install || 0) + (c.to_remove || 0) + (c.missing_code || 0);
+    nodes.push(h("div", { class: "row" },
+      h("span", { class: "pill ok" }, (c.ok || 0) + " up to date"),
+      attention ? h("span", { class: "pill warn" }, attention + " need attention") : h("span", { class: "pill ok" }, "nothing to upgrade"),
+      h("span", { class: "pill idle" }, (c.available || 0) + " available")));
+    var chips = h("div", { class: "chips" });
+    [["attention", "Need attention"], ["all", "All installed"], ["available", "Available"]].forEach(function (f) {
+      chips.appendChild(h("button", { class: "chip" + (ui.modFilter === f[0] ? " on" : ""), onclick: function () { ui.modFilter = f[0]; save(); renderModules(); } }, f[1]));
+    });
+    nodes.push(chips);
+    var list = m.modules.filter(function (x) {
+      if (ui.modFilter === "available") return x.status === "available";
+      if (ui.modFilter === "all") return x.status !== "available";
+      return x.status !== "ok" && x.status !== "available";
+    });
+    if (!list.length) nodes.push(h("div", { class: "empty" }, "Nothing here."));
+    else {
+      var rows = h("tbody", {});
+      list.slice(0, 200).forEach(function (x) {
+        rows.appendChild(h("tr", {}, h("td", {}, x.name), h("td", {}, x.status.replace("_", " ")), h("td", {}, x.installed_version || ""), h("td", {}, x.code_version || ""),
+          h("td", {}, x.status === "version_differs" || x.status === "to_upgrade" ? btn("Upgrade", "upgrade", { db: m.db, modules: x.name }, "small") : null)));
+      });
+      nodes.push(h("div", { class: "scroll" }, h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, "Module"), h("th", {}, "Status"), h("th", {}, "In database"), h("th", {}, "In code"), h("th", {}, ""))), rows)));
+      if (list.length > 200) nodes.push(h("div", { class: "hint" }, "…and " + (list.length - 200) + " more."));
+    }
+    put(el, nodes);
+  }
+
+  function renderLog() {
+    var lg = S.log, nodes = [h("h2", {}, "Server log" + (lg.path ? "" : ""))];
+    var chips = h("div", { class: "chips" });
+    [["all", "All"], ["error", "Errors"], ["warning", "Warnings"]].forEach(function (f) {
+      chips.appendChild(h("button", { class: "chip" + (ui.logLevel === f[0] ? " on" : ""), onclick: function () { ui.logLevel = f[0]; save(); renderLog(); } }, f[1]));
+    });
+    nodes.push(h("div", { class: "row" }, chips,
+      h("input", { type: "text", placeholder: "Search the log…", "aria-label": "Search the log", value: ui.logSearch, oninput: function (e) { ui.logSearch = e.target.value; save(); fillLog(); } }),
+      btn("Open file", "openLog", { line: 0 }, "secondary small"),
+      h("label", {}, h("input", { type: "checkbox", checked: ui.autoscroll ? "checked" : false, onchange: function (e) { ui.autoscroll = e.target.checked; save(); } }), " follow")));
+    nodes.push(h("div", { id: "log", role: "log", "aria-label": "Server log lines" }));
+    put($("logcard"), nodes);
+    fillLog();
+  }
+  function fillLog() {
+    var box = $("log"), lg = S.log;
+    if (!box) return;
+    box.textContent = "";
+    if (!lg.lines.length) { box.appendChild(h("div", {}, lg.path ? "The log is empty so far." : "No server log yet. Start the server from here.")); return; }
+    var q = ui.logSearch.toLowerCase();
+    var shown = 0;
+    lg.lines.forEach(function (l) {
+      if (ui.logLevel !== "all" && l.level !== ui.logLevel) return;
+      if (q && l.text.toLowerCase().indexOf(q) < 0) return;
+      shown++;
+      box.appendChild(h("div", { class: l.level === "error" || l.level === "warning" ? l.level : "", onclick: function () { send("openLog", { line: l.n }); } },
+        l.n ? h("span", { class: "n" }, String(l.n)) : null, l.text));
+    });
+    if (!shown) box.appendChild(h("div", {}, "No line matches."));
+    if (ui.autoscroll) box.scrollTop = box.scrollHeight;
+  }
+
+  // ----------------------------------------------------------------------------- tabs and the remote servers
+  function renderTabs() {
+    var tabs = [["local", "This machine"], ["remote", "Remote servers"]];
+    put($("tabs"), tabs.map(function (t) {
+      return h("button", { class: "tab" + (ui.tab === t[0] ? " on" : ""), role: "tab", "aria-selected": ui.tab === t[0] ? "true" : "false",
+        onclick: function () { ui.tab = t[0]; save(); render(); } }, t[1]);
+    }));
+    $("page-local").hidden = ui.tab !== "local";
+    $("page-remote").hidden = ui.tab !== "remote";
+  }
+
+  function renderRemote() {
+    var R = S.remote, nodes = [h("h2", {}, "Remote servers · databases over SSH")];
+    if (!R) { put($("remote"), nodes); return; }
+    var hosts = R.hosts || [];
+    var select = h("select", { "aria-label": "Host", disabled: !!R.busy, onchange: function (e) { if (e.target.value) send("remoteSelect", { host: e.target.value }); } },
+      h("option", { value: "" }, hosts.length ? "Choose a host…" : "No host in ~/.ssh/config"));
+    hosts.forEach(function (x) {
+      select.appendChild(h("option", { value: x.name, selected: R.host === x.name ? "selected" : false }, x.name + (x.user ? " (" + x.user + ")" : "")));
+    });
+    nodes.push(h("div", { class: "row" }, select,
+      btn("Refresh", "remoteRefresh", null, "secondary small", !R.host || R.busy),
+      btn("Push a local database…", "remotePush", { host: R.host }, "secondary small", !R.host || !R.info || R.busy),
+      h("span", { class: "hint" }, "The hosts of your SSH config: the same ones Remote-SSH uses. Passwords are never stored here.")));
+    if (R.job) {
+      var pct = R.job.total ? Math.round(100 * R.job.step / R.job.total) : 0;
+      nodes.push(h("div", { class: "progressrow" }, h("strong", {}, R.job.title || "Working"),
+        h("span", {}, R.job.total ? "step " + R.job.step + " of " + R.job.total + ": " + R.job.text : R.job.text)));
+      nodes.push(h("div", { class: "bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct) }, h("i", { style: "width:" + pct + "%" })));
+    }
+    if (R.error) {
+      nodes.push(h("div", { class: "hint bad" }, R.error));
+      if (R.needsKey) nodes.push(h("div", { class: "row" }, btn("Set up key login for " + R.host + "…", "remoteKey", { host: R.host }, "small"),
+        h("span", { class: "hint" }, "A terminal asks for the host's password once; after that no question is asked.")));
+    }
+    if (R.last) nodes.push(h("div", { class: "hint " + (R.last.level === "bad" ? "bad" : "") }, R.last.text));
+    if (R.info) {
+      var inst = {};
+      R.info.instances.forEach(function (i) { if (i.db_name) inst[i.db_name] = i.conf.split("/").pop().replace(/\.conf$/, ""); });
+      var rows = R.info.databases;
+      var table = h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, "Database"), h("th", { class: "num" }, "MB"), h("th", {}, "Owner"), h("th", { class: "num" }, "Sessions"), h("th", {}, "Instance"), h("th", {}, ""))));
+      var body = h("tbody", {});
+      rows.forEach(function (d) {
+        body.appendChild(h("tr", { class: "row-remote" },
+          h("td", {}, d.name), h("td", { class: "num" }, String(d.size_mb)), h("td", {}, d.owner), h("td", { class: "num" }, String(d.sessions)),
+          h("td", {}, inst[d.name] || ""),
+          h("td", {}, btn("Pull to local", "remotePull", { host: R.host, db: d.name }, "small", R.busy), " ",
+            btn("Backup file", "remoteBackup", { host: R.host, db: d.name }, "secondary small", R.busy), " ",
+            btn("Drop", "remoteDrop", { host: R.host, db: d.name }, "danger small", R.busy || d.sessions > 0))));
+      });
+      table.appendChild(body);
+      nodes.push(h("div", { class: "hint" }, rows.length + " database(s) on " + R.host + ". A pull reads the host and makes a NEW local database (never over one that exists), switched safe: no scheduled actions, no outgoing mail."));
+      nodes.push(h("div", { class: "scroll" }, table));
+    } else if (R.host && !R.error && !R.busy) {
+      nodes.push(h("div", { class: "empty" }, "Reading " + R.host + "…"));
+    } else if (!R.host) {
+      nodes.push(h("div", { class: "empty" }, "Choose a host to see its databases."));
+    }
+    put($("remote"), nodes);
+  }
+
+  function render() {
+    if (!S) return;
+    document.body.className = S.mode === "panel" ? "panel" : "";
+    renderTabs(); renderRemote();
+    renderTop(); renderServer(); renderProgress(); renderIssues(); renderDbs(); renderModules();
+    var keepScroll = $("log") ? $("log").scrollTop : 0;
+    renderLog();
+    if (!ui.autoscroll && $("log")) $("log").scrollTop = keepScroll;
+    var bar = document.querySelector("#progress .bar > i");
+    send("rendered", { dbRows: document.querySelectorAll("#dbs tbody tr").length, logLines: document.querySelectorAll("#log div").length,
+      errorLines: document.querySelectorAll("#log div.error").length, warningLines: document.querySelectorAll("#log div.warning").length,
+      issues: document.querySelectorAll("#issues .issue").length, pill: (document.querySelector("#top .pill") || {}).textContent || null,
+      progressShown: !$("progress").hidden, barWidth: bar ? bar.style.width : null, modulesShown: !$("modules").hidden,
+      mode: S.mode, tab: ui.tab, tabs: document.querySelectorAll("#tabs .tab").length, remoteRows: document.querySelectorAll("#remote tbody tr").length,
+      remoteHosts: document.querySelectorAll("#remote select option").length - 1 });
+  }
+
+  var late = false;
+  document.addEventListener("focusout", function () { if (late) { late = false; setTimeout(render, 0); } });
+  var toastTimer = null;
+  window.addEventListener("message", function (event) {
+    var m = event.data || {};
+    if (m.type === "state") {
+      S = m.state;
+      var a = document.activeElement;   // someone is typing or choosing: redrawing now would take the field from them
+      if (a && (a.tagName === "SELECT" || (a.tagName === "INPUT" && a.type === "text"))) { late = true; return; }
+      render();
+    }
+    else if (m.type === "toast") {
+      var old = document.querySelector(".toast"); if (old) old.remove();
+      var t = h("div", { class: "toast " + (m.level || "") , role: "alert" }, m.text);
+      document.body.appendChild(t);
+      $("live").textContent = m.text;
+      clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.remove(); }, 6000);
+    }
+  });
+  window.__cockpit = { get: function () { return S; }, ui: ui, render: render };   // for the tests
+  send("ready");
+})();
+</script>
+</body>
+</html>
