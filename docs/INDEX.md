@@ -1,4 +1,4 @@
-# Odoo Studio & CI Pro — Master Architecture & Plan Index
+# Cockpit Odoo — Master Architecture & Plan Index
 # فهرس خطة العمل والمعمارية المركزية لمنظومة أودو الموحدة
 
 **Author & Ownership:** [HosamAE](https://github.com/HosamAE)  

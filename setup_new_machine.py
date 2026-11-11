@@ -1,5 +1,5 @@
 """
-Odoo Studio & CI Pro — New Machine Automator (setup_new_machine.py)
+Cockpit Odoo — New Machine Automator (setup_new_machine.py)
 Automates setup of the complete Odoo workspace architecture on any fresh machine in seconds.
 Conceived & Architected by HosamAE.
 """
@@ -58,7 +58,7 @@ def install_vscode_extension():
 
     vsix_path = os.path.join(BASE_DIR, "odoo19", "tools", "vscode-extension", "odoo-ci-1.4.0.vsix")
     if os.path.exists(vsix_path):
-        log(f"Installing Odoo Studio & CI Pro extension ({vsix_path})...", "INFO")
+        log(f"Installing Cockpit Odoo extension ({vsix_path})...", "INFO")
         res = subprocess.run([code, "--install-extension", vsix_path, "--force"], capture_output=True, text=True)
         if res.returncode == 0:
             log("VS Code extension (HosamAE.odoo-ci) installed successfully!", "OK")
@@ -98,12 +98,12 @@ def initialize_project_plans(version="19"):
     log(f"Verified and synchronized plan/ protocols for ProjectsOdoo{version} (UTF-8).", "OK")
 
 def main():
-    parser = argparse.ArgumentParser(description="Odoo Studio & CI Pro — New Machine Automator")
+    parser = argparse.ArgumentParser(description="Cockpit Odoo — New Machine Automator")
     parser.add_argument("--version", "-v", default="19", choices=["17", "18", "19", "20"], help="Target Odoo version")
     args = parser.parse_args()
 
     print("\n" + "="*70)
-    print("   Odoo Studio & CI Pro — Fresh Machine Setup & Architecture Initializer")
+    print("   Cockpit Odoo — Fresh Machine Setup & Architecture Initializer")
     print("   Engineered by HosamAE (https://github.com/HosamAE/odoo_plan)")
     print("="*70 + "\n")
 

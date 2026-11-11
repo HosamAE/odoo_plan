@@ -180,7 +180,7 @@ def main():
     addon_parser.add_argument("--summary", "-s", default="Custom business addon", help="Short summary")
 
     # 15. Self-test command for Tools Suite
-    subparsers.add_parser("test-self", help="Run automated test suite for Odoo Studio & CI Pro tools")
+    subparsers.add_parser("test-self", help="Run automated test suite for Cockpit Odoo tools")
 
     # 16. Secret scanner / pre-commit hook, and building the version branches from main
     for name, text in (("secrets", "Scan for passwords/tokens (--staged, FILE..., --install-hook)"),

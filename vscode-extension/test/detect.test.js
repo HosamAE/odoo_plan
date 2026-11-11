@@ -31,6 +31,8 @@ async function main() {
   // a server of this project, a server of another project, and a SHELL whose command line mentions odoo-bin
   const mine = spawn(["-c", conf, "--http-port=1999"]);
   const other = spawn(["--config=/elsewhere/Other.conf", "-p", "2999"]);
+  const logPath = path.join(require("os").tmpdir(), "detect_demo_server.log");
+  const logged = spawn(["-c", conf, "--http-port=1777", `--logfile=${logPath}`]);   // started elsewhere, but writing a log
   const shellLine = `${python} -c "import time; time.sleep(30)" odoo-bin -c ${conf} --http-port=1888`;
   const shell = process.platform === "win32"
     ? cp.spawn("cmd.exe", ["/d", "/s", "/c", `"${shellLine}"`], { stdio: "ignore", windowsHide: true, windowsVerbatimArguments: true })
@@ -42,6 +44,10 @@ async function main() {
     const found = servers.filter((s) => s.port === 1999);
     assert.strictEqual(found.length, 1, `one server on :1999 expected, got ${JSON.stringify(found)}`);
     assert.strictEqual(found[0].mine, true, "found and attributed to this project");
+
+    const withLog = servers.find((s) => s.port === 1777);
+    assert.ok(withLog && withLog.mine && withLog.logfile === logPath, `a server started elsewhere reports the log it writes: ${JSON.stringify(withLog)}`);
+    assert.strictEqual(found[0].logfile, null, "one that writes no log file says so");
 
     const another = servers.find((s) => s.port === 2999);
     assert.ok(another, "another project's server is found too");
@@ -61,7 +67,7 @@ async function main() {
     assert.ok(after.some((s) => s.port === 2999), "stopping one server must not stop another project's");
     console.log(`detect OK: ${servers.length} servers counted once each (:1999 this project, :2999 another, :1888 via a shell, never the shell); Stop ended one and left the others`);
   } finally {
-    for (const child of [mine, other, shell]) { try { child.kill(); } catch (e) { /* gone */ } }
+    for (const child of [mine, other, shell, logged]) { try { child.kill(); } catch (e) { /* gone */ } }
   }
 }
 main().then(() => process.exit(0), (error) => { console.error(error); process.exit(1); });

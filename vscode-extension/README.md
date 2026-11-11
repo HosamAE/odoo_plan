@@ -1,7 +1,7 @@
-# Odoo Studio & CI Pro
+# Cockpit Odoo
 
 <p align="center">
-  <img src="https://files.catbox.moe/xz2xln.png" width="128" height="128" alt="Odoo Studio & CI Pro Logo" />
+  <img src="https://files.catbox.moe/xz2xln.png" width="128" height="128" alt="Cockpit Odoo Logo" />
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 ---
 
 <p align="center">
-  <img src="https://files.catbox.moe/8e9emh.png" width="100%" alt="Odoo Studio & CI Pro Architecture" />
+  <img src="https://files.catbox.moe/8e9emh.png" width="100%" alt="Cockpit Odoo Architecture" />
 </p>
 
 ## 🌟 Key Features
@@ -85,7 +85,7 @@ The server is not recognised only when this extension started it. It looks at th
 ## 🚀 Quick Setup & Usage
 
 1. Open any Odoo project folder in VS Code or Antigravity IDE.
-2. Click the **Odoo Studio & CI** icon in the Activity Bar.
+2. Click the **Cockpit Odoo** icon in the Activity Bar.
 3. Click **`[⚙ Setup Wizard]`** to confirm Python path, Server Port, and Default Language.
 4. Use the **Project Control Panel** for server management, testing, and developer tools.
 
