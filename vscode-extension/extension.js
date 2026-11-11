@@ -1,4 +1,4 @@
-// Odoo Studio & CI (local): Server control, template DB fast test, module scaffold & CI gates.
+// Cockpit Odoo (local): Server control, template DB fast test, module scaffold & CI gates.
 "use strict";
 
 const vscode = require("vscode");
@@ -14,6 +14,7 @@ let stepsHelper;
 let output, statusItem, serverItem, diagnostics, stepsTree, actionsTree, envTree, child = null;
 let extContext = null;
 let cockpit = null;
+let translations = null;
 const state = { steps: [], phases: [], logPath: null, result: null, project: null, mode: null, started: null, serverRunning: false, servers: [], portOpen: false };
 
 // ------------------------------------------------------------ the project
@@ -167,10 +168,8 @@ class ActionsProvider {
   serverItems(port) {
     const item = (label, icon, opts) => treeItem(label, Object.assign({ icon }, opts));
     const mine = state.servers.filter((s) => s.mine);
-    const others = state.servers.filter((s) => !s.mine);
     const out = [];
-    out.push(item("Open Cockpit", "dashboard", { description: "in the bottom panel", command: { command: "odooCi.cockpitPanel", title: "Open Cockpit" } }));
-    out.push(item("Open Cockpit in Editor", "window", { description: "a full tab", command: { command: "odooCi.cockpit", title: "Open Cockpit in Editor" } }));
+    out.push(item("Open Cockpit", "dashboard", { description: "bottom panel; the page can move itself up", command: { command: "odooCi.cockpitPanel", title: "Open Cockpit" } }));
     if (mine.length) {
       out.push(item("Server: Running", "pass", {
         color: "testing.iconPassed", description: `localhost:${mine[0].port} · pid ${mine[0].pid}`,
@@ -181,14 +180,6 @@ class ActionsProvider {
         tooltip: "Something answers on this port (Docker, WSL or another machine)." }));
     } else {
       out.push(item("Server: Stopped", "circle-outline", { description: `localhost:${port}` }));
-    }
-    for (const other of others) {
-      out.push(item("Another Odoo is running", "warning", {
-        color: "list.warningForeground", description: `:${other.port} · pid ${other.pid}`,
-        tooltip: other.conf ? `${other.conf}
-Click to open it.` : "Started without --config. Click to open it.",
-        command: { command: "odooCi.serverOpen", title: "Open", arguments: [other.port] },
-      }));
     }
     if (state.upgrade) {
       out.unshift(item(`Upgrading ${state.upgrade.what} on ${state.upgrade.db}`, "sync~spin", {
@@ -412,7 +403,7 @@ function setStatus(kind, label) {
     statusItem.tooltip = project
       ? `Odoo ${project.version} · ${project.name} · port ${getProjectPort(project)}
 Click for the Studio menu.`
-      : "Odoo Studio & CI. Click for menu.";
+      : "Cockpit Odoo. Click for menu.";
     statusItem.command = "odooCi.menu";
     statusItem.backgroundColor = undefined;
   }
@@ -549,10 +540,57 @@ function confPath(project) {
   return path.join(project.root, `${project.name}.conf`);
 }
 
-function serverLogPath(project) {
+function serverLogPath(project, port) {
   const dir = extContext && extContext.globalStorageUri ? extContext.globalStorageUri.fsPath : require("os").tmpdir();
   fs.mkdirSync(dir, { recursive: true });
-  return path.join(dir, `${project.name}.server.log`);
+  return path.join(dir, `${project.name}.server${port ? `.${port}` : ""}.log`);
+}
+
+/** The servers this window started, by port: {proc, db, log, exited}. Several can run at once, each with its own log. */
+const launched = new Map();
+
+/** The first port from the project's own that nothing answers on and nothing of ours is starting on. */
+async function freePort(project) {
+  const taken = new Set((await detectServers(project)).map((s) => s.port));   // every project's: a port is a port
+  for (const [port, info] of launched) if (!info.exited) taken.add(port);
+  let port = getProjectPort(project);
+  while (taken.has(port)) port += 1;
+  return port;
+}
+
+/** Make this server the one the Server, Log and Errors pages are about. */
+function focusServer(port, automatic) {
+  const seen = state.servers.find((s) => s.port === port);
+  const known = launched.get(port);
+  const info = known && (!known.exited || !seen) ? known : null;   // an old entry of a server that ended does not speak for whatever runs on that port now
+  state.focusPort = port;
+  const outside = !info && seen && seen.logfile && fs.existsSync(seen.logfile) ? seen.logfile : null;   // started elsewhere, but writing a log we can read
+  Object.assign(serverRun, { db: (info && info.db) || (seen && seen.db) || null, log: info ? info.log : outside, driftChecked: false, notified: "", signature: null });
+  if (serverDiagnostics) serverDiagnostics.clear();
+  // picked by the program (nothing was followed yet), not by the person: what they are looking at stays as it is
+  if (!automatic || !state.health) state.health = info ? { state: info.exited ? "failed" : "starting" } : (outside ? { state: "starting" } : null);
+  if (!automatic) state.issuesSource = null;
+  setTimeout(pollServerStatus, 100);
+  if (cockpit) cockpit.refresh();
+}
+
+/** Stop ONE server, by its port; the others keep running. */
+async function stopServerAt(port) {
+  const project = findProject();
+  if (!project) return;
+  const targets = (await detectServers(project)).filter((s) => s.port === port && s.mine);   // only this project's
+  for (const s of targets) await killTree(s.pid);
+  const info = launched.get(port);
+  if (info && info.proc && !info.exited) { try { info.proc.kill(); } catch (e) { /* already gone */ } }
+  vscode.window.showInformationMessage(targets.length || info ? `Stopped the server on port ${port}.` : `No server found on port ${port}.`);
+  setTimeout(pollServerStatus, 1000);
+}
+
+/** The program and arguments that run `odoo-ai <args>` for a project (for a caller that wants to stream its output). */
+function cliCommand(project, args) {
+  const cliPath = getCliPath(project);
+  const isScript = /\.py$/i.test(cliPath);
+  return { file: isScript ? getPythonExe(project) : cliPath, args: isScript ? [cliPath, ...args] : args };
 }
 
 /** Run `odoo-ai <args>` and collect it: {code, stdout, stderr}. Never rejects. */
@@ -633,24 +671,23 @@ async function startServerWith(project, choices) {
   try { argv = JSON.parse(built.stdout); } catch (e) { return vscode.window.showErrorMessage(`Could not build the start command: ${built.stdout || built.stderr}`); }
 
   serverOutput = serverOutput || vscode.window.createOutputChannel("Odoo Server", "log");
-  serverOutput.clear();
   serverOutput.show(true);
-  serverOutput.appendLine(`> ${argv.join(" ")}`);
-  const log = serverLogPath(project);
+  serverOutput.appendLine(`> [port ${port}] ${argv.join(" ")}`);
+  const log = serverLogPath(project, port);
   fs.writeFileSync(log, "");
-  Object.assign(serverRun, { db: choices.db || null, log, driftChecked: false, notified: "" });
-  serverDiagnostics.clear();
-  state.health = { state: "starting" };
-  state.issuesSource = null;
 
   const bin = argv[1];
   const proc = cp.spawn(argv[0], argv.slice(1), { cwd: fs.existsSync(path.dirname(bin)) ? path.dirname(bin) : project.root, windowsHide: true });
   serverRun.proc = proc;
+  const entry = { proc, db: choices.db || null, log, exited: false };
+  launched.set(port, entry);
+  focusServer(port);   // the pages now follow the server just started; the others keep running
   const sink = (chunk) => { const text = chunk.toString(); serverOutput.append(text); try { fs.appendFileSync(log, text); } catch (e) { /* the panel still has it */ } };
   proc.stdout.on("data", sink);
   proc.stderr.on("data", sink);
   proc.on("exit", (code) => {
-    serverOutput.appendLine(`\n[server exited with code ${code}]`);
+    serverOutput.appendLine(`\n[server on port ${port} exited with code ${code}]`);
+    entry.exited = true;
     if (serverRun.proc === proc) serverRun.proc = null;
     setTimeout(pollServerStatus, 500);
   });
@@ -659,18 +696,21 @@ async function startServerWith(project, choices) {
   setTimeout(pollServerStatus, 2500);
 }
 
-/** False when the project cannot start a server now; stops (after asking) one of this project already running. */
+/**
+ * False when the project cannot start a server now. A server already running does not stop a new one: the new one
+ * takes the next free port, and the others keep running (stop any of them from the Cockpit).
+ */
 async function readyToStart(project) {
   if (!project) { vscode.window.showErrorMessage("No active Odoo project found."); return false; }
   if (!fs.existsSync(confPath(project))) { vscode.window.showErrorMessage(`${project.name}.conf was not found in ${project.root}.`); return false; }
-  const running = (await detectServers(project)).filter((s) => s.mine);
-  if (running.length) {
-    const answer = await vscode.window.showWarningMessage(`A server of ${project.name} is already running (pid ${running[0].pid}, port ${running[0].port}).`, { modal: true }, "Stop it and start again");
-    if (answer !== "Stop it and start again") return false;
-    for (const s of running) await killTree(s.pid);
-    await new Promise((r) => setTimeout(r, 1200));
-  }
   return true;
+}
+
+/** The port a new server takes, said out loud when it is not the project's own. */
+async function portForNewServer(project) {
+  const port = await freePort(project);
+  if (port !== getProjectPort(project)) vscode.window.showInformationMessage(`Port ${getProjectPort(project)} is taken: the new server uses port ${port}. The other keeps running.`);
+  return port;
 }
 
 /** Start Odoo Server: at once, no questions - with the database chosen last time, else as the .conf says. */
@@ -678,7 +718,7 @@ async function startServerQuick() {
   const project = findProject();
   if (!(await readyToStart(project))) return;
   const db = remembered(project).db || null;
-  await startServerWith(project, { db, update: "", dev: true, port: getProjectPort(project) });
+  await startServerWith(project, { db, update: "", dev: true, port: await portForNewServer(project) });
   if (!db) {
     // With no database Odoo's background jobs visit EVERY database of the cluster, and each one older than the code
     // reports errors: the server is fine, the noise is not. Say so once, and offer the one-time choice.
@@ -703,8 +743,8 @@ async function startServer() {
     [{ label: "$(debug) Developer mode (--dev=all)", description: "reload on change", value: true }, { label: "$(rocket) Normal", value: false }],
     { title: "Start Odoo Server (3/3): mode", placeHolder: "Developer mode?" });
   if (!dev) return;
-  const choices = { db: db.db, update, dev: dev.value, port: getProjectPort(project) };
-  if (extContext) await extContext.workspaceState.update(`${LAST}.${project.name}`, choices);
+  const choices = { db: db.db, update, dev: dev.value, port: await portForNewServer(project) };
+  if (extContext) await extContext.workspaceState.update(`${LAST}.${project.name}`, { db: choices.db, update, dev: choices.dev });
   await startServerWith(project, choices);
 }
 
@@ -713,8 +753,10 @@ async function restartServer() {
   const project = findProject();
   if (!project) return;
   const last = remembered(project);
-  await stopServer();
-  setTimeout(() => startServerWith(project, Object.assign({ dev: true }, last, { update: "" })), 1800);
+  const port = state.focusPort || getProjectPort(project);
+  const info = launched.get(port);
+  await stopServerAt(port);
+  setTimeout(() => startServerWith(project, Object.assign({ dev: true }, last, { update: "", port }, info && info.db ? { db: info.db } : {})), 1800);
 }
 
 /** Upgrade modules of ONE database, say what broke, and tie it to the code. */
@@ -1190,8 +1232,8 @@ async function refreshHealth(project, port) {
   if (serverRun.healthBusy || !serverRun.log || !fs.existsSync(serverRun.log)) return;
   serverRun.healthBusy = true;
   try {
-    const mine = state.servers.find((s) => s.mine);
-    const verdict = await judgeLog(project, serverRun.log, port, serverRun.db || (mine && mine.db) || null);
+    const seen = state.servers.find((s) => s.port === port);
+    const verdict = await judgeLog(project, serverRun.log, port, serverRun.db || (seen && seen.db) || null);
     if (!verdict) return;
     const changed = !state.health || state.health.state !== verdict.state || state.health.errors !== verdict.errors || state.health.http_500 !== verdict.http_500;
     const signature = `${verdict.marks ? verdict.marks.error.length : 0}/${verdict.marks ? verdict.marks.warning.length : 0}`;
@@ -1244,6 +1286,25 @@ function portFromConf(conf, project) {
   return null;
 }
 
+/** The log file a server was told to write (its --logfile, else the .conf's logfile), or null: stdout in a terminal cannot be read. */
+function logfileOf(tokens, conf, project) {
+  let file = null;
+  for (let i = 0; i < tokens.length; i++) {
+    const m = tokens[i].match(/^--logfile=(.+)$/);
+    if (m) file = m[1];
+    else if (tokens[i] === "--logfile") file = tokens[i + 1] || file;
+  }
+  if (!file && conf) {
+    for (const candidate of [conf, project && project.root ? path.join(project.root, conf) : null].filter(Boolean)) {
+      try {
+        const m = fs.readFileSync(candidate, "utf8").match(/^\s*logfile\s*=\s*(.+?)\s*$/m);
+        if (m && !/^(false|none|)$/i.test(m[1])) { file = m[1]; break; }
+      } catch (e) { /* not readable from here */ }
+    }
+  }
+  return file && file.trim() ? file.trim() : null;
+}
+
 const ODOO_SUBCOMMANDS = new Set(["shell", "scaffold", "db", "deploy", "i18n", "populate", "cloc", "neutralize", "obfuscate", "module", "upgrade_code", "help", "server"]);
 
 /** What a command line says about an Odoo server: {port, conf, mine}, or null when it is not a running server
@@ -1280,7 +1341,7 @@ function parseOdooCommand(cmd, project) {
       || normPath(cmd).includes(root + "/")
       || normPath(cmd).split(/[\s,;"']+/).some((word) => word.endsWith(root));   // e.g. the last entry of --addons-path=a,b
   }
-  return { port, conf, mine, db };
+  return { port, conf, mine, db, logfile: logfileOf(tokens, conf, project) };
 }
 
 /** Every process on this machine that looks like an Odoo server: [{pid, cmd}]. Works for a terminal, a task, a debugger, a service. */
@@ -1332,10 +1393,12 @@ function killTree(pid) {
 
 /** The port to open in the browser: this project's server, else the configured port when it answers, else another Odoo. */
 function serverPort(project) {
+  const focused = state.focusPort && state.servers.find((s) => s.port === state.focusPort);
+  if (focused) return focused.port;
   const mine = state.servers.find((s) => s.mine);
   if (mine) return mine.port;
   if (state.portOpen) return getProjectPort(project);
-  return state.servers.length ? state.servers[0].port : getProjectPort(project);
+  return getProjectPort(project);
 }
 
 async function stopServer() {
@@ -1344,21 +1407,8 @@ async function stopServer() {
   const term = vscode.window.terminals.find((t) => t.name === serverTerminalName(project));
   if (term) term.dispose();
   const servers = await detectServers(project);
-  let targets = servers.filter((s) => s.mine);
-  if (!targets.length && servers.length) {
-    const list = servers.map((s) => `port ${s.port} (pid ${s.pid})`).join(", ");
-    const answer = await vscode.window.showWarningMessage(
-      `No server of ${project.name} is running, but another Odoo is: ${list}. Stop it?`, { modal: true }, "Stop it");
-    if (answer !== "Stop it") return;
-    targets = servers;
-  }
+  const targets = servers.filter((s) => s.mine);   // never another project's server
   for (const s of targets) await killTree(s.pid);
-  if (!targets.length) {   // answering on the port but not a local process we can see: the old way
-    const port = getProjectPort(project);
-    if (process.platform === "win32") {
-      cp.exec(`powershell -Command "Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"`, noop);
-    }
-  }
   vscode.window.showInformationMessage(targets.length
     ? `Stopped ${targets.length} Odoo server${targets.length === 1 ? "" : "s"}.` : "No Odoo server found to stop.");
   setTimeout(pollServerStatus, 1000);
@@ -1373,17 +1423,29 @@ function openServer(port) {
 }
 
 let polling = false;
-async function pollServerStatus() {
+async function pollServerStatus(force) {
   const project = findProject();
-  if (polling || !project || (vscode.window.state && vscode.window.state.focused === false)) return;
+  if (polling || !project || (force !== true && vscode.window.state && vscode.window.state.focused === false)) return;
   polling = true;
   try {
     const port = getProjectPort(project);
     const [servers, open] = await Promise.all([detectServers(project), new Promise((res) => checkPortOpen(port, res))]);
-    state.servers = servers;
+    state.servers = servers.filter((s) => s.mine);   // another project's server is not this window's to show or control
+    state.otherPorts = servers.filter((s) => !s.mine).map((s) => s.port);   // known only so that a new server avoids its port
+    servers.splice(0, servers.length, ...state.servers);
     state.portOpen = open;
     state.serverRunning = servers.some((s) => s.mine) || open;
-    if (state.serverRunning || (state.health && state.health.state !== "failed")) await refreshHealth(project, port);
+    // the focused server went away (stopped from the Cockpit or elsewhere): follow another one, or none
+    const focus = state.focusPort;
+    const alive = (p) => servers.some((s) => s.port === p) || (launched.get(p) && (!launched.get(p).exited || (state.health && state.health.state === "failed")));
+    if (focus && !alive(focus)) {
+      const next = servers.find((s) => s.mine) || servers[0];
+      if (next) focusServer(next.port, true);
+      else { state.focusPort = null; if (state.health && state.health.state !== "failed") state.health = null; }
+    } else if (!focus && servers.length) {
+      focusServer((servers.find((s) => s.mine) || servers[0]).port, true);
+    }
+    if (state.focusPort && (state.serverRunning || (state.health && state.health.state !== "failed"))) await refreshHealth(project, state.focusPort);
   } finally {
     polling = false;
   }
@@ -1598,7 +1660,7 @@ async function runSetupWizard() {
     runInitFastDb();
   }
 
-  vscode.window.showInformationMessage("Odoo Studio & CI: Project configuration updated successfully!");
+  vscode.window.showInformationMessage("Cockpit Odoo: Project configuration updated successfully!");
   actionsTree.refresh();
 }
 
@@ -1790,6 +1852,32 @@ function runSelfTest() {
   runInTerminal("Odoo tools CI (before push)", cliLine(python, cli, "tools-ci"), root);
 }
 
+/**
+ * The Cockpit in the bottom panel. The panel's container is read by the editor when the window starts, so a window
+ * that has not been reloaded since the extension was updated does not know it: the Cockpit then opens as an editor tab
+ * and the person is told why, instead of seeing "command not found".
+ */
+async function openCockpitInPanel(extensionPath) {
+  try {
+    await vscode.commands.executeCommand("workbench.view.extension.odooCockpit");
+  } catch (error) {
+    cockpit.open(extensionPath);   // it works as an editor tab right now; the panel needs a reload, offered quietly in the status bar
+    offerReload("Reload to finish the update");
+  }
+}
+
+/** A quiet status-bar item instead of a pop-up: nobody is interrupted, and one click reloads the window. */
+let reloadItem = null;
+function offerReload(text) {
+  if (!reloadItem) {
+    reloadItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+    reloadItem.command = "workbench.action.reloadWindow";
+    reloadItem.tooltip = "Cockpit Odoo was updated: this window still shows the old interface. Click to reload it.";
+  }
+  reloadItem.text = "$(refresh) " + text;
+  reloadItem.show();
+}
+
 function runSyncVersions() {
   const { python, cli, root } = toolsContext();
   runInTerminal("Odoo version branches", cliLine(python, cli, "sync-versions"), root);
@@ -1809,52 +1897,6 @@ function runGates() {
   const { project, python, cli } = toolsContext();
   if (!project) return vscode.window.showErrorMessage("Odoo CI: open a project first (ProjectsOdoo<NN>/<project>).");
   runInTerminal("Odoo gates", cliLine(python, cli, `gates --path "${project.root}"`), project.root);
-}
-
-/** The module the person is working in (the open file's), then the project's other modules. */
-function projectModules(project) {
-  const names = [];
-  try {
-    for (const entry of fs.readdirSync(project.root, { withFileTypes: true })) {
-      if (entry.isDirectory() && fs.existsSync(path.join(project.root, entry.name, "__manifest__.py"))) names.push(entry.name);
-    }
-  } catch (e) { /* no folder */ }
-  const file = vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.uri.fsPath;
-  const current = file && path.relative(project.root, file).split(path.sep)[0];
-  return names.sort((x, y) => (x === current ? -1 : y === current ? 1 : x.localeCompare(y))).map((name) => ({ name, current: name === current }));
-}
-
-/** Translations: scan a module's terms against its .po files, add the missing ones to a language, or export the .pot. */
-async function runTranslations() {
-  const { project, python, cli } = toolsContext();
-  if (!project) return vscode.window.showErrorMessage("Odoo CI: open a project first (ProjectsOdoo<NN>/<project>).");
-  const modules = projectModules(project);
-  if (!modules.length) return vscode.window.showWarningMessage("No module with a __manifest__.py in this project.");
-  const module_ = await vscode.window.showQuickPick(modules.map((m) => ({ label: `$(package) ${m.name}`, description: m.current ? "the file you are in" : "", value: m.name })),
-    { title: "Translations: which module?", matchOnDescription: true });
-  if (!module_) return;
-  const action = await vscode.window.showQuickPick([
-    { label: "$(search) Scan", description: "which terms are missing or stale, per language", value: "scan" },
-    { label: "$(add) Update a language", description: "append the missing terms to its .po file", value: "update" },
-    { label: "$(export) Export the .pot template", description: "a clean template of every term", value: "export" },
-  ], { title: `Translations: ${module_.value}` });
-  if (!action) return;
-  let lang = "";
-  if (action.value !== "export") {
-    const langs = ["sv_SE", "ar", "ar_001", "en_GB", "de_DE", "fr_FR", "es_ES"];
-    const picked = await vscode.window.showQuickPick([
-      ...(action.value === "scan" ? [{ label: "$(globe) All languages", value: "" }] : []),
-      ...langs.map((l) => ({ label: l, value: l })), { label: "$(edit) Type a language code...", value: "__typed__" }],
-      { title: "Language" });
-    if (!picked) return;
-    lang = picked.value;
-    if (lang === "__typed__") {
-      lang = (await vscode.window.showInputBox({ prompt: "Language code, e.g. sv_SE", validateInput: (v) => (/^[a-z]{2,3}(_[A-Za-z0-9]{2,4})?$/.test(v) ? null : "like sv_SE or ar") })) || "";
-      if (!lang) return;
-    }
-  }
-  const args = `i18n ${action.value} -m ${module_.value}${lang ? ` -l ${lang}` : ""}`;
-  runInTerminal(`Translations: ${module_.value}`, cliLine(python, cli, args), project.root);
 }
 
 function openLayoutGuide() {
@@ -1944,10 +1986,8 @@ function reportStartupProblems() {
   if (!startupProblems.length) return;
   for (const p of startupProblems) output.appendLine(`[startup] ${p.what}: ${p.message}`);
   const stale = startupProblems.some((p) => /No view is registered|not registered|unknown view/i.test(p.message));
-  const text = stale
-    ? "Odoo Studio & CI Pro was updated, but this window still shows the old interface. Reload the window to finish the update."
-    : `Odoo Studio & CI Pro started with ${startupProblems.length} problem(s): ${startupProblems.map((p) => p.what).join(", ")}. See the 'Odoo CI' output.`;
-  vscode.window.showWarningMessage(text, "Reload Window").then((a) => { if (a) vscode.commands.executeCommand("workbench.action.reloadWindow"); });
+  if (stale) return offerReload("Reload to finish the update");   // no pop-up: the cause is known and one click fixes it
+  vscode.window.showWarningMessage(`Cockpit Odoo started with ${startupProblems.length} problem(s): ${startupProblems.map((p) => p.what).join(", ")}. See the 'Odoo CI' output.`);
 }
 
 /** Focus the Errors & Warnings view; if this window does not know it yet, offer the picker instead of an error. */
@@ -1972,17 +2012,16 @@ function activate(context) {
   actionsTree = new ActionsProvider();
   envTree = new EnvProvider();
   issuesTree = new IssuesProvider();
+  translations = require("./translations").create({ findProject, cliCommand }, context);
   cockpit = require("./cockpit").create({
     findProject, getProjectPort, state, serverRun, issuesSource, runCli, serverArgs,
-    startServerQuick, startServer, stopServer, restartServer, openServer: () => openServer(),
+    startServerQuick, startServer, stopServer, restartServer, openServer: (port) => openServer(port),
+    focusServer, stopServerAt, launchedPorts: () => [...new Set([...[...launched].filter(([, i]) => !i.exited).map(([p]) => p), ...state.servers.filter((x) => x.logfile && fs.existsSync(x.logfile)).map((x) => x.port)])],
     upgradeDatabase, checkDrift, backupDatabase, dropDatabase, openLogAt, openSourceAt, focusIssues, pickIssue,
     getBackupDir, backupBeforeUpgrade, setBackupBeforeUpgrade,
     listDatabases,
-    cliCommand: (project, args) => {
-      const cliPath = getCliPath(project);
-      const isScript = /\.py$/i.test(cliPath);
-      return { file: isScript ? getPythonExe(project) : cliPath, args: isScript ? [cliPath, ...args] : args };
-    },
+    extensionPath: context.extensionPath, openInPanel: () => openCockpitInPanel(context.extensionPath),
+    cliCommand,
     remembered: (key) => extContext && extContext.workspaceState.get(`odooCi.remote.${key}`),
     remember: (key, value) => extContext && extContext.workspaceState.update(`odooCi.remote.${key}`, value),
   });
@@ -2008,7 +2047,7 @@ function activate(context) {
     vscode.commands.registerCommand("odooCi.secretHook", runSecretHook),
     vscode.commands.registerCommand("odooCi.gates", runGates),
     vscode.commands.registerCommand("odooCi.openLayout", openLayoutGuide),
-    vscode.commands.registerCommand("odooCi.translations", runTranslations),
+    vscode.commands.registerCommand("odooCi.translations", (uri) => translations.open(context.extensionPath, uri)),
     vscode.commands.registerCommand("odooCi.refreshEnv", () => envTree.refresh()),
     vscode.commands.registerCommand("odooCi.static", () => run("static")),
     vscode.commands.registerCommand("odooCi.full", () => run("full")),
@@ -2025,7 +2064,7 @@ function activate(context) {
     vscode.commands.registerCommand("odooCi.issueOpenSource", (arg) => { const i = issueOf(arg); return i && i.location && openSourceAt(i.location); }),
     vscode.commands.registerCommand("odooCi.cockpit", () => cockpit.open(context.extensionPath)),
     guarded("view odooCi.cockpitView", () => vscode.window.registerWebviewViewProvider("odooCi.cockpitView", cockpit.viewProvider(context.extensionPath), { webviewOptions: { retainContextWhenHidden: true } })),
-    vscode.commands.registerCommand("odooCi.cockpitPanel", () => vscode.commands.executeCommand("workbench.view.extension.odooCockpit")),
+    vscode.commands.registerCommand("odooCi.cockpitPanel", () => openCockpitInPanel(context.extensionPath)),
     vscode.commands.registerCommand("odooCi.issueShow", focusIssues),
     vscode.commands.registerCommand("odooCi.issueNext", () => stepIssue(1)),
     vscode.commands.registerCommand("odooCi.issuePrev", () => stepIssue(-1)),
@@ -2090,7 +2129,8 @@ function activate(context) {
   const timer = setInterval(poll, 5000);
   context.subscriptions.push({ dispose: () => clearInterval(timer) });
   reportStartupProblems();
-  return { _test: { cockpit, issuesTree, actionsTree, envTree, issues: module.exports._test.issues, startupProblems } };
+  return { _test: { cockpit, translations, issuesTree, actionsTree, envTree, issues: module.exports._test.issues, startupProblems,
+    multi: { pollServerStatus, startServerWith, launched, freePort, focusServer, stopServerAt, state, serverRun, detectServers, findProject } } };
 }
 
 function deactivate() {
@@ -2098,4 +2138,5 @@ function deactivate() {
 }
 
 module.exports = { activate, deactivate, _test: { fixLenSearch, parseOdooCommand, splitCommandLine, detectServers, listOdooProcesses, killTree,
+    startServerWith, launched, freePort, focusServer, stopServerAt, serverState: state, serverRun,
     issues: { IssuesProvider, setIssuesSource, visibleIssues, occurrences, issueFilter, issueCursor, progressLine, duration, shortText, state } } };

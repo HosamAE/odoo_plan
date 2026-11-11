@@ -1,5 +1,5 @@
 """
-Central Root & Path Resolution Engine for Odoo Studio & CI Pro.
+Central Root & Path Resolution Engine for Cockpit Odoo.
 Dynamically resolves the Odoo root directory without any hardcoded 'C:\\odoo'.
 Supports:
   1. ODOO_ROOT environment variable (if set)

@@ -1,7 +1,7 @@
 {
   "name": "odoo-ci",
-  "displayName": "Odoo Studio & CI Pro",
-  "description": "Unified Odoo Multi-Server Studio & CI Suite (v17-20): Server Control, 3s Fast Testing, XPath Validator & DB Snapshots.",
+  "displayName": "Cockpit Odoo",
+  "description": "Cockpit Odoo: control every Odoo server of a project from one page (v17-20): start, stop, follow, databases, log, errors, remote databases over SSH, translations, fast tests, XPath validator and DB snapshots.",
   "publisher": "HosamAE",
   "author": {
     "name": "HosamAE",
@@ -13,7 +13,7 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -175,7 +175,7 @@
       },
       {
         "command": "odooCi.menu",
-        "title": "Studio & CI Action Menu",
+        "title": "Cockpit Odoo Menu",
         "category": "Odoo Studio"
       },
       {
@@ -306,7 +306,7 @@
       },
       {
         "command": "odooCi.translations",
-        "title": "Translations: Scan, Update, Export",
+        "title": "Translations: Open the Translations Page",
         "category": "Odoo Studio",
         "icon": "$(globe)"
       }
@@ -315,7 +315,7 @@
       "activitybar": [
         {
           "id": "odooStudio",
-          "title": "Odoo Studio & CI Pro",
+          "title": "Cockpit Odoo",
           "icon": "media/studio.svg"
         }
       ],
@@ -357,7 +357,7 @@
       },
       {
         "view": "odooCi.actions",
-        "contents": "Odoo Studio & CI Pro by HosamAE:\n[$(gear) Setup Wizard](command:odooCi.setupWizard)\n[$(play) Start Server](command:odooCi.serverRunQuick)\n[$(globe) Open Browser](command:odooCi.serverOpen)\n[$(zap) Fast Test (3s)](command:odooCi.fastTest)\n[$(camera) DB Snapshot](command:odooCi.dbSnapSave)\n[$(checklist) Static Checks](command:odooCi.static)\n[$(beaker) Full CI Suite](command:odooCi.full)\n[$(add) New Addon](command:odooCi.newAddon)"
+        "contents": "Cockpit Odoo by HosamAE:\n[$(gear) Setup Wizard](command:odooCi.setupWizard)\n[$(play) Start Server](command:odooCi.serverRunQuick)\n[$(globe) Open Browser](command:odooCi.serverOpen)\n[$(zap) Fast Test (3s)](command:odooCi.fastTest)\n[$(camera) DB Snapshot](command:odooCi.dbSnapSave)\n[$(checklist) Static Checks](command:odooCi.static)\n[$(beaker) Full CI Suite](command:odooCi.full)\n[$(add) New Addon](command:odooCi.newAddon)"
       }
     ],
     "menus": {
@@ -434,6 +434,13 @@
           "when": "view == odooCi.issues && viewItem == issueWithSource",
           "group": "inline@2"
         }
+      ],
+      "explorer/context": [
+        {
+          "command": "odooCi.translations",
+          "when": "workspaceFolderCount > 0",
+          "group": "7_modification@9"
+        }
       ]
     },
     "configuration": {
@@ -478,6 +485,31 @@
           "type": "boolean",
           "default": false,
           "description": "Back a database up before upgrading it, and stop if the backup fails."
+        },
+        "odooCi.remoteSudoUser": {
+          "type": "string",
+          "default": "",
+          "description": "Remote servers: the one account a host opens to you for its databases and files (for example odoo19_demo), when it refuses sudo as postgres. Empty: postgres, with root for files."
+        },
+        "odooCi.i18n.languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "sv_SE"
+          ],
+          "description": "Translations: the languages the page always lists for a module, even before they have a .po file (for example sv_SE, ar)."
+        },
+        "odooCi.i18n.translatorUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Translations: the base URL of a model of your own, OpenAI-compatible (a local Ollama is http://localhost:11434/v1 and costs nothing). Empty: no automatic translation. A host that is not on this machine is asked about once, because the untranslated terms are sent there."
+        },
+        "odooCi.i18n.translatorModel": {
+          "type": "string",
+          "default": "",
+          "description": "Translations: the model's name at that URL (for example qwen2.5:7b)."
         }
       }
     }

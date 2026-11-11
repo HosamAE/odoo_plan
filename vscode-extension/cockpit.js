@@ -96,12 +96,16 @@ function slimIssues(source) {
 
 /** The whole state the page draws. `inputs` are plain values; nothing here touches the editor. */
 function buildState(inputs) {
-  const { project, port, servers, serverRunning, serverDb, health, source, upgrade, databases, modulesInfo, drift, logText, logFirst, backupDir, backupBeforeUpgrade, remote, mode } = inputs;
+  const { project, port, servers, focusPort, launchedPorts, serverRunning, serverDb, health, source, upgrade, databases, modulesInfo, drift, logText, logFirst, backupDir, backupBeforeUpgrade, remote, mode } = inputs;
   const mine = (servers || []).find((s) => s.mine);
   const marks = source && source.verdict ? source.verdict.marks : null;
   return {
     project: { name: project.name, version: project.version, root: project.root, port },
-    server: { running: !!serverRunning, pid: mine ? mine.pid : null, db: serverDb || (mine && mine.db) || null, health: slimHealth(health) },
+    server: {
+      running: !!serverRunning, pid: mine ? mine.pid : null, db: serverDb || (mine && mine.db) || null, health: slimHealth(health), focus: focusPort || null,
+      // every Odoo server on this machine: any of them can be followed, opened or stopped without touching the others
+      list: (servers || []).map((s) => ({ port: s.port, pid: s.pid, db: s.db || null, mine: !!s.mine, focus: s.port === focusPort, hasLog: (launchedPorts || []).includes(s.port) })),
+    },
     upgrade: upgrade ? { db: upgrade.db, what: upgrade.what, text: upgrade.text, errors: upgrade.errors || 0, warnings: upgrade.warnings || 0, progress: upgrade.progress || null } : null,
     issues: slimIssues(source),
     databases: databases || null,
@@ -152,7 +156,7 @@ function create(api) {
     const source = api.issuesSource();
     const [logText, logFirst] = source && source.log && fs.existsSync(source.log) ? readLog(source.log) : ["", 1];
     return buildState({
-      project: p, port: api.getProjectPort(p), servers: api.state.servers, serverRunning: api.state.serverRunning,
+      project: p, port: api.getProjectPort(p), servers: api.state.servers, focusPort: api.state.focusPort, launchedPorts: api.launchedPorts(), serverRunning: api.state.serverRunning,
       serverDb: api.serverRun.db, health: api.state.health, source, upgrade: api.state.upgrade, databases, modulesInfo, drift,
       logText, logFirst, backupDir: api.getBackupDir(p), backupBeforeUpgrade: api.backupBeforeUpgrade(), remote: remote.state(), mode,
     });
@@ -208,9 +212,11 @@ function create(api) {
       ready: async () => { if (!databases) loadDatabases(); if (!remote.state().hosts) remote.loadHosts(); },
       start: () => api.startServerQuick(),
       startOptions: () => api.startServer(),
-      stop: () => api.stopServer(),
+      stop: () => (api.state.focusPort ? api.stopServerAt(api.state.focusPort) : api.stopServer()),
       restart: () => api.restartServer(),
-      open: () => api.openServer(),
+      open: () => api.openServer(typeof m.port === "number" ? m.port : undefined),
+      focusServer: () => api.focusServer(m.port),
+      stopAt: () => api.stopServerAt(m.port),
       refreshDbs: async () => { databases = null; post(); await loadDatabases(); },
       loadModules: () => loadModules(m.db),
       upgrade: async () => { await api.upgradeDatabase({ db: m.db, modules: m.modules }); await loadDatabases(); if (modulesInfo && modulesInfo.db === m.db) await loadModules(m.db); },
@@ -236,6 +242,16 @@ function create(api) {
       remoteBackup: () => remote.backup(m.host, m.db),
       remoteDrop: () => remote.drop(m.host, m.db),
       remoteKey: () => remote.setupKey(m.host),
+      move: async () => {
+        if (m.to === "editor") {
+          open(api.extensionPath);
+          await vscode.commands.executeCommand("workbench.action.closePanel");
+        } else {
+          await api.openInPanel();
+          for (let i = 0; i < 20 && !surfaces.has("panel"); i++) await new Promise((r) => setTimeout(r, 150));
+          if (surfaces.has("panel") && panel) panel.dispose();   // only once the bottom view really is there
+        }
+      },
     }[m.cmd];
     if (!act) return;
     try {
@@ -287,6 +303,7 @@ function create(api) {
   }
 
   return {
+    currentList: () => currentState("editor").server.list,
     open, viewProvider, refresh: post, isOpen: () => !!panel, isViewOpen: () => surfaces.has("panel"), handle: onMessage,
     lastRender: (mode = "editor") => renders[mode] || null, remote, dispose() { if (panel) panel.dispose(); if (timer) clearInterval(timer); },
   };
