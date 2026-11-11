@@ -13,7 +13,7 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -303,6 +303,12 @@
         "title": "Open the Odoo Cockpit in the Bottom Panel",
         "category": "Odoo Studio",
         "icon": "$(dashboard)"
+      },
+      {
+        "command": "odooCi.translations",
+        "title": "Translations: Scan, Update, Export",
+        "category": "Odoo Studio",
+        "icon": "$(globe)"
       }
     ],
     "viewsContainers": {
