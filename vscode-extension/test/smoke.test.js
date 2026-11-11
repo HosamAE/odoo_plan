@@ -110,6 +110,10 @@ assert.deepStrictEqual([hit.port, hit.mine], [8070, false], "another project's s
 hit = parseOdooCommand(`python ${win("somewhere", "odoo-bin")} --addons-path=${project19.root},${win("odoo", "odoo19", "odoo", "addons")} --http-port 8071`, project19);
 assert.deepStrictEqual([hit.port, hit.mine], [8071, true], "no --config, but the addons path is this project");
 assert.strictEqual(parseOdooCommand("python odoo-bin", project19).port, 8069, "Odoo's default port");
+// the Cockpit's own helper (the drift check) carries odoo-bin as the VALUE of --odoo-bin: it is not a server. In the
+// real window it appeared as "a server on :8069" for as long as the check ran, with a Stop button that would have ended it.
+const helper = `"${python}" ${win("odoo", "odoo19", "tools", "cli.py")} server drift --conf ${conf} --python ${python} --odoo-bin ${bin} -d hx_try`;
+assert.strictEqual(parseOdooCommand(helper, project19), null, "a helper that is handed odoo-bin is not a server");
 assert.strictEqual(parseOdooCommand("python odoo-bin -u my_module --stop-after-init", project19), null, "an update is not a server");
 assert.strictEqual(parseOdooCommand("python odoo-bin shell -d db", project19), null, "a shell is not a server");
 assert.strictEqual(parseOdooCommand("python -m odoo_kg serve --config x.toml", project19), null, "the graph server is not Odoo");

@@ -78,10 +78,22 @@ async function one(theme) {
     `--user-data-dir=${path.join(tmp, "user")}`, `--extensions-dir=${path.join(tmp, "extensions")}`, "--disable-workspace-trust", "--skip-welcome",
     "--skip-release-notes", "--disable-updates", "--disable-telemetry", "--new-window"];
   const child = cp.spawn(exe, args, { env, stdio: "ignore", windowsHide: false });
-  const end = Date.now() + 180000;
-  while (!fs.existsSync(ready) && Date.now() < end) await new Promise((r) => setTimeout(r, 500));
+  const end = Date.now() + (process.env.ODOO_CI_TEST_REAL_SERVER ? 900000 : 180000);
   let message = "the editor never reached the cockpit";
-  if (fs.existsSync(ready)) {
+  // pictures of real work: one per page, each taken when the window says that page is drawn
+  const pages = process.env.ODOO_CI_TEST_REAL_SERVER ? String(process.env.ODOO_CI_TEST_TABS || "home").split(",") : [];
+  const taken = [];
+  for (const tab of pages) {
+    while (!fs.existsSync(`${ready}.${tab}`) && Date.now() < end) await new Promise((r) => setTimeout(r, 500));
+    if (!fs.existsSync(`${ready}.${tab}`)) break;
+    const target = path.join(folder, `real_${theme}_${tab}.png`);
+    const shot = cp.spawnSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", capture, "-ProcessId", String(child.pid), "-Out", target], { encoding: "utf8" });
+    taken.push(`${tab}: ${String(shot.stdout).trim()}`);
+    fs.writeFileSync(`${ready}.${tab}.done`, "1");
+  }
+  while (!fs.existsSync(ready) && Date.now() < end) await new Promise((r) => setTimeout(r, 500));
+  if (taken.length) message = `${theme}: ${taken.join("; ")}`;
+  else if (fs.existsSync(ready)) {
     await new Promise((r) => setTimeout(r, 2500));   // let the page settle after its last state
     const target = path.join(folder, `vscode_${theme}.png`);
     const shot = cp.spawnSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", capture, "-ProcessId", String(child.pid), "-Out", target], { encoding: "utf8" });
