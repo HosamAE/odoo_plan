@@ -13,7 +13,7 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -44,7 +44,7 @@
     "commands": [
       {
         "command": "odooCi.cockpit",
-        "title": "Open the Odoo Cockpit in the Editor",
+        "title": "Open Cockpit Odoo in the Editor",
         "category": "Odoo Studio",
         "icon": "$(dashboard)"
       },
@@ -300,7 +300,7 @@
       },
       {
         "command": "odooCi.cockpitPanel",
-        "title": "Open the Odoo Cockpit in the Bottom Panel",
+        "title": "Open Cockpit Odoo in the Bottom Panel",
         "category": "Odoo Studio",
         "icon": "$(dashboard)"
       },
@@ -322,7 +322,7 @@
       "panel": [
         {
           "id": "odooCockpit",
-          "title": "Odoo Cockpit",
+          "title": "Cockpit Odoo",
           "icon": "media/studio.svg"
         }
       ]

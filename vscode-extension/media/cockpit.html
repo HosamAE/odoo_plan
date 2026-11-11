@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-{{nonce}}'; script-src 'nonce-{{nonce}}';">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Odoo Cockpit</title>
+<title>Cockpit Odoo</title>
 <style nonce="{{nonce}}">
 /* Every colour is the editor's own, each with a fallback: a variable a theme does not define would otherwise drop the
    whole declaration (that is how the day map once lost its grid in dark mode). */
@@ -47,6 +47,8 @@ body.panel #logcard, body.panel #issues { height: 100%; }
 body.panel .scroll { max-height: none; }
 body.panel #log { height: calc(100vh - 170px); min-height: 100px; }
 .page[hidden] { display: none; }
+.badge { display: inline-block; min-width: 16px; margin-left: 6px; padding: 0 5px; border-radius: 999px; font-size: 10px; font-weight: 700; text-align: center; color: var(--btn-fg); }
+.badge.bad { background: var(--bad); } .badge.warn { background: var(--warn); color: #1e1e1e; }
 .doors { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .door { text-align: left; background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; min-height: 96px; display: flex; flex-direction: column; gap: 4px; }
 .door:hover, .door:focus-visible { border-color: var(--accent); }
@@ -172,13 +174,14 @@ tr.row-db { cursor: pointer; }
   }
 
   function renderTop() {
-    var p = S.project;
+    var p = S.project, list = S.server.list || [], focus = list.filter(function (x) { return x.focus; })[0];
     put($("top"), [
-      h("h1", {}, "Odoo Cockpit"),
-      h("span", { class: "sub" }, p.name + " · Odoo " + p.version + " · port " + p.port),
+      h("h1", {}, "Cockpit Odoo"),
+      h("span", { class: "sub" }, p.name + " · Odoo " + p.version + " · port " + (focus ? focus.port : p.port) + (list.length > 1 ? " · following 1 of " + list.length : "")),
       pill(S.server.running ? (S.server.health ? S.server.health.state : "starting") : "stopped"),
       h("span", { class: "sub" }, S.server.db ? "database " + S.server.db : (S.server.running ? "no database chosen" : "")),
       h("span", { style: "flex:1" }),
+      S.server.running ? null : btn("Start server", "start", null, "small"),
       S.mode === "panel" ? btn("Open in editor ↗", "move", { to: "editor" }, "secondary small") : btn("Move to bottom panel ↓", "move", { to: "panel" }, "secondary small"),
     ]);
   }
@@ -311,12 +314,13 @@ tr.row-db { cursor: pointer; }
     var table = h("table", {}, h("thead", {}, head));
     var body = h("tbody", {});
     rows.forEach(function (d) {
-      var serving = S.server.running && S.server.db === d.name;
+      var ports = (S.server.list || []).filter(function (x) { return x.db === d.name; }).map(function (x) { return ":" + x.port; });
+      var serving = S.server.running && (S.server.db === d.name || ports.length > 0);
       var mismatch = d.version && d.version.indexOf(S.project.version + ".") !== 0;
       var tr = h("tr", { class: "row-db" + (ui.selected === d.name ? " sel" : "") + (!d.usable || mismatch ? " dim" : ""), tabindex: "0",
         onclick: function () { ui.selected = d.name; save(); send("loadModules", { db: d.name }); renderDbs(); },
         onkeydown: function (e) { if (e.key === "Enter") { ui.selected = d.name; save(); send("loadModules", { db: d.name }); renderDbs(); } } },
-        h("td", {}, d.name, serving ? h("span", { class: "pill ok", style: "margin-left:6px" }, "serving") : null,
+        h("td", {}, d.name, serving ? h("span", { class: "pill ok", style: "margin-left:6px" }, "serving" + (ports.length ? " " + ports.join(" ") : "")) : null,
           !d.usable ? h("span", { class: "pill bad", style: "margin-left:6px", title: d.reason || "" }, "cannot open") : null,
           mismatch ? h("span", { class: "pill idle", style: "margin-left:6px" }, "Odoo " + d.version.split(".")[0]) : null),
         h("td", { class: "num" }, d.size_mb === null ? "" : String(d.size_mb)), h("td", {}, d.version || ""),
@@ -401,11 +405,21 @@ tr.row-db { cursor: pointer; }
 
   // ----------------------------------------------------------------------------- tabs and the remote servers
   function renderTabs() {
-    var count = S && S.health ? (S.health.errors || 0) + (S.health.warnings || 0) : 0;
-    var tabs = [["home", "Cockpit"], ["server", "Server"], ["dbs", "Databases"], ["log", "Log"], ["issues", "Errors & warnings" + (count ? " (" + count + ")" : "")], ["remote", "Remote servers"]];
-    put($("tabs"), tabs.map(function (t) {
+    var is = (S && S.issues) || { errors: 0, warnings: 0 };
+    var tabs = [["home", "Cockpit"], ["server", "Server"], ["dbs", "Databases"], ["log", "Log"], ["issues", "Errors & warnings"], ["remote", "Remote servers"]];
+    put($("tabs"), tabs.map(function (t, index) {
+      var badge = null;
+      if (t[0] === "issues" && (is.errors || is.warnings)) badge = h("span", { class: "badge " + (is.errors ? "bad" : "warn") }, String(is.errors + is.warnings));
       return h("button", { class: "tab" + (ui.tab === t[0] ? " on" : ""), role: "tab", "aria-selected": ui.tab === t[0] ? "true" : "false",
-        onclick: function () { ui.tab = t[0]; save(); render(); } }, t[1]);
+        tabindex: ui.tab === t[0] ? "0" : "-1",
+        onkeydown: function (e) {
+          var to = e.key === "ArrowRight" ? index + 1 : e.key === "ArrowLeft" ? index - 1 : e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : null;
+          if (to === null) return;
+          e.preventDefault();
+          ui.tab = tabs[(to + tabs.length) % tabs.length][0]; save(); render();
+          var on = document.querySelector("#tabs .tab.on"); if (on) on.focus();
+        },
+        onclick: function () { ui.tab = t[0]; save(); render(); } }, t[1], badge);
     }));
     Array.prototype.forEach.call(document.querySelectorAll(".page[data-tab]"), function (el) { el.hidden = el.getAttribute("data-tab") !== ui.tab; });
   }
@@ -489,6 +503,9 @@ tr.row-db { cursor: pointer; }
       var a = document.activeElement;   // someone is typing or choosing: redrawing now would take the field from them
       if (a && (a.tagName === "SELECT" || (a.tagName === "INPUT" && a.type === "text"))) { late = true; return; }
       render();
+    }
+    else if (m.type === "tab") {
+      if (["home", "server", "dbs", "log", "issues", "remote"].indexOf(m.tab) >= 0) { ui.tab = m.tab; save(); render(); }
     }
     else if (m.type === "toast") {
       var old = document.querySelector(".toast"); if (old) old.remove();

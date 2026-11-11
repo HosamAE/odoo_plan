@@ -276,7 +276,7 @@ function create(api) {
   /** Show the page in a tab of the editor area. */
   function open(extensionPath) {
     if (panel) { panel.reveal(); post(); return; }
-    panel = vscode.window.createWebviewPanel("odooCockpit", "Odoo Cockpit", vscode.ViewColumn.Active, {
+    panel = vscode.window.createWebviewPanel("odooCockpit", "Cockpit Odoo", vscode.ViewColumn.Active, {
       enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [],
     });
     panel.webview.html = html(extensionPath);
@@ -302,7 +302,13 @@ function create(api) {
     };
   }
 
+  /** Show one page of the Cockpit in every surface that is open (the door, server, dbs, log, issues, remote). */
+  function showTab(tab) {
+    for (const s of surfaces.values()) s.webview.postMessage({ type: "tab", tab });
+  }
+
   return {
+    showTab,
     currentList: () => currentState("editor").server.list,
     open, viewProvider, refresh: post, isOpen: () => !!panel, isViewOpen: () => surfaces.has("panel"), handle: onMessage,
     lastRender: (mode = "editor") => renders[mode] || null, remote, dispose() { if (panel) panel.dispose(); if (timer) clearInterval(timer); },
