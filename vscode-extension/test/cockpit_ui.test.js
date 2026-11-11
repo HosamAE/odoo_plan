@@ -229,6 +229,21 @@ const checks = `
     ok(window.__sent.some(function (m) { return m.cmd === "stopAt" && m.port === 1900; }), "a row's Stop stops only that server");
     click(btn(rows[1], "Open"));
     ok(window.__sent.some(function (m) { return m.cmd === "open" && m.port === 1901; }), "a row's Open opens that port");
+    // the details: header, badge, keyboard, the ports a database is served on
+    ok(/port 1901/.test(document.getElementById("top").textContent) && /following 1 of 2/.test(document.getElementById("top").textContent), "the header names the port being followed");
+    ok(!btn(document.getElementById("top"), "Start server"), "no Start in the header while a server runs");
+    ok(/Cockpit Odoo/.test(document.getElementById("top").textContent), "one name in the header");
+    var badge = document.querySelector("#tabs .badge");
+    ok(badge && badge.className.indexOf("bad") >= 0 && badge.textContent === "2", "the errors tab carries the real count, red when there are errors: " + (badge && badge.textContent));
+    var onTab = document.querySelector("#tabs .tab.on"); onTab.focus();
+    onTab.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })); await wait(30);
+    ok(/Databases/.test(document.querySelector("#tabs .tab.on").textContent) && document.activeElement === document.querySelector("#tabs .tab.on"), "an arrow key moves to the next tab and keeps focus there");
+    var rowServed = Array.prototype.find.call(document.querySelectorAll("#dbs tbody tr"), function (r) { return /acme_v19/.test(r.textContent); });
+    ok(/serving :1901/.test(rowServed.textContent), "a database says which port serves it");
+    post(S.stopped); await wait(60);
+    ok(!!btn(document.getElementById("top"), "Start server"), "with nothing running the header offers Start");
+    click(btn(document.getElementById("top"), "Start server"));
+    ok(window.__sent.some(function (m) { return m.cmd === "start"; }), "and it starts one");
     post(S.base); await wait(60);
     var pre = document.createElement("pre"); pre.id = "result";
     pre.textContent = JSON.stringify({ passed: out.length, failed: fail.concat(window.__errors.map(function (m) { return "PAGE ERROR " + m; })) });

@@ -1316,7 +1316,11 @@ function parseOdooCommand(cmd, project) {
   // The program must be a Python interpreter. A shell, a terminal or an editor whose command line merely mentions
   // odoo-bin is not a server, and Stop must never end one (it would close a terminal or the editor itself).
   if (!/^pythonw?[\d.]*(?:\.exe)?$/i.test((tokens[0] || "").split(/[\\/]/).pop())) return null;
-  const bin = tokens.findIndex((t) => /odoo-bin$|odoo\.py$/i.test(t) || t === "odoo");
+  // odoo-bin must be the PROGRAM being run, not the value of an option of some other program: `odoo-ai server drift
+  // --odoo-bin C:/.../odoo-bin ...` carries the path and is not a server (it showed up as one, on port 8069, while
+  // the Cockpit's own drift check ran).
+  const bin = tokens.findIndex((t, i) => !t.startsWith("-") && (/odoo-bin$|odoo\.py$/i.test(t) || t === "odoo") && !(i > 0 && /^--[\w-]+$/.test(tokens[i - 1])));
+  if (bin < 0) return null;
   const after = tokens.slice(bin + 1).find((t) => !t.startsWith("-"));
   if (bin >= 0 && after && ODOO_SUBCOMMANDS.has(after) && after !== "server") return null;
   let conf = null;
@@ -2130,7 +2134,7 @@ function activate(context) {
   context.subscriptions.push({ dispose: () => clearInterval(timer) });
   reportStartupProblems();
   return { _test: { cockpit, translations, issuesTree, actionsTree, envTree, issues: module.exports._test.issues, startupProblems,
-    multi: { pollServerStatus, startServerWith, launched, freePort, focusServer, stopServerAt, state, serverRun, detectServers, findProject } } };
+    multi: { listOdooProcesses, pollServerStatus, startServerWith, launched, freePort, focusServer, stopServerAt, state, serverRun, detectServers, findProject } } };
 }
 
 function deactivate() {
