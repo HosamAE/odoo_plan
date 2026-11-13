@@ -5,7 +5,7 @@
 ![Odoo 17 | 18 | 19 | 20](https://img.shields.io/badge/Odoo-17%20%7C%2018%20%7C%2019%20%7C%2020-714B67?logo=odoo)
 ![License MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-![The cockpit: the state of the project, and the buttons of every day](media/screenshots/home.png)
+![The cockpit: the state of the project, and the buttons of every day](https://raw.githubusercontent.com/HosamAE/odoo_plan/main/vscode-extension/media/screenshots/home.png)
 
 It works on **any Odoo project**, whatever its layout. It is the face of a set of command-line tools (`odoo-ai`: the CI, the lint rules, the knowledge-graph engine, the database tools). Everything the cockpit does can also be done from a terminal, so the same work runs in CI and from an AI assistant; the cockpit is where you see it and press it.
 
@@ -29,7 +29,7 @@ It works on **any Odoo project**, whatever its layout. It is the face of a set o
 2. **Open an Odoo project folder** (any folder that holds addons with a `__manifest__.py`). Click the **Cockpit Odoo** icon in the Activity Bar, or run `Odoo Studio: Open Cockpit Odoo in the Bottom Panel`.
 3. **If a notice at the top says the tools were not found**, press **Set up the tools** (see [What it needs](#what-it-needs)). The pages that run something (servers, quality, graph) need them.
 
-![When the odoo-ai tools are missing, a notice says so once, with the way out](media/screenshots/setup-notice.png)
+![When the odoo-ai tools are missing, a notice says so once, with the way out](https://raw.githubusercontent.com/HosamAE/odoo_plan/main/vscode-extension/media/screenshots/setup-notice.png)
 
 ## A tour of the pages
 
@@ -39,7 +39,7 @@ The sidebar is a short list: the project, the state of the server with its butto
 
 Open a file of any module and the **Graph** page draws the whole tree of what that module depends on, down to `base`, and the modules of your project that need it. It follows you from file to file.
 
-![The dependency tree of a module: Odoo modules are hexagons, your own are plain rectangles](media/screenshots/graph-map.png)
+![The dependency tree of a module: Odoo modules are hexagons, your own are plain rectangles](https://raw.githubusercontent.com/HosamAE/odoo_plan/main/vscode-extension/media/screenshots/graph-map.png)
 
 - Modules from Odoo are **hexagons**, Odoo Enterprise ones hexagons with a dashed outline, third-party modules dashed, your project's own modules plain rectangles, and the module in the middle has a heavy outline. Shape and outline say what a module is, not colour alone.
 - Press any module, also one of Odoo's, and its own whole tree is drawn. A module that is not in your project is read from its own `__manifest__.py`, which is read as data and never run. **Back** returns; **Open manifest** opens the file.
@@ -48,31 +48,31 @@ Open a file of any module and the **Graph** page draws the whole tree of what th
 
 ### Servers
 
-![Two servers running: follow one, open it, stop it, start another](media/screenshots/server.png)
+![Two servers running: follow one, open it, stop it, start another](https://raw.githubusercontent.com/HosamAE/odoo_plan/main/vscode-extension/media/screenshots/server.png)
 
 *Start never stops a server that is running*: a new one takes the next free port. *Restart* and *Stop* on the page act on the server marked with a dot only, so the others keep running.
 
 ### Databases
 
-![Databases with their size, version, modules and the buttons that act on one](media/screenshots/databases.png)
+![Databases with their size, version, modules and the buttons that act on one](https://raw.githubusercontent.com/HosamAE/odoo_plan/main/vscode-extension/media/screenshots/databases.png)
 
 The page lists the databases of the project's Odoo version; those written by another version are hidden behind a button that says how many, and when shown they are dimmed and offer no upgrade. *Back up a database before upgrading it* makes the upgrade stop if the backup fails.
 
 ### Quality
 
-![The last run: which step failed and why](media/screenshots/quality.png)
+![The last run: which step failed and why](https://raw.githubusercontent.com/HosamAE/odoo_plan/main/vscode-extension/media/screenshots/quality.png)
 
 ### Errors and warnings
 
-![The errors and warnings of the server, each tied to the line of your code](media/screenshots/errors.png)
+![The errors and warnings of the server, each tied to the line of your code](https://raw.githubusercontent.com/HosamAE/odoo_plan/main/vscode-extension/media/screenshots/errors.png)
 
 ### Tools
 
-![Every tool, one tile each](media/screenshots/tools.png)
+![Every tool, one tile each](https://raw.githubusercontent.com/HosamAE/odoo_plan/main/vscode-extension/media/screenshots/tools.png)
 
 ### Remote servers
 
-![Databases on a host of your SSH config](media/screenshots/remote.png)
+![Databases on a host of your SSH config](https://raw.githubusercontent.com/HosamAE/odoo_plan/main/vscode-extension/media/screenshots/remote.png)
 
 Passwords are never stored. A pull reads the host and makes a **new** local database (never over one that exists), switched safe: no scheduled actions, no outgoing mail.
 
@@ -80,7 +80,7 @@ Passwords are never stored. A pull reads the host and makes a **new** local data
 
 The cockpit uses the colours of your VS Code theme.
 
-![The same page in a light theme](media/screenshots/light-theme.png)
+![The same page in a light theme](https://raw.githubusercontent.com/HosamAE/odoo_plan/main/vscode-extension/media/screenshots/light-theme.png)
 
 ## What it needs
 
