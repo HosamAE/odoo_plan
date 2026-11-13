@@ -79,7 +79,7 @@ tr.focus td { background: var(--vscode-list-activeSelectionBackground, rgba(0, 1
 .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; min-width: 0; }
 .pill { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid currentColor; background: color-mix(in srgb, currentColor 13%, transparent); }
-.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); } .pill.idle { color: var(--muted); }
+.pill.ok { color: var(--ok); } .pill.warn { color: color-mix(in srgb, var(--warn) 50%, var(--fg)); } .pill.bad { color: var(--bad); } .pill.idle { color: var(--muted); }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
 .kv { display: grid; grid-template-columns: 90px 1fr; gap: 2px 8px; margin: 6px 0; }
 .kv span:nth-child(odd) { color: var(--muted); }
@@ -148,6 +148,15 @@ svg.map .arrowhead { fill: var(--muted); }
 .mn-unknown .shape { fill: transparent; stroke: var(--muted); stroke-dasharray: 2 3; }
 .mn-focus .shape { fill: color-mix(in srgb, var(--accent) 30%, var(--bg)); stroke: var(--accent); stroke-width: 3; }
 .mn-focus .label { font-weight: 700; }
+/* a light theme needs darker outlines to stand out from a white page (3:1 at least) */
+body.vscode-light .mn-project .shape, body.vscode-high-contrast-light .mn-project .shape { stroke: #1565c0; fill: color-mix(in srgb, #1565c0 14%, var(--bg)); }
+body.vscode-light .mn-core .shape, body.vscode-high-contrast-light .mn-core .shape { stroke: #8e3a7a; fill: color-mix(in srgb, #8e3a7a 14%, var(--bg)); }
+body.vscode-light .mn-enterprise .shape, body.vscode-high-contrast-light .mn-enterprise .shape { stroke: #8a6d00; fill: color-mix(in srgb, #8a6d00 14%, var(--bg)); }
+body.vscode-light .mn-themes .shape, body.vscode-high-contrast-light .mn-themes .shape { stroke: #b4501a; fill: color-mix(in srgb, #b4501a 14%, var(--bg)); }
+body.vscode-light .mn-third_party .shape, body.vscode-high-contrast-light .mn-third_party .shape { stroke: #1b7a57; fill: color-mix(in srgb, #1b7a57 14%, var(--bg)); }
+/* a map with very many arrows (a module everything depends on): they fade, and the ones of the module under the pointer stand out */
+svg.map.dense .edge { stroke-opacity: .16; stroke-width: 1; }
+svg.map.dense .edge.hl { stroke-opacity: 1; stroke-width: 2.2; }
 .check { display: flex; gap: 8px; align-items: baseline; margin: 3px 0; flex-wrap: wrap; }
 .check b { width: 14px; } .check.ok b { color: var(--ok); } .check.bad b { color: var(--bad); } .check.run b { color: var(--warn); } .check.idle, .check.idle b { color: var(--muted); }
 .tg { color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600; margin: 12px 0 6px; }
@@ -614,9 +623,11 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
 
   function renderTools() {
     var nodes = [h("h2", {}, "Tools & maintenance")];
+    var MAINTAINER = { "odooCi.selfTest": true, "odooCi.syncVersions": true };   // for people who maintain the tools themselves: the setting odooCi.maintainerTools
     TOOLS.forEach(function (group) {
+      var shown = group[1].filter(function (t) { return S.maintainer || !MAINTAINER[t[2]]; });
       nodes.push(h("div", { class: "tg" }, group[0]));
-      nodes.push(h("div", { class: "tools" }, group[1].map(function (t) {
+      nodes.push(h("div", { class: "tools" }, shown.map(function (t) {
         return h("button", { class: "tool", onclick: function () { send("run", { command: t[2] }); } }, h("b", {}, t[0]), h("span", {}, t[1]));
       })));
     });
@@ -660,7 +671,7 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
       var list = cols[k], top = PAD + (rows - list.length) * PITCH / 2;
       list.forEach(function (n, i) { pos[n.name] = { x: PAD + (n.depth - min) * COL, y: top + i * PITCH }; });
     });
-    var svg = sv("svg", { class: "map", width: width, height: height, viewBox: "0 0 " + width + " " + height, role: "group", "aria-label": "Dependency tree of " + data.module });
+    var svg = sv("svg", { class: "map" + (data.edges.length > 120 ? " dense" : ""), width: width, height: height, viewBox: "0 0 " + width + " " + height, role: "group", "aria-label": "Dependency tree of " + data.module });
     svg.appendChild(sv("defs", {}, sv("marker", { id: "mapArrow", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto" },
       sv("path", { d: "M0,0 L10,5 L0,10 z", class: "arrowhead" }))));
     var edgeLayer = sv("g", {}), nodeLayer = sv("g", {}), edges = [];
@@ -833,7 +844,7 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
 
   function render() {
     if (!S) return;
-    document.body.className = S.mode === "panel" ? "panel" : "";
+    document.body.classList.toggle("panel", S.mode === "panel");   // not className: the editor puts its theme class (vscode-light, vscode-dark) on the body
     renderTabs(); renderRemote();
     renderTop(); renderHome(); renderServer(); renderProgress(); renderIssues(); renderDbs(); renderModules(); renderGraph(); renderMap(); renderQuality(); renderTools(); renderBanner(); tellMapVisible();
     var keepScroll = $("log") ? $("log").scrollTop : 0;

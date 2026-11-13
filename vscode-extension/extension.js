@@ -1536,8 +1536,9 @@ class EnvProvider {
     return [
       item("Set up an Odoo version…", "rocket", "odooCi.newVersion", "one command"),
       item("Doctor (health check)", "pulse", "odooCi.doctor"),
-      item("Tools CI (before push)", "beaker", "odooCi.selfTest", "all 4 versions, CI conditions"),
-      item("Version branches vs main", "git-compare", "odooCi.syncVersions", "report only"),
+      ...(vscode.workspace.getConfiguration("odooCi").get("maintainerTools") ? [
+        item("Tools CI (before push)", "beaker", "odooCi.selfTest", "all 4 versions, CI conditions"),
+        item("Version branches vs main", "git-compare", "odooCi.syncVersions", "report only")] : []),
       item("Scan staged files for secrets", "shield", "odooCi.secretScan"),
       item("Translations: scan, update, export", "globe", "odooCi.translations"),
       item("Install secret pre-commit hook", "lock", "odooCi.secretHook", "this repository"),
@@ -1700,6 +1701,7 @@ function activate(context) {
     activeFile: () => { const e = vscode.window.activeTextEditor; return e && e.document.uri.scheme === "file" ? e.document.uri.fsPath : null; },
     // the graph is left fresh quietly when the project opens, as the workspace task did; off in the test editor, and by a setting
     autoUpdateEnabled: () => !process.env.ODOO_CI_TEST_OUT && vscode.workspace.getConfiguration("odooCi").get("graph.autoUpdate") !== false,
+    maintainerTools: () => !!vscode.workspace.getConfiguration("odooCi").get("maintainerTools"),
     keepGenerations: () => Number(vscode.workspace.getConfiguration("odooCi").get("graph.keepGenerations")) || 0,
     remembered: (key) => extContext && extContext.workspaceState.get(`odooCi.remote.${key}`),
     remember: (key, value) => extContext && extContext.workspaceState.update(`odooCi.remote.${key}`, value),
@@ -1798,8 +1800,9 @@ function activate(context) {
         { label: "$(add) Scaffold New Addon", action: "newAddon" },
         { label: "$(pulse) Run Doctor Health Check", action: "doctor" },
         { label: "$(rocket) Set up an Odoo version", action: "newVersion" },
-        { label: "$(beaker) Tools CI (before push)", action: "selfTest" },
-        { label: "$(git-compare) Version branches vs main", action: "syncVersions" },
+        ...(vscode.workspace.getConfiguration("odooCi").get("maintainerTools") ? [
+          { label: "$(beaker) Tools CI (before push)", action: "selfTest" },
+          { label: "$(git-compare) Version branches vs main", action: "syncVersions" }] : []),
         { label: "$(shield) Scan staged files for secrets", action: "secretScan" },
         { label: "$(globe) Translations: scan, update, export", action: "translations" },
         { label: "$(law) Project gates (Odoo rules)", action: "gates" },

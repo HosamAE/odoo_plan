@@ -261,7 +261,10 @@ const checks = `
     // tools: one tile for each tool, each starting a command
     click(Array.prototype.find.call(document.querySelectorAll("#tabs .tab"), function (t) { return /^Tools$/.test(t.textContent); })); await wait(30);
     var tl = document.getElementById("tools");
-    ok(!document.getElementById("page-tools").hidden && tl.querySelectorAll("button.tool").length === 17, "the Tools tab offers all seventeen tools");
+    ok(!document.getElementById("page-tools").hidden && tl.querySelectorAll("button.tool").length === 15, "the Tools tab offers the fifteen tools of a developer");
+    post(Object.assign({}, S.base, { maintainer: true })); await wait(60);
+    ok(tl.querySelectorAll("button.tool").length === 17 && /Tools CI/.test(tl.textContent), "the two tools for maintainers of the tools appear with the setting odooCi.maintainerTools");
+    post(S.base); await wait(60);
     ok(["Developer", "Databases", "Maintenance"].every(function (g) { return Array.prototype.some.call(tl.querySelectorAll(".tg"), function (e) { return e.textContent === g; }); }), "in three groups");
     window.__sent.length = 0;
     click(Array.prototype.find.call(tl.querySelectorAll("button.tool"), function (b) { return /^Doctor/.test(b.textContent); }));

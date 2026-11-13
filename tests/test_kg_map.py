@@ -119,7 +119,30 @@ class TestTheWholeTree(Fixture):
     def test_a_manifest_is_read_as_data_and_never_run(self):
         folder = os.path.join(self.root, "odoo", "addons")
         write_manifest(folder, "sneaky", [], body="{'name': 'x', 'depends': [__import__('os').getcwd()]}\n")
-        self.assertEqual(kg_map.read_manifest(os.path.join(folder, "sneaky")), {})
+        # the entry that would need running is dropped, nothing is run, and what is plain data is kept
+        self.assertEqual(kg_map.read_manifest(os.path.join(folder, "sneaky")), {"name": "x"})
+
+    def test_odd_manifests_keep_their_dependencies(self):
+        core = os.path.join(self.root, "odoo", "addons")
+        write_manifest(core, "with_bom", [], body="﻿{'name': 'B', 'depends': ['web']}")                      # saved with a BOM
+        code = "import os\nVERSION = '1'\n{'name': 'W', 'version': VERSION, 'depends': ['mail']}\n"   # an entry computed in code
+        write_manifest(core, "with_code", [], body=code)
+        write_manifest(core, "with_tuple", [], body="{'name': 'T', 'depends': ('web', 'base')}")                  # a tuple, not a list
+        for name, wanted in (("with_bom", {"web"}), ("with_code", {"mail"}), ("with_tuple", {"web", "base"})):
+            result = self.build(name)
+            direct = {a if b == name else b for a, b in result["edges"] if name in (a, b) and a == name}
+            self.assertTrue(wanted <= direct, f"{name} lost its dependencies: {direct}")
+        self.assertEqual(kg_map.read_manifest(os.path.join(core, "with_code")).get("depends"), ["mail"])
+        self.assertNotIn("version", kg_map.read_manifest(os.path.join(core, "with_code")), "what only code can tell is left out, not guessed")
+
+    def test_a_module_that_lists_itself_does_not_disturb_the_layers(self):
+        core = os.path.join(self.root, "odoo", "addons")
+        write_manifest(core, "self_dep", ["self_dep", "hr"])
+        depth = {n["name"]: n["depth"] for n in self.build("self_dep")["nodes"]}
+        self.assertEqual(depth["hr"], -1)
+        self.assertEqual(depth["base"], -4, "base stays at the far end: hr -> mail -> web -> base")
+        self.con.execute("insert into edge_depends_on values ('my_mod', null, 'my_mod')")   # and a project module that lists itself
+        self.assertEqual(self.build("my_mod")["counts"]["dependents"], 1)
 
     def test_the_map_stops_at_its_cap_and_says_so(self):
         core = os.path.join(self.root, "odoo", "addons")

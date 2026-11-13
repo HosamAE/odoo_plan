@@ -4,6 +4,20 @@ Each branch is one Odoo version (`17.0`, `18.0`, `19.0`, `20.0`), checked out as
 
 What it does **not** carry: Odoo, enterprise, the themes, third-party addons and the venv. You download and create those yourself, as usual; `odoo-ai setup --check` says which are missing and gives the command for each.
 
+## What is public, and what stays on your machine
+
+This branch is the same for everyone. What belongs to one machine or one project is written next to it, never in it, and is kept out of git:
+
+| What | Where | In git? |
+| --- | --- | --- |
+| The project's server settings, workspace, `.mcp.json`, `CLAUDE.md`, `odools.toml` | inside the project folder | no (the project's own repository decides) |
+| The knowledge graph of a project and its config | `%LOCALAPPDATA%\odoo-kg\projects\<project>`, `kg\config\local\<project>.toml` | no (`kg/config/local/` is ignored) |
+| Machine paths | `local.json` | no |
+| Your manifests' category and author for new addons | the environment variables `ODOO_SCAFFOLD_CATEGORY`, `ODOO_SCAFFOLD_AUTHOR` (default: `Custom`, your `git config user.name`) | no |
+| Another place to fetch the tools from | the environment variable `ODOO_PLAN_REMOTE` | no |
+
+Nothing here stores a password or a key; `odoo-ai` has a secret scan (`odoo-ai secrets`) for what you are about to commit.
+
 ## Getting to work on a new machine
 
 ```powershell

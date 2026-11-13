@@ -25,10 +25,10 @@ function editors() {
   return list.filter(([, exe]) => fs.existsSync(exe)).map(([name, exe]) => ({ name, exe }));
 }
 
-const project = process.env.ODOO_CI_TEST_PROJECT || path.join(process.env.ODOO_ROOT || "C:\\odoo", "ProjectsOdoo19", "Acme");
+const project = process.env.ODOO_CI_TEST_PROJECT || "";   // a project of yours: nothing is assumed about one
 const found = editors();
-if (!found.length || !fs.existsSync(project)) {
-  console.log(`vscode host SKIPPED: ${!found.length ? "no editor found (set CODE_EXE)" : `no project at ${project} (set ODOO_CI_TEST_PROJECT)`}`);
+if (!found.length || !project || !fs.existsSync(project)) {
+  console.log(`vscode host SKIPPED: ${!found.length ? "no editor found (set CODE_EXE)" : "set ODOO_CI_TEST_PROJECT to an Odoo project folder (and ODOO_CI_TEST_MODULE to one of its modules)"}`);
   process.exit(0);
 }
 const extensionDir = path.join(__dirname, "..");
@@ -40,7 +40,7 @@ const cleanEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => 
 function runIn(editor) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "odoo-ci-editor-"));
   const out = path.join(tmp, "result.json");
-  const env = Object.assign({}, cleanEnv, { ODOO_CI_TEST_OUT: out, ODOO_CI_TEST_PROJECT: project, ODOO_CI_TEST_CLI: cli,
+  const env = Object.assign({}, cleanEnv, { ODOO_CI_TEST_OUT: out, ODOO_CI_TEST_PROJECT: project, ODOO_CI_TEST_MODULE: process.env.ODOO_CI_TEST_MODULE || "", ODOO_CI_TEST_CLI: cli,
     ODOO_CI_TEST_PYTHON: fs.existsSync(python) ? python : "python" });
   const args = [project, `--extensionDevelopmentPath=${extensionDir}`, `--extensionTestsPath=${path.join(__dirname, "vscode_host", "runner.js")}`,
     `--user-data-dir=${path.join(tmp, "user")}`, `--extensions-dir=${path.join(tmp, "extensions")}`, "--disable-workspace-trust", "--skip-welcome",
@@ -49,7 +49,7 @@ function runIn(editor) {
   let results = null;
   try { results = JSON.parse(fs.readFileSync(out, "utf8")); } catch (e) { /* reported by the caller */ }
   const stderr = String(run.stderr || "");
-  fs.rmSync(tmp, { recursive: true, force: true });
+  try { fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 }); } catch (e) { /* the editor still lets go of its profile: the system temp folder is cleaned anyway */ }
   return { results, status: run.status, refused: /currently being updated/.test(stderr) };
 }
 

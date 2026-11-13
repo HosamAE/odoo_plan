@@ -13,7 +13,7 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -553,6 +553,11 @@
           "type": "boolean",
           "default": false,
           "description": "Back a database up before upgrading it, and stop if the backup fails."
+        },
+        "odooCi.maintainerTools": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show the commands for people who maintain these tools themselves (run the tools' own CI, compare the 17/18/19/20 branches with main). Off for everyone else."
         },
         "odooCi.graph.keepGenerations": {
           "type": "integer",

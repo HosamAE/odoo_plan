@@ -22,6 +22,7 @@ exports.run = async function run() {
   const check = (name, condition, detail) => results.push({ name, ok: !!condition, detail: condition ? undefined : String(detail === undefined ? "" : detail) });
   const out = process.env.ODOO_CI_TEST_OUT;
   const project = process.env.ODOO_CI_TEST_PROJECT;
+  const MODULE = process.env.ODOO_CI_TEST_MODULE;   // a module of that project that has translatable terms (optional)
   try {
     const extension = vscode.extensions.getExtension("hosamae.odoo-ci");
     check("the extension is found in the editor", extension, "not found");
@@ -46,22 +47,25 @@ exports.run = async function run() {
     // the Errors & Warnings view, fed by the real tools judging a real log file
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "odoo-ci-host-"));
     const log = path.join(dir, "server.log");
-    const source = path.join(project, "acme_work_plan", "models", "daymap.py");
+    // a file for the traceback to point at: a throwaway one (the check is that an error opens the file at its line)
+    const source = path.join(dir, "models", "daymap.py");
+    fs.mkdirSync(path.dirname(source), { recursive: true });
+    fs.writeFileSync(source, Array.from({ length: 60 }, (_, i) => `# line ${i + 1}`).join(String.fromCharCode(10)) + String.fromCharCode(10));
     fs.writeFileSync(log, [
-      "2026-11-10 23:00:00,000 1 INFO hx_try odoo.modules.loading: Loading module base (1/3)",
-      "2026-11-10 23:00:01,000 1 WARNING hx_try odoo.tools.convert: Skipping deletion for missing XML ID `'a'`",
-      "2026-11-10 23:00:02,000 1 INFO hx_try odoo.modules.loading: Loading module web (2/3)",
-      "2026-11-10 23:00:03,000 1 ERROR hx_try odoo.http: Exception during request handling.",
+      "2026-11-10 23:00:00,000 1 INFO testdb odoo.modules.loading: Loading module base (1/3)",
+      "2026-11-10 23:00:01,000 1 WARNING testdb odoo.tools.convert: Skipping deletion for missing XML ID `'a'`",
+      "2026-11-10 23:00:02,000 1 INFO testdb odoo.modules.loading: Loading module web (2/3)",
+      "2026-11-10 23:00:03,000 1 ERROR testdb odoo.http: Exception during request handling.",
       "Traceback (most recent call last):",
       `  File "${source}", line 40, in hx_daymap_data`,
       "    boom()",
       "ValueError: boom",
-      "2026-11-10 23:00:04,000 1 WARNING hx_try odoo.tools.convert: Skipping deletion for missing XML ID `'a'`",
-      "2026-11-10 23:00:05,000 1 INFO hx_try odoo.modules.loading: Loading module sale (3/3)",
+      "2026-11-10 23:00:04,000 1 WARNING testdb odoo.tools.convert: Skipping deletion for missing XML ID `'a'`",
+      "2026-11-10 23:00:05,000 1 INFO testdb odoo.modules.loading: Loading module sale (3/3)",
     ].join("\n") + "\n");
     let verdict = null;
     try {
-      verdict = JSON.parse(cp.execFileSync(process.env.ODOO_CI_TEST_PYTHON, [process.env.ODOO_CI_TEST_CLI, "server", "health", "--log", log, "--json", "--root", project, "--db", "hx_try"], { encoding: "utf8" }));
+      verdict = JSON.parse(cp.execFileSync(process.env.ODOO_CI_TEST_PYTHON, [process.env.ODOO_CI_TEST_CLI, "server", "health", "--log", log, "--json", "--root", dir, "--db", "testdb"], { encoding: "utf8" }));
     } catch (e) {
       verdict = JSON.parse(e.stdout || "null");   // the tools exit non-zero for problems, and still answer
     }
@@ -121,9 +125,10 @@ exports.run = async function run() {
     await vscode.commands.executeCommand("odooCi.translations");
     check("the translations page opens", tr.isOpen(), "no panel");
     const modulesRead = await until(() => { const st = tr.state(); return st.modules && st.modules.length ? st : null; }, 120000, 500);
-    check("it read the project's modules with the real tools", modulesRead && modulesRead.modules.some((m) => m.module === "acme_work_plan"), JSON.stringify(tr.state().error));
-    const plan = modulesRead && modulesRead.modules.find((m) => m.module === "acme_work_plan");
-    check("with the languages of the setting (sv_SE) counted even before a .po exists", plan && plan.languages.some((l) => l.lang === "sv_SE") && plan.terms > 100, JSON.stringify(plan && { terms: plan.terms, languages: plan.languages.map((l) => l.lang) }));
+    if (!MODULE) check("(translation counts skipped: set ODOO_CI_TEST_MODULE to a module of the project)", true);
+    else check("it read the project's modules with the real tools", modulesRead && modulesRead.modules.some((m) => m.module === MODULE), JSON.stringify(tr.state().error));
+    const plan = modulesRead && modulesRead.modules.find((m) => m.module === MODULE);
+    if (MODULE) check("with the languages of the setting (sv_SE) counted even before a .po exists", plan && plan.languages.some((l) => l.lang === "sv_SE") && plan.terms > 100, JSON.stringify(plan && { terms: plan.terms, languages: plan.languages.map((l) => l.lang) }));
     const trDrawn = await until(() => (tr._r.rendered && tr._r.rendered.modules > 0 ? tr._r.rendered : null), 30000, 500);
     check("and the page drew them", trDrawn, JSON.stringify(tr._r.rendered));
 

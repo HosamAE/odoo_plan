@@ -164,7 +164,7 @@ function create(api) {
     return buildState({
       project: p, port: api.getProjectPort(p), servers: api.state.servers, focusPort: api.state.focusPort, launchedPorts: api.launchedPorts(), serverRunning: api.state.serverRunning,
       serverDb: api.serverRun.db, health: api.state.health, source, upgrade: api.state.upgrade, databases, modulesInfo, drift,
-      logText, logFirst, backupDir: api.getBackupDir(p), backupBeforeUpgrade: api.backupBeforeUpgrade(), remote: remote.state(), graph: graph.state(), ci: api.ci(), tools: api.tools ? api.tools(p) : null, mode,
+      logText, logFirst, backupDir: api.getBackupDir(p), backupBeforeUpgrade: api.backupBeforeUpgrade(), remote: remote.state(), graph: graph.state(), ci: api.ci(), maintainer: !!(api.maintainerTools && api.maintainerTools()), tools: api.tools ? api.tools(p) : null, mode,
     });
   }
 

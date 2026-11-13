@@ -49,15 +49,22 @@ def locate(name, odoo_root):
 
 
 def read_manifest(folder):
-    """The manifest dict of a module folder, read as data (never run); {} when it cannot be read."""
+    """The manifest of a module folder, read as data (never run): the entries whose value is a plain literal.
+    An entry computed in code (`'version': VERSION`) is left out and the others are kept; {} when the file cannot be parsed."""
     try:
-        with open(os.path.join(folder, "__manifest__.py"), encoding="utf-8") as handle:
+        with open(os.path.join(folder, "__manifest__.py"), encoding="utf-8-sig") as handle:   # utf-8-sig: a file saved with a BOM
             tree = ast.parse(handle.read())
-        for node in tree.body:
-            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Dict):
-                return ast.literal_eval(node.value)
     except (OSError, SyntaxError, ValueError):
-        pass
+        return {}
+    for node in tree.body:
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Dict):
+            entries = {}
+            for key, value in zip(node.value.keys, node.value.values):
+                try:
+                    entries[ast.literal_eval(key)] = ast.literal_eval(value)
+                except (ValueError, TypeError, SyntaxError):
+                    continue
+            return entries
     return {}
 
 
@@ -94,7 +101,7 @@ def build_map(con, module, odoo_root):
     out, inn = {}, {}
     for src, dst, unresolved in con.execute("select src_module, dst_module, dst_unresolved from edge_depends_on"):
         target = dst or unresolved
-        if not target:
+        if not target or target == src:   # a module that lists itself changes nothing, and would break the layers
             continue
         out.setdefault(src, []).append(target)
         inn.setdefault(target, []).append(src)   # an Odoo module is "unresolved" in the graph: it still has users
@@ -114,7 +121,7 @@ def build_map(con, module, odoo_root):
     def depends_of(name):
         if name in project:
             return out.get(name, [])
-        return [str(d) for d in (manifest(name).get("depends") or [])]
+        return [str(d) for d in (manifest(name).get("depends") or []) if str(d) != name]
 
     kind, folder = where(module)
     if kind == "project":

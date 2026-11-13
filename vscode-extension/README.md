@@ -109,6 +109,7 @@ Windows is where it is tested. The code has paths for Linux and macOS, but they 
 | `odooCi.graph.followEditor` | The module map follows the file you are editing |
 | `odooCi.graph.keepGenerations` | Every graph update leaves an old generation on disk that the engine never removes. `0` (the default) deletes nothing; a number keeps the published one and that many of the newest |
 | `odooCi.defaultLang`, `odooCi.i18n.*` | Translation languages, and a model of your own for automatic translation |
+| `odooCi.maintainerTools` | Show the two commands for people who maintain these tools themselves (the tools' own CI, the 17/18/19/20 branches against main). Off by default |
 | `odooCi.remoteSudoUser` | The one account a remote host opens to you for its databases |
 
 ## Privacy and safety
