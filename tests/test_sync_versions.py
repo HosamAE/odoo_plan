@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -21,6 +22,37 @@ def write(root, rel, text):
 def read(root, rel):
     with open(os.path.join(root, *rel.split("/")), encoding="utf-8", newline="") as handle:
         return handle.read()
+
+
+class TestWhatIsPublished(unittest.TestCase):
+    """A file the .gitignore keeps out of git must never reach a generated branch (an estate file and a dashboard of
+    local projects once did, on three public branches)."""
+
+    GITIGNORE = "__pycache__/\n*.log\ndocs/index.html\n/local/\n"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = self._tmp.name
+        write(self.root, ".gitignore", self.GITIGNORE)
+        write(self.root, "cli.py", "shared\n")
+        write(self.root, "docs/INDEX.md", "public\n")
+        write(self.root, "docs/index.html", "a dashboard of this machine's projects\n")
+        write(self.root, "local/workspace_local.py", "PROJECT_IDS = {}\n")
+        write(self.root, "tools/run.log", "log\n")
+
+    def test_without_git_the_gitignore_decides(self):
+        self.assertEqual(sync_versions.tools_files(self.root), [".gitignore", "cli.py", "docs/INDEX.md"])
+
+    def test_in_a_git_work_tree_git_decides(self):
+        subprocess.run(["git", "-C", self.root, "init", "-q"], check=True)
+        write(self.root, "new_tool.py", "not added yet, not ignored\n")
+        self.assertEqual(sync_versions.tools_files(self.root), [".gitignore", "cli.py", "docs/INDEX.md", "new_tool.py"])
+
+    def test_a_built_tree_has_no_gitignore_and_is_listed_whole(self):
+        out = os.path.join(self._tmp.name, "built")
+        write(out, "docs/index.html", "a generated file that happens to have this name\n")
+        self.assertEqual(sync_versions.tools_files(out), ["docs/index.html"])
 
 
 class TestBuildTree(unittest.TestCase):
