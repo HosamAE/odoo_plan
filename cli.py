@@ -86,7 +86,7 @@ def main():
 
     # 1. Test Command
     test_parser = subparsers.add_parser("test", help="Run Odoo unittests for a module")
-    test_parser.add_argument("--module", "-m", required=True, help="Module technical name (e.g. hoss_dashboard)")
+    test_parser.add_argument("--module", "-m", required=True, help="Module technical name (e.g. my_dashboard)")
     test_parser.add_argument("--version", "-v", default=None, choices=SUPPORTED_VERSIONS,
                              help="Odoo version (default: from the current folder, else these tools' version)")
     test_parser.add_argument("--db", "-d", default="test_db", help="Database name (default: test_db)")
