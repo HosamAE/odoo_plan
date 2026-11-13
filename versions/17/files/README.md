@@ -10,8 +10,7 @@ What it does **not** carry: Odoo, enterprise, the themes, third-party addons and
 # 1. the structure and tools of the version
 git clone -b 17.0 https://github.com/HosamAE/odoo_plan C:\odoo\odoo17\tools
 
-# 2. what `odoo-ai setup` runs for you: Odoo's source, the venv and the packages. enterprise (needs an account) and design-themes (optional) stay yours.
-#    `setup --check` lists every command without running any
+# 2. what you download yourself (setup --check lists the exact commands)
 git clone --depth 1 -b 17.0 https://github.com/odoo/odoo.git C:\odoo\odoo17\odoo
 git clone --depth 1 -b 17.0 https://github.com/odoo/enterprise.git C:\odoo\odoo17\enterprise      # with access
 git clone --depth 1 -b 17.0 https://github.com/odoo/design-themes.git C:\odoo\odoo17\design-themes

@@ -1,8 +1,8 @@
 # Changelog
 
-## 2.4.6
+## 2.4.7
 
-- `odoo-ai setup` (the Set up button) now does what it listed: it clones Odoo's source when it is missing, creates the venv and installs the packages. It used to print the commands and still end with "N done". A step that fails is counted and named, and the setup exits non-zero; `--check` still changes nothing. Enterprise (needs an account) and the themes (optional) are still only named.
+- Set up arranges the tools inside the version's folder structure; it does not download Odoo or create the venv, and 2.4.6 was wrong to claim it did (that entry is withdrawn). The setup now lists those two as "for you" with their commands, and no longer counts a printed command as "done".
 
 ## 2.4.5
 
