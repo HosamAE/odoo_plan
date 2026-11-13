@@ -5,7 +5,8 @@ and keeps its VS Code workspace on the shared layout.
 
 For each project it:
   1. writes an odoo-kg config:   C:\\odoo\\odoo<NN>\\tools\\kg\\config\\local\\<project-id>.toml  (never committed)
-  2. adds the odoo-kg tasks to the project's .code-workspace file(s)
+  2. keeps the odoo-kg tasks and the VS Code MCP registration out of the project's .code-workspace file(s)
+     (the Cockpit's Graph page builds and refreshes the graph; Claude Code reads it from .mcp.json)
   3. writes a Claude Code .mcp.json in the project root and excludes it in .git/info/exclude
   4. writes a CLAUDE.md with the knowledge-graph rules when the project has none
   5. creates <Project>.code-workspace when a project with addons has none (new projects, Odoo 20)
@@ -134,18 +135,38 @@ def count_manifests(path, limit=3):
     return total
 
 
+def own_venv_python():
+    """The Python of THIS version's venv when it can run odoo-kg (3.11+), else None. Each version builds its graphs
+    with its own interpreter: the Python that happened to start this tool may belong to another version."""
+    if not TOOLS_VERSION:
+        return None
+    venv = os.path.join(FS_ROOT, f"odoo{TOOLS_VERSION}", "venv")
+    exe = os.path.join(venv, "Scripts", "python.exe") if os.name == "nt" else os.path.join(venv, "bin", "python")
+    cfg = os.path.join(venv, "pyvenv.cfg")
+    if not (os.path.isfile(exe) and os.path.isfile(cfg)):
+        return None
+    with open(cfg, encoding="utf-8", errors="replace") as handle:
+        m = re.search(r"^version\s*=\s*(\d+)\.(\d+)", handle.read(), re.MULTILINE)
+    return exe.replace("\\", "/") if m and (int(m.group(1)), int(m.group(2))) >= (3, 11) else None
+
+
 def find_kg_python(explicit=None):
+    """--kg-python, then ODOO_KG_PYTHON, then this version's own venv, then an installed Python 3.11+, and the
+    Python that runs this tool only as the last resort."""
     if explicit:
         return explicit.replace("\\", "/")
     if os.environ.get("ODOO_KG_PYTHON"):
         return os.environ["ODOO_KG_PYTHON"].replace("\\", "/")
-    if os.name == "nt" and sys.version_info >= (3, 11):
-        return sys.executable.replace("\\", "/")
+    own = own_venv_python()
+    if own:
+        return own
     local = os.environ.get("LOCALAPPDATA", "")
     for v in ("314", "313", "312", "311"):
         candidate = os.path.join(local, "Programs", "Python", f"Python{v}", "python.exe")
         if local and os.path.isfile(candidate):
             return candidate.replace("\\", "/")
+    if sys.version_info >= (3, 11):
+        return sys.executable.replace("\\", "/")
     raise SystemExit("odoo-kg needs Python 3.11+. Pass --kg-python <path to python.exe>.")
 
 
@@ -269,41 +290,6 @@ max_hash_bytes = 8388608
 """
 
 
-def kg_tasks(kg_python, config_win):
-    def task(label, command, detail, problem=False):
-        return {
-            "label": label,
-            "type": "process",
-            "command": kg_python,
-            "args": ["-m", "odoo_kg", command, "--config", config_win],
-            "options": {"cwd": KG_DIR},
-            "presentation": {"reveal": "always", "panel": "dedicated", "clear": True},
-            "problemMatcher": [],
-            "detail": detail,
-        }
-    return [
-        task(KG_TASK_LABELS[0], "index", "Index this project into the knowledge graph and publish it"),
-        open_task(kg_python, config_win),
-        task(KG_TASK_LABELS[2], "doctor", "Check the odoo-kg configuration (writes nothing)"),
-    ]
-
-
-def open_task(kg_python, config_win):
-    """The task that runs when the workspace opens: tools/kg_open.py rebuilds a stale
-    graph and stays quiet; `odoo_kg status` alone fails after every commit."""
-    return {
-        "label": KG_TASK_LABELS[1],
-        "type": "process",
-        "command": kg_python,
-        "args": [f"{WIN_ROOT}/odoo{TOOLS_VERSION}/tools/kg_open.py", "--config", config_win],
-        "options": {"cwd": KG_DIR},
-        "presentation": {"reveal": "silent", "panel": "dedicated", "clear": True},
-        "problemMatcher": [],
-        "runOptions": {"runOn": "folderOpen"},
-        "detail": "On open: keep the graph fresh (rebuilt when a commit left it behind)",
-    }
-
-
 def _object_span(text, inside):
     """(start, end) of the JSON object around index `inside`, strings respected."""
     depth, i, start = 0, inside, None
@@ -338,20 +324,68 @@ def _object_span(text, inside):
     return None
 
 
-def fix_open_task(text, kg_python, config_win):
-    """An existing workspace's status task becomes the quiet open task."""
-    at = text.find(f'"label": "{KG_TASK_LABELS[1]}"')
-    if at < 0 or "kg_open.py" in text:
+def _cut(text, start, end):
+    """Remove text[start:end] - an item of an array or a member of an object - with its comma and its own line."""
+    line_start = text.rfind("\n", 0, start) + 1
+    if not text[line_start:start].strip():
+        start = line_start
+    tail = end
+    while tail < len(text) and text[tail] in " \t":
+        tail += 1
+    if tail < len(text) and text[tail] == ",":
+        tail += 1
+        while tail < len(text) and text[tail] in " \t":
+            tail += 1
+        if text.startswith("\r\n", tail):
+            tail += 2
+        elif text.startswith("\n", tail):
+            tail += 1
+        return text[:start] + text[tail:]
+    head = start   # the last one of its list: the comma to drop is the one before it
+    while head > 0 and text[head - 1] in " \t\r\n":
+        head -= 1
+    if head > 0 and text[head - 1] == ",":
+        head -= 1
+    return text[:head] + text[end:]
+
+
+def remove_kg_tasks(text):
+    """Drop the three odoo-kg tasks that older versions of this tool wrote. The Cockpit's Graph page builds,
+    checks and keeps the graph fresh when the project opens; a task for each showed up as a separate thing."""
+    removed = 0
+    for label in KG_TASK_LABELS:
+        while True:
+            m = re.search(r'"label"\s*:\s*"' + re.escape(label) + '"', text)
+            span = _object_span(text, m.start()) if m else None
+            if not span:
+                break
+            text = _cut(text, span[0], span[1])
+            removed += 1
+    if removed:
+        loads_jsonc(text)   # must still parse
+    return text, removed
+
+
+def remove_graph_registration(text):
+    """VS Code's own MCP list (Copilot agent mode) no longer gets odoo-kg: it appeared there as a separate thing, and
+    Claude Code reads the graph from .mcp.json. An mcp block that holds other servers keeps them."""
+    m = re.search(r'"odoo-kg"\s*:\s*\{', text)
+    if not m or "odoo-kg" not in loads_jsonc(text).get("settings", {}).get("mcp", {}).get("servers", {}):
         return text, []
-    span = _object_span(text, at)
+    span = _object_span(text, m.end() - 1)
     if not span:
         return text, []
-    line_start = text.rfind("\n", 0, span[0]) + 1
-    indent = text[line_start:span[0]] if not text[line_start:span[0]].strip() else "      "
-    body = json.dumps(open_task(kg_python, config_win), indent=2).replace("\n", "\n" + indent)
-    new = text[:span[0]] + body + text[span[1]:]
-    loads_jsonc(new)
-    return new, ["graph status task -> quiet rebuild on open"]
+    text = _cut(text, m.start(), span[1])
+    changed = ["odoo-kg removed from VS Code's MCP list"]
+    block = loads_jsonc(text).get("settings", {}).get("mcp", {})
+    if block.get("servers") == {} and set(block) == {"servers"}:   # nothing else in it: the block goes too
+        at = re.search(r'"mcp"\s*:\s*\{', text)
+        mspan = _object_span(text, at.end() - 1) if at else None
+        if mspan:
+            text = _cut(text, at.start(), mspan[1])
+            changed.append("the empty mcp block removed")
+    loads_jsonc(text)
+    return text, changed
 
 
 def mcp_json(kg_python, config_win):
@@ -376,7 +410,7 @@ KG_SECTION = """## The knowledge graph
   records manifests and static structure; it does not prove runtime behaviour.
   It indexes this folder only: Odoo core and other addon repos on the
   addons_path are not in it, so their modules show as unresolved dependencies.
-- Rebuild after commits that matter: VS Code task **odoo-kg: build graph**, or
+- Rebuild after commits that matter: the Graph page of the Cockpit Odoo (it also does it when the project opens), or
   `python -m odoo_kg index --config C:\\odoo\\odoo{v}\\tools\\kg\\config\\local\\{pid}.toml`
   from `C:\\odoo\\odoo{v}\\tools\\kg`, or `odoo-ai kg index` inside the project.
 - The graph is never shared through Git. It is per-developer, per-checkout.
@@ -506,53 +540,6 @@ def projects_listing(addon_dir_win, version):
     return users
 
 
-def insert_tasks(text, tasks):
-    """Append tasks to the workspace's tasks.tasks array, keeping the rest of the file as written."""
-    data = loads_jsonc(text)
-    existing = {t.get("label") for t in data.get("tasks", {}).get("tasks", [])}
-    missing = [t for t in tasks if t["label"] not in existing]
-    if not missing:
-        return text, 0
-    if "tasks" not in data or "tasks" not in data["tasks"]:
-        data.setdefault("tasks", {"version": "2.0.0"})
-        data["tasks"].setdefault("version", "2.0.0")
-        data["tasks"]["tasks"] = missing
-        return json.dumps(data, indent=2) + "\n", len(missing)
-
-    # Locate the inner "tasks": [ ... ] of the top-level "tasks" object and insert before its "]".
-    outer = re.search(r'"tasks"\s*:\s*\{', text)
-    inner = re.compile(r'"tasks"\s*:\s*\[').search(text, outer.end())
-    i, depth, in_str = inner.end() - 1, 0, False
-    while True:
-        c = text[i]
-        if in_str:
-            if c == "\\":
-                i += 1
-            elif c == '"':
-                in_str = False
-        elif c == '"':
-            in_str = True
-        elif c in "[{":
-            depth += 1
-        elif c in "]}":
-            depth -= 1
-            if depth == 0:
-                break
-        i += 1
-    close = i
-    before = text[:close].rstrip()
-    indent = " " * 6
-    body = ",\n".join(
-        "\n".join(indent + line for line in json.dumps(t, indent=2).splitlines()) for t in missing
-    )
-    sep = "" if before.endswith("[") or before.endswith(",") else ","
-    line_start = text.rfind("\n", 0, close) + 1
-    closing_indent = text[line_start:close] if text[line_start:close].strip() == "" else "    "
-    new = before + sep + "\n" + body + "\n" + closing_indent + text[close:]
-    loads_jsonc(new)  # must still parse
-    return new, len(missing)
-
-
 def odoo_source_rel(version, from_win_dir):
     """Relative path (forward slashes) from a folder to the Odoo source of `version`: ../../odoo beside
     odoo<NN>/projects/<name>, ../../odoo<NN>/odoo from ProjectsOdoo<NN>/<name> - never assumed."""
@@ -560,7 +547,7 @@ def odoo_source_rel(version, from_win_dir):
     return os.path.relpath(source, fs(from_win_dir)).replace(os.sep, "/")
 
 
-def new_workspace(version, name, kg_python, config_win):
+def new_workspace(version, name):
     v = version
     proj = project_dir(v, name)
     py = f"C:\\odoo\\odoo{v}\\venv\\Scripts\\python.exe"
@@ -611,7 +598,7 @@ def new_workspace(version, name, kg_python, config_win):
             run("Odoo: Run", [], "integratedTerminal"),
             run("Odoo: Debug", [], "internalConsole"),
         ]},
-        "tasks": {"version": "2.0.0", "tasks": [lint, lint_project, audit] + kg_tasks(kg_python, config_win)},
+        "tasks": {"version": "2.0.0", "tasks": [lint, lint_project, audit]},
         "settings": {
             "python.languageServer": "None",
             "python.analysis.typeCheckingMode": "off",
@@ -809,34 +796,6 @@ def fix_folders(text, version, name, inner):
         return t
     text = sub("odoo", odoo_path, text)
     text = sub("Project", proj_path, text)
-    loads_jsonc(text)
-    return text, changed
-
-# ------------------------------------------------- graph wiring inside the workspace
-
-def ensure_graph_settings(text, kg_python, config_win):
-    """VS Code's own MCP client (Copilot agent mode) gets the same odoo-kg server as Claude Code,
-    and the freshness check runs when the workspace opens."""
-    changed = []
-    data = loads_jsonc(text)
-    settings = data.get("settings", {})
-    if "odoo-kg" not in settings.get("mcp", {}).get("servers", {}):
-        server = {"type": "stdio", "command": kg_python,
-                  "args": ["-m", "odoo_kg", "serve", "--config", config_win],
-                  "env": {"PYTHONPATH": KG_DIR}}
-        if "mcp" in settings:
-            raise SystemExit("workspace already has an \"mcp\" block: add the odoo-kg server to it by hand")
-        block = '"mcp": ' + json.dumps({"servers": {"odoo-kg": server}}, indent=2).replace("\n", "\n    ") + ","
-        m = re.search(r'"settings"\s*:\s*\{', text)
-        text = text[:m.end()] + "\n    " + block + text[m.end():]
-        changed.append("mcp server in settings")
-    status_detail = '"detail": "Is the published graph fresh for the tree on disk?"'
-    if status_detail in text and '"runOn": "folderOpen"' not in text:
-        i = text.index(status_detail)
-        line_start = text.rfind("\n", 0, i) + 1
-        indent = text[line_start:i]
-        text = text[:i] + '"runOptions": {"runOn": "folderOpen"},\n' + indent + text[i:]
-        changed.append("graph status on folder open")
     loads_jsonc(text)
     return text, changed
 
@@ -1172,7 +1131,7 @@ def sync_project(version, name, kg_python, localappdata, dry=False, create_works
         made = clone_workspace(version, name, pid, True, dry)
         if not made:
             # No pattern project to copy (a new machine): one written from scratch.
-            write_text(candidates[0], json.dumps(new_workspace(version, name, kg_python, config_win),
+            write_text(candidates[0], json.dumps(new_workspace(version, name),
                                                  indent=2) + "\n", dry=dry)
             made = os.path.relpath(candidates[0], FS_ROOT) + " (new)"
         if made:
@@ -1192,21 +1151,19 @@ def sync_project(version, name, kg_python, localappdata, dry=False, create_works
         if not os.path.isfile(path):
             continue
         text, crlf = read_text(path)
-        new, added = insert_tasks(text, kg_tasks(kg_python, config_win))
-        new, wired = ensure_graph_settings(new, kg_python, config_win)
+        new, removed = remove_kg_tasks(text)
+        new, wired = remove_graph_registration(new)
         new, folders = fix_folders(new, version, name, inner=(path == candidates[0]))
         wired += folders
         new, moved = move_tool_paths(new, version)
         wired += moved
         new, recs = tidy_recommendations(new)
         wired += recs
-        new, quiet = fix_open_task(new, kg_python, config_win)
-        wired += quiet
         new, lint = ensure_lint_settings(new, version, name)
         wired += lint
-        if added or wired:
+        if removed or wired:
             write_text(path, new, crlf=crlf, dry=dry)
-            what = ([f"+{added} odoo-kg tasks"] if added else []) + wired
+            what = ([f"-{removed} odoo-kg tasks (the Cockpit's Graph page does their work)"] if removed else []) + wired
             report.append(f"workspace  {', '.join(what)} in {os.path.relpath(path, FS_ROOT)}")
 
     # 3. Claude Code MCP server, local to this machine

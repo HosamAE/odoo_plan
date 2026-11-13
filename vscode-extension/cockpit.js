@@ -96,7 +96,7 @@ function slimIssues(source) {
 
 /** The whole state the page draws. `inputs` are plain values; nothing here touches the editor. */
 function buildState(inputs) {
-  const { project, port, servers, focusPort, launchedPorts, serverRunning, serverDb, health, source, upgrade, databases, modulesInfo, drift, logText, logFirst, backupDir, backupBeforeUpgrade, remote, mode } = inputs;
+  const { project, port, servers, focusPort, launchedPorts, serverRunning, serverDb, health, source, upgrade, databases, modulesInfo, drift, logText, logFirst, backupDir, backupBeforeUpgrade, remote, graph, ci, tools, mode } = inputs;
   const mine = (servers || []).find((s) => s.mine);
   const marks = source && source.verdict ? source.verdict.marks : null;
   return {
@@ -115,6 +115,9 @@ function buildState(inputs) {
     backupDir: backupDir || "",
     backupBeforeUpgrade: !!backupBeforeUpgrade,
     remote: remote || null,
+    graph: graph || null,
+    ci: ci || null,
+    tools: tools || { found: true, cli: null },   // are the odoo-ai tools there? the page says so when they are not
     mode: mode || "editor",
   };
 }
@@ -134,8 +137,10 @@ function pageHtml(template) {
 
 // ----------------------------------------------------------------------------- the panel and the bottom view
 //
-// The same page is shown in two places: a tab of the editor area ("editor") and a view in the bottom panel, beside
-// Terminal and Problems ("panel"). Both are fed the same state; `mode` only tells the page how to lay itself out.
+// The cockpit is one view in the bottom panel, beside Terminal and Problems ("panel"); VS Code lets the person drag it
+// anywhere else. A tab of the editor area ("editor") exists only as the way out for a window that has not been
+// reloaded since the extension was updated and does not know the panel yet. Both are fed the same state; `mode`
+// only tells the page how to lay itself out.
 
 function create(api) {
   const surfaces = new Map();          // mode -> { webview, visible: () => boolean }
@@ -148,6 +153,7 @@ function create(api) {
   const renders = {};                  // mode -> what that page last said it drew
   let template = null;
   const remote = require("./remote").create(Object.assign({}, api, { changed: () => post(), localChanged: async () => { databases = null; post(); await loadDatabases(); } }));
+  const graph = require("./graph").create(Object.assign({}, api, { changed: () => { post(); if (api.graphChanged) api.graphChanged(); } }));   // the sidebar's Graph row follows it
 
   const project = () => api.findProject();
 
@@ -158,7 +164,7 @@ function create(api) {
     return buildState({
       project: p, port: api.getProjectPort(p), servers: api.state.servers, focusPort: api.state.focusPort, launchedPorts: api.launchedPorts(), serverRunning: api.state.serverRunning,
       serverDb: api.serverRun.db, health: api.state.health, source, upgrade: api.state.upgrade, databases, modulesInfo, drift,
-      logText, logFirst, backupDir: api.getBackupDir(p), backupBeforeUpgrade: api.backupBeforeUpgrade(), remote: remote.state(), mode,
+      logText, logFirst, backupDir: api.getBackupDir(p), backupBeforeUpgrade: api.backupBeforeUpgrade(), remote: remote.state(), graph: graph.state(), ci: api.ci(), maintainer: !!(api.maintainerTools && api.maintainerTools()), tools: api.tools ? api.tools(p) : null, mode,
     });
   }
 
@@ -209,7 +215,18 @@ function create(api) {
   async function onMessage(m, mode = "editor") {
     if (m.cmd === "rendered") { renders[mode] = m; return; }
     const act = {
-      ready: async () => { if (!databases) loadDatabases(); if (!remote.state().hosts) remote.loadHosts(); },
+      ready: async () => { if (!databases) loadDatabases(); if (!remote.state().hosts) remote.loadHosts(); if (!graph.state().status) graph.refresh(); },
+      run: () => api.runCommand(m.command),   // a button of the Quality, Tools and Databases pages: one of this extension's own commands
+      graphRefresh: () => graph.refresh(),
+      graphUpdate: () => graph.update(),
+      graphDoctor: () => graph.doctor(),
+      graphWiring: () => graph.wiring(false),
+      graphWiringApply: () => graph.wiring(true),
+      graphMapVisible: () => graph.wanted(!!m.on),
+      graphMap: () => graph.pin(m.module),
+      graphBack: () => graph.back(),
+      graphFollow: () => graph.follow(!!m.on),
+      graphOpenModule: () => graph.openModule(m.module),
       start: () => api.startServerQuick(),
       startOptions: () => api.startServer(),
       stop: () => (api.state.focusPort ? api.stopServerAt(api.state.focusPort) : api.stopServer()),
@@ -242,16 +259,6 @@ function create(api) {
       remoteBackup: () => remote.backup(m.host, m.db),
       remoteDrop: () => remote.drop(m.host, m.db),
       remoteKey: () => remote.setupKey(m.host),
-      move: async () => {
-        if (m.to === "editor") {
-          open(api.extensionPath);
-          await vscode.commands.executeCommand("workbench.action.closePanel");
-        } else {
-          await api.openInPanel();
-          for (let i = 0; i < 20 && !surfaces.has("panel"); i++) await new Promise((r) => setTimeout(r, 150));
-          if (surfaces.has("panel") && panel) panel.dispose();   // only once the bottom view really is there
-        }
-      },
     }[m.cmd];
     if (!act) return;
     try {
@@ -311,7 +318,7 @@ function create(api) {
     showTab,
     currentList: () => currentState("editor").server.list,
     open, viewProvider, refresh: post, isOpen: () => !!panel, isViewOpen: () => surfaces.has("panel"), handle: onMessage,
-    lastRender: (mode = "editor") => renders[mode] || null, remote, dispose() { if (panel) panel.dispose(); if (timer) clearInterval(timer); },
+    lastRender: (mode = "editor") => renders[mode] || null, remote, graph, dispose() { if (panel) panel.dispose(); if (timer) clearInterval(timer); },
   };
 }
 

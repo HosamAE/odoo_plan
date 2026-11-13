@@ -24,6 +24,7 @@ With ODOO_AI_CI_EVENTS=1 every step is also reported as one line
 its view. The human-readable lines stay as they are.
 """
 import json
+import glob
 import os
 import re
 import shutil
@@ -201,13 +202,15 @@ def run_version_gates(repo, version, has_ci):
 
 def _modules_and_tags(repo, version):
     py = fs(f"{WIN_ROOT}/odoo{version}/venv/Scripts/python.exe")
-    script = os.path.join(repo, ".github", "scripts", "acme_modules.py")
+    # a project may own a script that prints its module register (`<company>_modules.py`, with --tags for the test tags)
+    found = sorted(glob.glob(os.path.join(repo, ".github", "scripts", "*_modules.py")))
+    script = found[0] if found else ""
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
-    if os.path.isfile(script):
+    if script:
         mods = subprocess.run([py, script], cwd=repo, capture_output=True, text=True, env=env)
         tags = subprocess.run([py, script, "--tags"], cwd=repo, capture_output=True, text=True, env=env)
         if mods.returncode or tags.returncode:
-            raise SystemExit("acme_modules.py refused the module register:\n" + mods.stdout + mods.stderr)
+            raise SystemExit(os.path.basename(script) + " refused the module register:\n" + mods.stdout + mods.stderr)
         return mods.stdout.strip(), tags.stdout.strip()
     names = sorted(d for d in os.listdir(repo)
                    if os.path.isfile(os.path.join(repo, d, "__manifest__.py")))

@@ -68,7 +68,7 @@ def get_pg_connection(db_name="postgres", db_user=None, db_password=None, db_hos
 
 def detect_project_db():
     conf = read_conf_credentials()
-    return conf.get("db_name", "acme")
+    return conf.get("db_name", "odoo")
 
 def terminate_connections(cur, db_name):
     cur.execute("""

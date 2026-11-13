@@ -16,7 +16,7 @@ const line = (args) => `"C:\\odoo\\odoo19\\venv\\Scripts\\python.exe" C:\\odoo\\
 
 // the database a server serves is read from -d / --database, in any form
 for (const [args, db] of [
-  ["-c C:\\odoo\\ProjectsOdoo19\\Demo\\Demo.conf -d hx_full_ci3", "hx_full_ci3"],
+  ["-c C:\\odoo\\ProjectsOdoo19\\Demo\\Demo.conf -d dev_full_ci", "dev_full_ci"],
   ["-c C:\\odoo\\ProjectsOdoo19\\Demo\\Demo.conf --database=other_db --dev=all", "other_db"],
   ["-c C:\\odoo\\ProjectsOdoo19\\Demo\\Demo.conf --database other", "other"],
   ["-c C:\\odoo\\ProjectsOdoo19\\Demo\\Demo.conf --dev=all", null],
