@@ -35,6 +35,28 @@ def register():
     return words
 
 
+def model_prefixes():
+    """The first word of our model names (`acme.sale.order` -> `acme`).
+
+    The word most of our module names start with (`acme_sale`, `acme_hr` -> `acme`; a word shared by fewer than half of them
+    is not a company's mark: `website_x` is Odoo's), and what the project's own file `.github/model_prefixes.txt` lists
+    (one a line, `#` for comments) for models named differently from their modules.
+    """
+    names = [name.split("_", 1)[0] for name in modules() if "_" in name]
+    found = set()
+    if names:
+        word = max(set(names), key=names.count)
+        if names.count(word) * 2 >= len(names):
+            found.add(word)
+    file = ROOT / ".github" / "model_prefixes.txt"
+    if file.is_file():
+        for raw in file.read_text(encoding="utf-8").splitlines():
+            entry = raw.split("#", 1)[0].strip()
+            if entry:
+                found.add(entry)
+    return found
+
+
 def modules(include_skip=False):
     """The modules the gates read: gate and ship (and skip on request)."""
     wanted = ("gate", "ship", "skip") if include_skip else ("gate", "ship")

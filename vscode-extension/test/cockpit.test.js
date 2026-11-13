@@ -85,6 +85,11 @@ assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\(/.test(
 // every colour is the editor's own WITH a fallback: an undefined variable drops the whole declaration
 const bare = [...html.matchAll(/var\(--vscode-[\w-]+\)/g)].map((m) => m[0]);
 assert.deepStrictEqual(bare, [], `a theme variable without a fallback: ${bare.join(", ")}`);
+// every command the page can start by name is one this extension declares (a typo would be a button that does nothing)
+const declaredCommands = new Set(JSON.parse(fs.readFileSync(path.join(HERE, "package.json"), "utf8")).contributes.commands.map((c) => c.command));
+const usedByPage = [...new Set([...html.matchAll(/"(odooCi\.\w+)"/g)].map((m) => m[1]))];
+assert.ok(usedByPage.length >= 25, `the page names its commands (found ${usedByPage.length})`);
+assert.deepStrictEqual(usedByPage.filter((id) => !declaredCommands.has(id)), [], "a command the page starts is not declared in package.json");
 
 // ---- what the extension packs is what it uses
 const build = fs.readFileSync(path.join(HERE, "build_vsix.py"), "utf8");

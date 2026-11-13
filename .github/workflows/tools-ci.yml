@@ -33,6 +33,10 @@ jobs:
         if: matrix.python == '3.12'
         run: |
           node vscode-extension/test/smoke.test.js
+          node vscode-extension/test/project.test.js
+          node vscode-extension/test/graph.test.js
+          node vscode-extension/test/graph_auto.test.js
+          node vscode-extension/test/graph_map.test.js
           node vscode-extension/test/detect.test.js
           node vscode-extension/test/server.test.js
           node vscode-extension/test/resilience.test.js

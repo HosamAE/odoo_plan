@@ -30,17 +30,30 @@
 body { margin: 0; padding: 12px 16px 24px; color: var(--fg); background: var(--bg); font: 13px/1.45 var(--vscode-font-family, "Segoe UI", sans-serif); }
 h1 { font-size: 15px; margin: 0; font-weight: 600; }
 h2 { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
-.top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.top { display: flex; align-items: center; gap: 10px; margin: -12px -16px 12px; padding: 9px 16px; flex-wrap: wrap; background: var(--card); border-bottom: 1px solid var(--line); }
 .top .sub { color: var(--muted); }
+.top .spacer { flex: 1; }
+.top .brand { color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600; padding-right: 10px; border-right: 1px solid var(--line); }
+.pill.link { cursor: pointer; }
+.banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; margin: 0 0 10px; border: 1px solid var(--warn); border-radius: 8px; background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.banner[hidden] { display: none; }
+.banner .spacer { flex: 1; }
+.top .acts { display: flex; gap: 6px; align-items: center; }
+.livedot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--muted); }
+.livedot.ok { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+.livedot.warn { background: var(--warn); } .livedot.bad { background: var(--bad); }
 .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
 @media (min-width: 760px) { .grid { grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.4fr); } .grid > .col:nth-child(3) { grid-column: 1 / -1; } }
 @media (min-width: 1150px) { .grid { grid-template-columns: minmax(280px, 340px) minmax(380px, 1.3fr) minmax(320px, 1fr); } .grid > .col:nth-child(3) { grid-column: auto; } }
 .tabs { display: flex; gap: 2px; overflow-x: auto; flex: none; border-bottom: 1px solid var(--line); margin: 0 0 12px; }
-.tab { white-space: nowrap; background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 5px 14px; }
-.tab.on { color: var(--fg); border-bottom-color: var(--accent); }
+.tab { white-space: nowrap; background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 7px 14px; transition: color .12s; }
+.tab:hover { color: var(--fg); filter: none; }
+.tab.on { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
 /* In the bottom panel the page has little height: it fills what it is given, and each column scrolls on its own. */
 body.panel { padding: 6px 10px 8px; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-body.panel .top { margin-bottom: 4px; }
+body.panel .top { margin: -6px -10px 4px; padding: 6px 10px; }
+body.panel .door { min-height: 0; padding: 10px 12px; }
+body.panel .door .big { font-size: 17px; }
 body.panel .tabs { margin-bottom: 6px; }
 body.panel .page { flex: 1; min-height: 0; overflow: auto; }
 body.panel #logcard, body.panel #issues { height: 100%; }
@@ -49,23 +62,29 @@ body.panel #log { height: calc(100vh - 170px); min-height: 100px; }
 .page[hidden] { display: none; }
 .badge { display: inline-block; min-width: 16px; margin-left: 6px; padding: 0 5px; border-radius: 999px; font-size: 10px; font-weight: 700; text-align: center; color: var(--btn-fg); }
 .badge.bad { background: var(--bad); } .badge.warn { background: var(--warn); color: #1e1e1e; }
-.doors { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
-.door { text-align: left; background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; min-height: 96px; display: flex; flex-direction: column; gap: 4px; }
+.doors { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+.door { text-align: left; background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-height: 132px; display: flex; flex-direction: column; gap: 5px; cursor: pointer; transition: border-color .12s, transform .12s; }
 .door:hover, .door:focus-visible { border-color: var(--accent); }
-.door b { font-size: 14px; } .door span { color: var(--muted); font-size: 12px; }
-.door .big { color: var(--fg); font-size: 20px; font-weight: 600; }
+.door:hover { transform: translateY(-1px); }
+.door .dh { display: flex; align-items: baseline; gap: 8px; }
+.door .dh b { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.door .dh .go { margin-left: auto; color: var(--accent); font-size: 12px; }
+.door .big { color: var(--fg); font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.door .line { color: var(--muted); font-size: 12px; min-height: 17px; }
+.door .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; padding-top: 8px; }
 table.servers td, table.servers th { white-space: nowrap; }
 tr.focus td { background: var(--vscode-list-activeSelectionBackground, rgba(0, 127, 212, .25)); }
 .col.wide { max-width: 900px; }
 .progressrow { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; min-width: 0; }
-.pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid currentColor; }
-.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); } .pill.idle { color: var(--muted); }
+.pill { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid currentColor; background: color-mix(in srgb, currentColor 13%, transparent); }
+.pill.ok { color: var(--ok); } .pill.warn { color: color-mix(in srgb, var(--warn) 50%, var(--fg)); } .pill.bad { color: var(--bad); } .pill.idle { color: var(--muted); }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
 .kv { display: grid; grid-template-columns: 90px 1fr; gap: 2px 8px; margin: 6px 0; }
 .kv span:nth-child(odd) { color: var(--muted); }
-button { background: var(--btn-bg); color: var(--btn-fg); border: 0; border-radius: 3px; padding: 4px 10px; cursor: pointer; font: inherit; }
+button { background: var(--btn-bg); color: var(--btn-fg); border: 0; border-radius: 4px; padding: 4px 12px; cursor: pointer; font: inherit; transition: filter .12s; }
+button:hover:not(:disabled) { filter: brightness(1.15); }
 button.secondary { background: var(--btn2-bg); color: var(--btn2-fg); }
 button.danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
 button.small { padding: 1px 7px; font-size: 12px; }
@@ -77,7 +96,8 @@ input[type=text], select { background: var(--input-bg); color: var(--input-fg); 
 .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
 .hint.warn { color: var(--warn); } .hint.bad { color: var(--bad); }
 table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 3px 8px 3px 0; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
+th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
+tbody tr:hover td { background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, .04)); }
 th { color: var(--muted); font-weight: 600; font-size: 11px; cursor: pointer; user-select: none; }
 td.num, th.num { text-align: right; }
 tr.sel td { background: var(--vscode-list-activeSelectionBackground, rgba(0, 127, 212, .25)); }
@@ -102,11 +122,55 @@ tr.row-db { cursor: pointer; }
 .toast { position: fixed; right: 14px; bottom: 14px; max-width: 420px; padding: 8px 12px; border-radius: 4px; background: var(--card); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0, 0, 0, .4); }
 .toast.bad { border-color: var(--bad); } .toast.warn { border-color: var(--warn); } .toast.ok { border-color: var(--ok); }
 .empty { color: var(--muted); padding: 8px 0; }
+#graph { margin-top: 12px; }
+.maptitle { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 4px 0 8px; }
+.maptitle b { font-size: 16px; }
+.maptools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 6px 0 8px; color: var(--muted); font-size: 12px; align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.mapbox { overflow: auto; max-height: 520px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+body.panel .mapbox { max-height: calc(100vh - 250px); min-height: 160px; }
+svg.map { display: block; }
+svg.map .edge { fill: none; stroke: var(--muted); stroke-opacity: .45; stroke-width: 1.3; }
+svg.map .edge.hl { stroke: var(--accent); stroke-opacity: 1; stroke-width: 2.2; }
+svg.map .arrowhead { fill: var(--muted); }
+.label { fill: var(--fg); font: 12px var(--vscode-font-family, "Segoe UI", sans-serif); pointer-events: none; }
+.node.open { cursor: pointer; }
+.node .shape { stroke-width: 1.5; }
+.node.open:hover .shape, .node:focus-visible .shape { stroke-width: 2.6; }
+.node:focus-visible { outline: none; }
+/* what a module is: the project's own, Odoo's, Enterprise, a third party. Shape and outline say it, not colour alone. */
+.mn-project .shape { fill: color-mix(in srgb, #3794ff 24%, var(--bg)); stroke: #3794ff; }
+.mn-core .shape { fill: color-mix(in srgb, #b05a9a 32%, var(--bg)); stroke: #b05a9a; }
+.mn-enterprise .shape { fill: color-mix(in srgb, #e2b93d 22%, var(--bg)); stroke: #e2b93d; stroke-dasharray: 5 3; }
+.mn-themes .shape { fill: color-mix(in srgb, #e8844a 22%, var(--bg)); stroke: #e8844a; stroke-dasharray: 5 3; }
+.mn-third_party .shape { fill: color-mix(in srgb, #4bb38a 22%, var(--bg)); stroke: #4bb38a; stroke-dasharray: 5 3; }
+.mn-unknown .shape { fill: transparent; stroke: var(--muted); stroke-dasharray: 2 3; }
+.mn-focus .shape { fill: color-mix(in srgb, var(--accent) 30%, var(--bg)); stroke: var(--accent); stroke-width: 3; }
+.mn-focus .label { font-weight: 700; }
+/* a light theme needs darker outlines to stand out from a white page (3:1 at least) */
+body.vscode-light .mn-project .shape, body.vscode-high-contrast-light .mn-project .shape { stroke: #1565c0; fill: color-mix(in srgb, #1565c0 14%, var(--bg)); }
+body.vscode-light .mn-core .shape, body.vscode-high-contrast-light .mn-core .shape { stroke: #8e3a7a; fill: color-mix(in srgb, #8e3a7a 14%, var(--bg)); }
+body.vscode-light .mn-enterprise .shape, body.vscode-high-contrast-light .mn-enterprise .shape { stroke: #8a6d00; fill: color-mix(in srgb, #8a6d00 14%, var(--bg)); }
+body.vscode-light .mn-themes .shape, body.vscode-high-contrast-light .mn-themes .shape { stroke: #b4501a; fill: color-mix(in srgb, #b4501a 14%, var(--bg)); }
+body.vscode-light .mn-third_party .shape, body.vscode-high-contrast-light .mn-third_party .shape { stroke: #1b7a57; fill: color-mix(in srgb, #1b7a57 14%, var(--bg)); }
+/* a map with very many arrows (a module everything depends on): they fade, and the ones of the module under the pointer stand out */
+svg.map.dense .edge { stroke-opacity: .16; stroke-width: 1; }
+svg.map.dense .edge.hl { stroke-opacity: 1; stroke-width: 2.2; }
+.check { display: flex; gap: 8px; align-items: baseline; margin: 3px 0; flex-wrap: wrap; }
+.check b { width: 14px; } .check.ok b { color: var(--ok); } .check.bad b { color: var(--bad); } .check.run b { color: var(--warn); } .check.idle, .check.idle b { color: var(--muted); }
+.tg { color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600; margin: 12px 0 6px; }
+.tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.tool { text-align: left; background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.tool:hover { border-color: var(--accent); filter: none; }
+.tool b { font-weight: 600; } .tool span { color: var(--muted); font-size: 12px; }
+pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; margin: 6px 0; max-height: 260px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
 .sr { position: absolute; left: -9999px; }
 </style>
 </head>
 <body>
 <div class="top" id="top"></div>
+<div class="banner" id="banner" role="status" hidden></div>
 <div class="tabs" id="tabs" role="tablist"></div>
 <div class="page" id="page-home" data-tab="home">
   <section class="doors" id="home" aria-label="Cockpit"></section>
@@ -123,11 +187,21 @@ tr.row-db { cursor: pointer; }
     <section class="card" id="modules" aria-label="Modules" hidden></section>
   </div>
 </div>
+<div class="page" id="page-quality" data-tab="quality" hidden>
+  <section class="card" id="quality" aria-label="Quality and CI"></section>
+</div>
 <div class="page" id="page-log" data-tab="log" hidden>
   <section class="card" id="logcard" aria-label="Server log"></section>
 </div>
 <div class="page" id="page-issues" data-tab="issues" hidden>
   <section class="card" id="issues" aria-label="Errors and warnings"></section>
+</div>
+<div class="page" id="page-graph" data-tab="graph" hidden>
+  <section class="card" id="graphmap" aria-label="Module map"></section>
+  <section class="card" id="graph" aria-label="Project graph"></section>
+</div>
+<div class="page" id="page-tools" data-tab="tools" hidden>
+  <section class="card" id="tools" aria-label="Tools and maintenance"></section>
 </div>
 <div class="page" id="page-remote" data-tab="remote" hidden>
   <section class="card" id="remote" aria-label="Remote servers"></section>
@@ -151,11 +225,12 @@ tr.row-db { cursor: pointer; }
       else if (k.slice(0, 2) === "on") el.addEventListener(k.slice(2), attrs[k]);
       else if (attrs[k] !== false && attrs[k] !== null && attrs[k] !== undefined) el.setAttribute(k, attrs[k] === true ? "" : attrs[k]);
     }
-    for (var i = 2; i < arguments.length; i++) {
-      var c = arguments[i];
-      if (c === null || c === undefined || c === false) continue;
-      el.appendChild(typeof c === "object" ? c : document.createTextNode(String(c)));
+    function add(child) {
+      if (child === null || child === undefined || child === false) return;
+      if (Array.isArray(child)) { child.forEach(add); return; }   // a list of nodes is as good as a node
+      el.appendChild(typeof child === "object" ? child : document.createTextNode(String(child)));
     }
+    for (var i = 2; i < arguments.length; i++) add(arguments[i]);
     return el;
   }
   function put(el, nodes) { el.textContent = ""; nodes.forEach(function (n) { if (n) el.appendChild(n); }); }
@@ -174,15 +249,24 @@ tr.row-db { cursor: pointer; }
   }
 
   function renderTop() {
-    var p = S.project, list = S.server.list || [], focus = list.filter(function (x) { return x.focus; })[0];
+    var p = S.project, sv = S.server, list = sv.list || [], is = S.issues, focus = list.filter(function (x) { return x.focus; })[0];
+    var state = sv.running ? (sv.health ? sv.health.state : "starting") : "stopped";
+    var tone = { healthy: "ok", starting: "warn", problems: "warn", failed: "bad" }[state] || "";
+    function openIssues() { ui.tab = "issues"; save(); render(); }
     put($("top"), [
-      h("h1", {}, "Cockpit Odoo"),
-      h("span", { class: "sub" }, p.name + " · Odoo " + p.version + " · port " + (focus ? focus.port : p.port) + (list.length > 1 ? " · following 1 of " + list.length : "")),
-      pill(S.server.running ? (S.server.health ? S.server.health.state : "starting") : "stopped"),
-      h("span", { class: "sub" }, S.server.db ? "database " + S.server.db : (S.server.running ? "no database chosen" : "")),
-      h("span", { style: "flex:1" }),
-      S.server.running ? null : btn("Start server", "start", null, "small"),
-      S.mode === "panel" ? btn("Open in editor ↗", "move", { to: "editor" }, "secondary small") : btn("Move to bottom panel ↓", "move", { to: "panel" }, "secondary small"),
+      h("span", { class: "brand" }, "Cockpit Odoo"),
+      h("span", { class: "livedot " + tone }),
+      h("h1", {}, p.name),
+      h("span", { class: "sub" }, "Odoo " + p.version + " · port " + (focus ? focus.port : p.port) + (list.length > 1 ? " · following 1 of " + list.length : "")),
+      pill(state),
+      is.errors + (is.warnings || 0) ? h("span", { class: "pill link " + (is.errors ? "bad" : "warn"), role: "button", tabindex: "0", title: "Show the errors and warnings", onclick: openIssues,
+        onkeydown: function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openIssues(); } } },
+        is.errors ? is.errors + " error" + (is.errors === 1 ? "" : "s") : (is.warnings || 0) + " warning" + (is.warnings === 1 ? "" : "s")) : null,
+      h("span", { class: "sub" }, sv.db ? "database " + sv.db : (sv.running ? "no database chosen" : "")),
+      h("span", { class: "spacer" }),
+      h("div", { class: "acts" }, sv.running
+        ? [btn("Open ↗", "open", null, "secondary small"), btn("Restart", "restart", null, "secondary small"), btn("Stop", "stop", null, "danger small")]
+        : [btn("Start server", "start", null, "small")]),
     ]);
   }
 
@@ -224,23 +308,42 @@ tr.row-db { cursor: pointer; }
     nodes.push(h("div", { class: "row" },
       btn(sv.running ? "Start another" : "Start", "start", null, ""), btn("Start with options…", "startOptions", null, "secondary", false),
       btn("Restart", "restart", null, "secondary", !sv.running), btn("Stop", "stop", null, "danger", !sv.running),
-      btn("Open in browser", "open", null, "secondary", !sv.running)));
+      btn("Open in browser", "open", null, "secondary", !sv.running),
+      runBtn("Upgrade modules…", "odooCi.serverUpgrade", "secondary"), runBtn("Check database vs code", "odooCi.serverDrift", "secondary")));
     if (sv.running) nodes.push(h("div", { class: "hint" }, "Start never stops a server that is running: the new one takes the next free port. Restart and Stop here act on the server marked ● only."));
     put($("server"), nodes);
   }
 
   function renderHome() {
     var sv = S.server, list = sv.list || [], hl = sv.health, is = S.issues;
-    function door(tab, title, big, line) {
-      return h("button", { class: "door", onclick: function () { ui.tab = tab; save(); render(); } }, h("b", {}, title), h("span", { class: "big" }, big), h("span", {}, line));
+    // A card: it opens its page when pressed anywhere, and carries the buttons that are used every day.
+    function door(tab, title, big, line, acts) {
+      function open() { ui.tab = tab; save(); render(); }
+      return h("div", { class: "door", role: "button", tabindex: "0", onclick: open,
+        onkeydown: function (e) { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); open(); } } },
+        h("div", { class: "dh" }, h("b", {}, title), h("span", { class: "go" }, "details →")),
+        h("div", { class: "big" }, big),
+        h("div", { class: "line" }, line),
+        acts && acts.length ? h("div", { class: "acts" }, acts) : null);
     }
     var errs = is.errors + (is.warnings || 0);
     put($("home"), [
-      door("server", "Server", list.length ? list.length + " running" : "stopped",
-        list.length ? list.map(function (x) { return ":" + x.port; }).join(" · ") + (hl ? " · " + hl.state : "") : "Start, stop, open, switch between servers"),
-      door("dbs", "Databases", S.databases ? String(S.databases.length) : "…", "Upgrade, back up, check against the code"),
-      door("log", "Log", S.log.lines.length ? S.log.lines.length + " lines" : "no log yet", "The server's log, with errors and warnings painted"),
-      door("issues", "Errors & warnings", String(errs), is.errors + " error(s) · " + (is.warnings || 0) + " warning(s)"),
+      door("server", "Server", list.length ? [h("span", { class: "livedot ok" }), list.length + " running"] : "stopped",
+        list.length ? list.map(function (x) { return ":" + x.port; }).join(" · ") + (hl ? " · " + hl.state : "") : "Start, stop, open, switch between servers",
+        sv.running
+          ? [btn("Open", "open", null, "secondary small"), btn("Restart", "restart", null, "secondary small"), btn("Stop", "stop", null, "danger small")]
+          : [btn("Start", "start", null, "small"), btn("Start with options…", "startOptions", null, "secondary small")]),
+      door("dbs", "Databases", S.databases ? String(S.databases.length) : "…", sv.db ? "serving " + sv.db : "Upgrade, back up, check against the code",
+        [btn("Refresh", "refreshDbs", null, "secondary small")]),
+      door("quality", "Quality", ciHeadline(S.ci || {})[1], "Static checks, tests, XML and XPath, audit",
+        [runBtn("Static checks", "odooCi.static", "small", !!(S.ci && S.ci.running)), runBtn("Fast test", "odooCi.fastTest", "secondary small", !!(S.ci && S.ci.running))]),
+      door("log", "Log", S.log.lines.length ? S.log.lines.length + " lines" : "no log yet", "The server's log, with errors and warnings painted",
+        S.log.lines.length ? [btn("Open file", "openLog", { line: 0 }, "secondary small")] : null),
+      door("issues", "Errors & warnings", String(errs), is.errors + " error(s) · " + (is.warnings || 0) + " warning(s)",
+        errs ? [btn("Open the list", "issuesView", null, "secondary small"), btn("Pick one…", "issuePick", null, "secondary small")] : null),
+      door("graph", "Graph", S.graph && S.graph.status ? (GRAPH_LABEL[S.graph.status.state] || S.graph.status.state) : "…",
+        S.graph && S.graph.stats ? S.graph.stats.modules + " modules · what depends on what, for Claude too" : "The project's knowledge graph",
+        S.graph && S.graph.status && ["unconfigured", "no-tools"].indexOf(S.graph.status.state) < 0 ? [btn(S.graph.busy ? "Updating…" : "Update", "graphUpdate", null, "secondary small", !!S.graph.busy)] : null),
       door("remote", "Remote servers", S.remote && S.remote.host ? S.remote.host : "SSH", "Pull, push and back up databases over SSH"),
     ]);
   }
@@ -288,7 +391,6 @@ tr.row-db { cursor: pointer; }
   function renderDbs() {
     var nodes = [h("h2", {}, "Databases")];
     if (!S.databases) { nodes.push(h("div", { class: "empty" }, "Reading the databases…")); put($("dbs"), nodes); return; }
-    var series = S.project.version + ".0";
     var rows = S.databases.filter(function (d) { return !ui.dbFilter || d.name.toLowerCase().indexOf(ui.dbFilter.toLowerCase()) >= 0; });
     var key = ui.dbSort;
     rows.sort(function (a, b) {
@@ -332,6 +434,8 @@ tr.row-db { cursor: pointer; }
     table.appendChild(body);
     nodes.push(h("div", { class: "scroll" }, table));
     if (S.drift) nodes.push(h("div", { class: "hint " + (S.drift.clean ? "" : "warn") }, S.drift.db + ": " + S.drift.advice));
+    nodes.push(h("div", { class: "row" }, runBtn("Take snapshot", "odooCi.dbSnapSave", "secondary small"), runBtn("Restore snapshot", "odooCi.dbSnapRestore", "secondary small"),
+      runBtn("Initialize the fast test database", "odooCi.initFastDb", "secondary small")));
     nodes.push(h("label", { class: "row" }, h("input", { type: "checkbox", checked: S.backupBeforeUpgrade ? "checked" : false, onchange: function (e) { send("setBackupBeforeUpgrade", { value: e.target.checked }); } }), "Back up a database before upgrading it"));
     put($("dbs"), nodes);
   }
@@ -403,10 +507,256 @@ tr.row-db { cursor: pointer; }
     if (ui.autoscroll) box.scrollTop = box.scrollHeight;
   }
 
+  // ----------------------------------------------------------------------------- the project's knowledge graph
+  var GRAPH_LABEL = { fresh: "Fresh", stale: "Behind the code", missing: "Not built yet", unconfigured: "No graph config", "no-tools": "Tools missing", unknown: "Unknown" };
+  var GRAPH_TONE = { fresh: "ok", stale: "warn", missing: "bad", unconfigured: "bad", "no-tools": "bad" };
+  function when(iso) { var d = iso ? new Date(iso) : null; return d && !isNaN(d.getTime()) ? d.toLocaleString() : (iso || "-"); }
+  function check(ok, text, detail) {
+    return h("div", { class: "check " + (ok ? "ok" : "bad") }, h("b", {}, ok ? "✓" : "✗"), h("span", {}, text), detail ? h("span", { class: "hint" }, detail) : null);
+  }
+
+  function renderGraph() {
+    var G = S.graph, nodes = [h("h2", {}, "Project graph" + (G && G.projectId ? " · " + G.projectId : ""))];
+    if (!G || !G.status) {
+      nodes.push(h("div", { class: "empty" }, G && G.loading ? "Reading the graph…" : "Nothing read yet."));
+      nodes.push(h("div", { class: "row" }, btn("Read it", "graphRefresh", null, "secondary small", !!(G && G.loading))));
+      put($("graph"), nodes); return;
+    }
+    var st = G.status, stats = G.stats, busy = !!G.busy, can = ["unconfigured", "no-tools"].indexOf(st.state) < 0;
+    nodes.push(h("div", { class: "row" },
+      h("span", { class: "pill " + (GRAPH_TONE[st.state] || "idle") }, GRAPH_LABEL[st.state] || st.state),
+      st.detail ? h("span", { class: "hint" }, st.detail) : null));
+    if (busy) nodes.push(h("div", { class: "hint warn" }, G.busy.what + "…"));
+    nodes.push(h("div", { class: "kv" },
+      h("span", {}, "Built"), h("span", {}, st.indexedAt ? when(st.indexedAt) : "never"),
+      h("span", {}, "Graph at"), h("span", {}, (st.graphCommit || "-") + (st.branch ? " · " + st.branch : "")),
+      h("span", {}, "Code at"), h("span", {}, st.workingTree || "-"),
+      stats ? h("span", {}, "Modules") : null, stats ? h("span", {}, stats.modules + " · " + stats.files + " files") : null,
+      stats ? h("span", {}, "Depends on") : null, stats ? h("span", {}, stats.dependsOn + " links · " + stats.unresolved + " point outside the project (Odoo and others)") : null));
+    nodes.push(h("div", { class: "row" },
+      btn(busy ? "Updating…" : "Update graph", "graphUpdate", null, "", busy || !can),
+      btn("Doctor", "graphDoctor", null, "secondary", !can),
+      btn("Check wiring…", "graphWiring", null, "secondary", busy),
+      btn("Refresh", "graphRefresh", null, "secondary small", !!G.loading)));
+    if (G.last) nodes.push(h("div", { class: "hint " + (G.last.level === "bad" ? "bad" : "") }, G.last.text));
+    var w = G.wiring || { state: "missing", detail: "" };
+    nodes.push(h("h2", { style: "margin-top:14px" }, "Wiring of this project"));
+    nodes.push(check(!!G.config, "Graph config", G.config || "none: the wiring step creates it"));
+    nodes.push(check(st.state === "fresh" || st.state === "stale", "Graph data", G.dataDir || "not built"));
+    nodes.push(check(w.state === "ok", "Claude Code connection (.mcp.json)", w.detail));
+    if (G.report) {
+      nodes.push(h("div", { class: "hint " + (G.report.level === "bad" ? "bad" : "") }, G.report.title));
+      nodes.push(h("pre", { class: "report" }, G.report.text));
+      if (G.canApply) nodes.push(h("div", { class: "row" }, btn("Apply", "graphWiringApply", null, "", busy)));
+    }
+    put($("graph"), nodes);
+  }
+
+  // ----------------------------------------------------------------------------- quality and tools
+  /** A button that starts one of the extension's own commands. */
+  function runBtn(label, command, cls, disabled) { return btn(label, "run", { command: command }, cls, disabled); }
+
+  function ciHeadline(C) {
+    if (C.running) return ["warn", "Running"];
+    if (!C.result) return ["idle", "No run yet"];
+    if (C.result.blocked) return ["bad", "Blocked"];
+    if (C.result.cancelled) return ["warn", "Cancelled"];
+    return C.result.passed ? ["ok", C.mode === "full" ? "Passed" : "Static checks passed"] : ["bad", "Failed"];
+  }
+
+  function renderQuality() {
+    var C = S.ci || { running: false, phases: [], steps: [], result: null, mode: null }, head = ciHeadline(C);
+    var nodes = [h("h2", {}, "Quality & CI")];
+    nodes.push(h("div", { class: "row" },
+      runBtn("Static checks", "odooCi.static", "", C.running),
+      runBtn("Fast DB test", "odooCi.fastTest", "secondary", C.running),
+      runBtn("Validate XML & XPath", "odooCi.xpathCheck", "secondary", C.running),
+      runBtn("Full CI", "odooCi.full", "secondary", C.running),
+      runBtn("Full CI, stop servers first", "odooCi.fullStop", "secondary", C.running),
+      runBtn("Audit this module", "odooCi.audit", "secondary", false)));
+    nodes.push(h("div", { class: "row" },
+      runBtn("Cancel", "odooCi.cancel", "danger small", !C.running),
+      runBtn("Show output", "odooCi.showOutput", "secondary small", false),
+      runBtn("Open test log", "odooCi.openLog", "secondary small", false)));
+    nodes.push(h("div", { class: "row" }, h("span", { class: "pill " + head[0] }, head[1]),
+      C.result && C.result.blocked ? h("span", { class: "hint" }, "An Odoo server is running on the project's port: stop it, or use Full CI with the servers stopped first.") : null,
+      C.result && !C.result.passed && !C.result.blocked && !C.result.cancelled ? h("span", { class: "hint" }, "Fix what failed before pushing.") : null));
+    if (!C.phases.length) {
+      nodes.push(h("div", { class: "empty" }, "Nothing has run in this window yet."));
+      put($("quality"), nodes); return;
+    }
+    C.phases.forEach(function (phase) {
+      var steps = C.steps.filter(function (s) { return s.phase === phase.phase; });
+      nodes.push(h("h2", { style: "margin-top:12px" }, phase.name, h("span", { class: "hint" }, steps.length ? "  " + steps.filter(function (s) { return s.status === "ok"; }).length + "/" + steps.length : "")));
+      steps.forEach(function (s) {
+        var tone = s.status === "ok" ? "ok" : s.status === "fail" ? "bad" : s.status === "running" ? "run" : "idle";
+        var mark = { ok: "✓", fail: "✗", running: "●", skip: "–" }[s.status] || "○";
+        nodes.push(h("div", { class: "check " + tone }, h("b", {}, mark), h("span", {}, s.name), s.seconds !== null && s.seconds !== undefined ? h("span", { class: "hint" }, dur(s.seconds)) : null));
+        if (s.status === "fail") s.details.forEach(function (line) { nodes.push(h("div", { class: "hint bad", style: "margin-left:22px" }, line)); });
+      });
+    });
+    put($("quality"), nodes);
+  }
+
+  var TOOLS = [
+    ["Developer", [
+      ["Project setup wizard", "Set a project up, step by step", "odooCi.setupWizard"],
+      ["Scaffold a new addon", "A module with compliant views, models and access rights", "odooCi.newAddon"],
+      ["Doctor", "Check this version's tools, lint and wiring", "odooCi.doctor"],
+      ["Translations", "Scan, update and export the translations", "odooCi.translations"],
+      ["Scan translations (i18n)", "Sync the .po files of one addon", "odooCi.i18nScan"],
+      ["Audit this module", "Security CSV and manifest of the module of the open file", "odooCi.audit"]]],
+    ["Databases", [
+      ["Take a snapshot", "Save the database so you can roll back to it", "odooCi.dbSnapSave"],
+      ["Restore a snapshot", "Roll the database back to a snapshot", "odooCi.dbSnapRestore"],
+      ["Initialize the fast test database", "Prepare the template the fast test clones", "odooCi.initFastDb"]]],
+    ["Maintenance", [
+      ["Set up an Odoo version", "Tools, folders and the rest for one version", "odooCi.newVersion"],
+      ["Tools CI", "Run the tools' own tests before a push", "odooCi.selfTest"],
+      ["Version branches vs main", "Compare the 17, 18, 19 and 20 tools with main", "odooCi.syncVersions"],
+      ["Project gates", "The Odoo rules the project's CI checks", "odooCi.gates"],
+      ["Scan staged files for secrets", "Passwords and tokens in what you are about to commit", "odooCi.secretScan"],
+      ["Install the secret pre-commit hook", "Stop a secret before it is committed", "odooCi.secretHook"],
+      ["Open the layout guide", "How the folders of a version are organised", "odooCi.openLayout"],
+      ["Refresh versions", "Read the versions and their projects again", "odooCi.refreshEnv"]]],
+  ];
+
+  function renderTools() {
+    var nodes = [h("h2", {}, "Tools & maintenance")];
+    var MAINTAINER = { "odooCi.selfTest": true, "odooCi.syncVersions": true };   // for people who maintain the tools themselves: the setting odooCi.maintainerTools
+    TOOLS.forEach(function (group) {
+      var shown = group[1].filter(function (t) { return S.maintainer || !MAINTAINER[t[2]]; });
+      nodes.push(h("div", { class: "tg" }, group[0]));
+      nodes.push(h("div", { class: "tools" }, shown.map(function (t) {
+        return h("button", { class: "tool", onclick: function () { send("run", { command: t[2] }); } }, h("b", {}, t[0]), h("span", {}, t[1]));
+      })));
+    });
+    put($("tools"), nodes);
+  }
+
+  // ----------------------------------------------------------------------------- the map of one module
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var KIND_LABEL = { focus: "This module", project: "Project", core: "Odoo", enterprise: "Odoo Enterprise", themes: "Odoo themes", third_party: "Third-party", unknown: "Not found on disk" };
+  var ORIGIN_LABEL = { project: "Project", core: "Odoo", enterprise: "Odoo Enterprise", themes: "Odoo themes", third_party: "Third-party" };
+  var HEX = { core: true, enterprise: true, themes: true };   // what comes from outside the project is a hexagon
+
+  function sv(tag, attrs) {   // SVG nodes, built like the rest of the page: never from markup strings
+    var el = document.createElementNS(SVGNS, tag);
+    for (var k in (attrs || {})) if (attrs[k] !== null && attrs[k] !== undefined && attrs[k] !== false) el.setAttribute(k, attrs[k]);
+    for (var i = 2; i < arguments.length; i++) {
+      var c = arguments[i];
+      if (c === null || c === undefined || c === false) continue;
+      el.appendChild(typeof c === "object" ? c : document.createTextNode(String(c)));
+    }
+    return el;
+  }
+  function clip(text, n) { return text.length > n ? text.slice(0, n - 1) + "…" : text; }
+  function shapeOf(kind, x, y, w, hgt) {
+    var shape = HEX[kind]
+      ? sv("polygon", { points: [x + 10, y, x + w - 10, y, x + w, y + hgt / 2, x + w - 10, y + hgt, x + 10, y + hgt, x, y + hgt / 2].join(" ") })
+      : sv("rect", { x: x, y: y, width: w, height: hgt, rx: 6 });
+    shape.setAttribute("class", "shape");
+    return shape;
+  }
+
+  /** Columns by depth (what it needs on the left, down to the foundation; what needs it on the right), an arrow from
+   *  each module to what it depends on. Pressing a module that can be opened draws its own tree. */
+  function drawMap(data, onPick) {
+    var W = 196, H = 28, PITCH = 38, COL = 250, PAD = 18;
+    var cols = {}, min = 0, max = 0;
+    data.nodes.forEach(function (n) { (cols[n.depth] = cols[n.depth] || []).push(n); min = Math.min(min, n.depth); max = Math.max(max, n.depth); });
+    var rows = Math.max.apply(null, Object.keys(cols).map(function (k) { return cols[k].length; }));
+    var width = (max - min) * COL + W + PAD * 2, height = rows * PITCH + PAD * 2, pos = {};
+    Object.keys(cols).forEach(function (k) {
+      var list = cols[k], top = PAD + (rows - list.length) * PITCH / 2;
+      list.forEach(function (n, i) { pos[n.name] = { x: PAD + (n.depth - min) * COL, y: top + i * PITCH }; });
+    });
+    var svg = sv("svg", { class: "map" + (data.edges.length > 120 ? " dense" : ""), width: width, height: height, viewBox: "0 0 " + width + " " + height, role: "group", "aria-label": "Dependency tree of " + data.module });
+    svg.appendChild(sv("defs", {}, sv("marker", { id: "mapArrow", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto" },
+      sv("path", { d: "M0,0 L10,5 L0,10 z", class: "arrowhead" }))));
+    var edgeLayer = sv("g", {}), nodeLayer = sv("g", {}), edges = [];
+    data.edges.forEach(function (e) {
+      var a = pos[e[0]], b = pos[e[1]];
+      if (!a || !b) return;
+      var sx = a.x, sy = a.y + H / 2, tx = b.x + W, ty = b.y + H / 2, mx = (sx + tx) / 2;
+      var p = sv("path", { class: "edge", d: "M" + sx + "," + sy + " C" + mx + "," + sy + " " + mx + "," + ty + " " + tx + "," + ty, "marker-end": "url(#mapArrow)", "data-from": e[0], "data-to": e[1] });
+      edgeLayer.appendChild(p); edges.push(p);
+    });
+    data.nodes.forEach(function (n) {
+      var p = pos[n.name], pick = n.openable && n.kind !== "focus";
+      var g = sv("g", { class: "node mn-" + n.kind + (pick ? " open" : ""), tabindex: pick ? "0" : null, role: pick ? "button" : null,
+        "aria-label": n.name + ", " + KIND_LABEL[n.kind] + (pick ? ", press to see its own tree" : ""), "data-name": n.name },
+      sv("title", {}, n.name + (n.label ? " · " + n.label : "") + (n.version ? " · " + n.version : "") + " · " + KIND_LABEL[n.kind] + (n.openable ? "" : " (its folder was not found)")),
+      shapeOf(n.kind, p.x, p.y, W, H),
+      sv("text", { x: p.x + W / 2, y: p.y + H / 2 + 4, "text-anchor": "middle", class: "label" }, clip(n.name, 27)));
+      g.addEventListener("mouseenter", function () { edges.forEach(function (el) { el.classList.toggle("hl", el.getAttribute("data-from") === n.name || el.getAttribute("data-to") === n.name); }); });
+      g.addEventListener("mouseleave", function () { edges.forEach(function (el) { el.classList.remove("hl"); }); });
+      if (pick) {
+        g.addEventListener("click", function () { onPick(n.name); });
+        g.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(n.name); } });
+      }
+      nodeLayer.appendChild(g);
+    });
+    svg.appendChild(edgeLayer); svg.appendChild(nodeLayer);
+    return { svg: svg, focusX: PAD + (0 - min) * COL + W / 2 };
+  }
+
+  var lastMapSig = null;
+  function renderMap() {
+    var G = S.graph, M = G && G.map, el = $("graphmap");
+    if (!M) { put(el, [h("h2", {}, "Module map")]); return; }
+    var data = M.data;
+    // the page is redrawn every few seconds: a map that has not changed is left alone, so it does not jump while it is read
+    var sig = [M.module, M.loading, M.error, M.follow, M.trail.join(","), data ? data.generation + ":" + data.nodes.length + ":" + data.edges.length : ""].join("|");
+    if (sig === lastMapSig && el.firstChild) return;
+    lastMapSig = sig;
+    var nodes = [h("h2", {}, "Module map · the whole tree")];
+    nodes.push(h("div", { class: "maptools" },
+      btn("← Back", "graphBack", null, "secondary small", !M.trail.length),
+      h("label", { class: "row" }, h("input", { type: "checkbox", checked: M.follow ? "checked" : false,
+        onchange: function (e) { send("graphFollow", { on: e.target.checked }); } }), "Follow the file I'm editing"),
+      data ? btn("Open manifest", "graphOpenModule", { module: M.module }, "secondary small") : null,
+      M.trail.length ? h("span", { class: "hint" }, M.trail.concat([M.module]).join(" › ")) : null));
+    if (!M.module) {
+      nodes.push(h("div", { class: "empty" }, "Open a file of a module and its whole tree of dependencies is drawn here. It follows you from file to file; press a module on the map to look at that one instead."));
+      put(el, nodes); return;
+    }
+    var focus = data && data.nodes.filter(function (n) { return n.kind === "focus"; })[0];
+    nodes.push(h("div", { class: "maptitle" }, h("b", {}, M.module),
+      focus ? h("span", { class: "pill idle" }, ORIGIN_LABEL[focus.origin] || focus.origin) : null,
+      focus && (focus.label || focus.version) ? h("span", { class: "hint" }, [focus.label, focus.version].filter(Boolean).join(" · ")) : null,
+      data ? h("span", { class: "hint" }, data.counts.dependencies + " it needs · " + data.counts.dependents + " need it · " + data.counts.outside + " outside the project" + (data.truncated ? " · cut where the map got too big" : "")) : null));
+    if (M.loading) nodes.push(h("div", { class: "empty" }, "Reading the tree of " + M.module + "…"));
+    else if (M.error) nodes.push(h("div", { class: "hint bad" }, M.error));
+    else if (data) {
+      var kinds = {};
+      data.nodes.forEach(function (n) { kinds[n.kind] = true; });
+      nodes.push(h("div", { class: "legend", "aria-label": "Legend" }, ["focus", "project", "core", "enterprise", "themes", "third_party", "unknown"].filter(function (k) { return kinds[k]; }).map(function (k) {
+        return h("span", {}, sv("svg", { width: 22, height: 14, viewBox: "0 0 22 14", "aria-hidden": "true" }, sv("g", { class: "node mn-" + k }, shapeOf(k, 1, 1, 20, 12))), KIND_LABEL[k]);
+      })));
+      var drawn = drawMap(data, function (name) { send("graphMap", { module: name }); });
+      var box = h("div", { class: "mapbox" }, drawn.svg);
+      nodes.push(box);
+      nodes.push(h("div", { class: "hint" }, "Arrows point to what a module depends on. Modules outside the project are read from their own manifests; the ones that need this module are the project's."));
+      put(el, nodes);
+      // a map a little wider than its box is shrunk to fit (the text stays readable); a much wider one keeps its size and scrolls,
+      // starting with the module in the middle in view
+      var natural = parseFloat(drawn.svg.getAttribute("width")), room = box.clientWidth, scale = room > 0 ? room / natural : 1;
+      if (scale < 1 && scale >= 0.75) {
+        drawn.svg.setAttribute("width", String(Math.floor(natural * scale)));
+        drawn.svg.setAttribute("height", String(Math.floor(parseFloat(drawn.svg.getAttribute("height")) * scale)));
+      } else {
+        box.scrollLeft = Math.max(0, drawn.focusX - room / 2);
+      }
+      return;
+    }
+    put(el, nodes);
+  }
+
   // ----------------------------------------------------------------------------- tabs and the remote servers
   function renderTabs() {
     var is = (S && S.issues) || { errors: 0, warnings: 0 };
-    var tabs = [["home", "Cockpit"], ["server", "Server"], ["dbs", "Databases"], ["log", "Log"], ["issues", "Errors & warnings"], ["remote", "Remote servers"]];
+    var tabs = [["home", "Cockpit"], ["server", "Server"], ["dbs", "Databases"], ["quality", "Quality"], ["log", "Log"], ["issues", "Errors & warnings"], ["graph", "Graph"], ["tools", "Tools"], ["remote", "Remote servers"]];
     put($("tabs"), tabs.map(function (t, index) {
       var badge = null;
       if (t[0] === "issues" && (is.errors || is.warnings)) badge = h("span", { class: "badge " + (is.errors ? "bad" : "warn") }, String(is.errors + is.warnings));
@@ -476,11 +826,27 @@ tr.row-db { cursor: pointer; }
     put($("remote"), nodes);
   }
 
+  /** Without the odoo-ai tools the servers, the quality checks and the graph have nothing to run: say so once, at the top, with the way out. */
+  function renderBanner() {
+    var el = $("banner"), missing = S.tools && !S.tools.found;
+    el.hidden = !missing;
+    if (!missing) { el.textContent = ""; return; }
+    put(el, [h("span", {}, "The odoo-ai tools were not found for Odoo " + S.project.version + ". Starting servers, the quality checks and the graph need them."),
+      h("span", { class: "spacer" }), runBtn("Set up the tools", "odooCi.newVersion", "small"), runBtn("Read the guide", "odooCi.openGuide", "secondary small")]);
+  }
+
+  // The map is only worked out while its page is shown: the editor is told when the Graph tab opens and closes.
+  var mapWasShown = null;
+  function tellMapVisible() {
+    var shown = ui.tab === "graph";
+    if (shown !== mapWasShown) { mapWasShown = shown; send("graphMapVisible", { on: shown }); }
+  }
+
   function render() {
     if (!S) return;
-    document.body.className = S.mode === "panel" ? "panel" : "";
+    document.body.classList.toggle("panel", S.mode === "panel");   // not className: the editor puts its theme class (vscode-light, vscode-dark) on the body
     renderTabs(); renderRemote();
-    renderTop(); renderHome(); renderServer(); renderProgress(); renderIssues(); renderDbs(); renderModules();
+    renderTop(); renderHome(); renderServer(); renderProgress(); renderIssues(); renderDbs(); renderModules(); renderGraph(); renderMap(); renderQuality(); renderTools(); renderBanner(); tellMapVisible();
     var keepScroll = $("log") ? $("log").scrollTop : 0;
     renderLog();
     if (!ui.autoscroll && $("log")) $("log").scrollTop = keepScroll;
@@ -490,7 +856,8 @@ tr.row-db { cursor: pointer; }
       issues: document.querySelectorAll("#issues .issue").length, pill: (document.querySelector("#top .pill") || {}).textContent || null,
       progressShown: !$("progress").hidden, barWidth: bar ? bar.style.width : null, modulesShown: !$("modules").hidden,
       mode: S.mode, tab: ui.tab, tabs: document.querySelectorAll("#tabs .tab").length, remoteRows: document.querySelectorAll("#remote tbody tr").length,
-      remoteHosts: document.querySelectorAll("#remote select option").length - 1 });
+      remoteHosts: document.querySelectorAll("#remote select option").length - 1, bannerShown: !$("banner").hidden,
+      mapNodes: document.querySelectorAll("#graphmap .mapbox .node").length });
   }
 
   var late = false;
@@ -505,7 +872,7 @@ tr.row-db { cursor: pointer; }
       render();
     }
     else if (m.type === "tab") {
-      if (["home", "server", "dbs", "log", "issues", "remote"].indexOf(m.tab) >= 0) { ui.tab = m.tab; save(); render(); }
+      if (typeof m.tab === "string" && document.getElementById("page-" + m.tab)) { ui.tab = m.tab; save(); render(); }   // any page the document has
     }
     else if (m.type === "toast") {
       var old = document.querySelector(".toast"); if (old) old.remove();
