@@ -1,5 +1,5 @@
 {
-  "_comment": "What Odoo 19 needs on a machine. The sources, the venv and the packages you install yourself; `odoo-ai setup --check` says what is missing and the command for it.",
+  "_comment": "What Odoo 19 needs on a machine. `odoo-ai setup` clones the required sources, creates the venv and installs the packages when they are missing; `odoo-ai setup --check` only says what is missing and the command for it.",
   "version": "19",
   "odoo_branch": "19.0",
   "python": "3.12",

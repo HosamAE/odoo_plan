@@ -25,7 +25,8 @@ Nothing here stores a password or a key; `odoo-ai` has a secret scan (`odoo-ai s
 # 1. the structure and tools of the version
 git clone -b 19.0 https://github.com/HosamAE/odoo_plan C:\odoo\odoo19\tools
 
-# 2. what you download yourself (setup --check lists the exact commands)
+# 2. what `odoo-ai setup` runs for you: Odoo's source, the venv and the packages. enterprise (needs an account) and design-themes (optional) stay yours.
+#    `setup --check` lists every command without running any
 git clone --depth 1 -b 19.0 https://github.com/odoo/odoo.git C:\odoo\odoo19\odoo
 git clone --depth 1 -b 19.0 https://github.com/odoo/enterprise.git C:\odoo\odoo19\enterprise      # with access
 git clone --depth 1 -b 19.0 https://github.com/odoo/design-themes.git C:\odoo\odoo19\design-themes
