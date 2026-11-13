@@ -168,13 +168,25 @@ function create(api) {
     });
   }
 
-  function post() {
-    for (const [mode, s] of surfaces) if (s.visible()) s.webview.postMessage({ type: "state", state: currentState(mode) });
+  /** Send the state to every visible surface. The timer asks for `onlyIfChanged`: an unchanged page is not sent again. */
+  function post(onlyIfChanged) {
+    for (const [mode, s] of surfaces) {
+      if (!s.visible()) continue;
+      const state = currentState(mode);
+      if (onlyIfChanged === true) {
+        const key = JSON.stringify(state);
+        if (key === s.last) continue;
+        s.last = key;
+      } else {
+        s.last = undefined;
+      }
+      s.webview.postMessage({ type: "state", state });
+    }
     startTimer();
   }
 
   function startTimer() {
-    if (!timer && surfaces.size) timer = setInterval(post, 3000);   // the log and the progress move; the databases are read on demand
+    if (!timer && surfaces.size) timer = setInterval(() => post(true), 3000);   // the log and the progress move; the databases are read on demand
     if (timer && !surfaces.size) { clearInterval(timer); timer = null; }
   }
 

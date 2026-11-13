@@ -4,7 +4,7 @@ A module that uses a model, a field's comodel or an XML id from a module
 missing from its `depends` (directly or through them) works only because
 that other module happens to be installed too. The full CI installs all
 of them together, so it never sees the gap; a customer installing a part
-does - 2026-11-08: acme_portal_api's issue routes answered 500
+does - one project: a portal module's issue routes answered 500
 without website_helpdesk_support_ticket, and nothing had said so.
 
 What counts as USING another module, read statically (no database):
@@ -39,7 +39,7 @@ import xml.etree.ElementTree as ET
 from gate_common import ROOT, modules
 NOQA = "# noqa: depends"
 ALWAYS = {"base"}  # every module depends on base
-# A test that names the modules it needs: @skip_unless_installed("acme_meeting", ...)
+# A test that names the modules it needs: @skip_unless_installed("other_module", ...)
 SKIP_DECORATOR = re.compile(r"""skip_unless_installed\(([^()]*)\)""")
 QUOTED_MODULE = re.compile(r"""['"]([a-z0-9_]+)['"]""")
 

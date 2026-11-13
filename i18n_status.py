@@ -9,7 +9,7 @@ selection values, model descriptions, and the text of views. It is the same scan
 three always agree. It is not Odoo's own export (that needs an installed database): a term only Odoo finds is not counted.
 
 Nothing is sent anywhere unless `translate` is run, and it sends the module's untranslated terms to the endpoint it is
-given and nowhere else. The key is read from the environment (HX_TRANSLATE_KEY), never from the command line.
+given and nowhere else. The key is read from the environment (ODOO_TRANSLATE_KEY), never from the command line.
 """
 import argparse
 import ast
@@ -278,7 +278,7 @@ def run(args):
         return 0
     module_dir = os.path.join(root, args.module)
     try:
-        result = translate_module(module_dir, args.lang, args.endpoint, args.model, os.environ.get("HX_TRANSLATE_KEY", ""),
+        result = translate_module(module_dir, args.lang, args.endpoint, args.model, os.environ.get("ODOO_TRANSLATE_KEY") or os.environ.get("HX_TRANSLATE_KEY", ""),
                                   progress=lambda a, b: print(f"STEP {a}/{b} translating", file=sys.stderr, flush=True))
     except TranslateError as exc:
         print(json.dumps({"ok": False, "error": str(exc)}) if args.json else f"ERROR: {exc}")

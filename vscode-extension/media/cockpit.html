@@ -388,10 +388,18 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
     put($("issues"), nodes);
   }
 
+  /** A database of another Odoo version is not this project's: it is hidden unless the person asks for it. */
+  function isOtherVersion(d) {
+    return !!(d.version && S.project && d.version.indexOf(S.project.version + ".") !== 0);
+  }
+
   function renderDbs() {
     var nodes = [h("h2", {}, "Databases")];
     if (!S.databases) { nodes.push(h("div", { class: "empty" }, "Reading the databases…")); put($("dbs"), nodes); return; }
-    var rows = S.databases.filter(function (d) { return !ui.dbFilter || d.name.toLowerCase().indexOf(ui.dbFilter.toLowerCase()) >= 0; });
+    var other = S.databases.filter(isOtherVersion).length;
+    var rows = S.databases.filter(function (d) {
+      return (ui.dbOther || !isOtherVersion(d)) && (!ui.dbFilter || d.name.toLowerCase().indexOf(ui.dbFilter.toLowerCase()) >= 0);
+    });
     var key = ui.dbSort;
     rows.sort(function (a, b) {
       var x = a[key], y = b[key];
@@ -405,6 +413,8 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
         var at = e.target.selectionStart; ui.dbFilter = e.target.value; save(); renderDbs();
         var again = $("dbfilter"); if (again) { again.focus(); again.setSelectionRange(at, at); } } }),
       btn("Refresh", "refreshDbs", null, "secondary small"),
+      other ? h("button", { class: "secondary small", title: "Databases written by another Odoo version than " + S.project.version, onclick: function () { ui.dbOther = !ui.dbOther; save(); renderDbs(); } },
+        ui.dbOther ? "Hide " + other + " of other Odoo versions" : "Show " + other + " of other Odoo versions") : null,
       h("span", { class: "hint" }, rows.length + " of " + S.databases.length + (S.backupDir ? " · backups go to " + S.backupDir : ""))));
     var head = h("tr", {});
     [["name", "Database"], ["size_mb", "MB", true], ["version", "Version"], ["modules", "Modules", true], ["last_login", "Last login"]].forEach(function (c) {
@@ -418,7 +428,7 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
     rows.forEach(function (d) {
       var ports = (S.server.list || []).filter(function (x) { return x.db === d.name; }).map(function (x) { return ":" + x.port; });
       var serving = S.server.running && (S.server.db === d.name || ports.length > 0);
-      var mismatch = d.version && d.version.indexOf(S.project.version + ".") !== 0;
+      var mismatch = isOtherVersion(d);
       var tr = h("tr", { class: "row-db" + (ui.selected === d.name ? " sel" : "") + (!d.usable || mismatch ? " dim" : ""), tabindex: "0",
         onclick: function () { ui.selected = d.name; save(); send("loadModules", { db: d.name }); renderDbs(); },
         onkeydown: function (e) { if (e.key === "Enter") { ui.selected = d.name; save(); send("loadModules", { db: d.name }); renderDbs(); } } },
@@ -618,7 +628,7 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
       ["Scan staged files for secrets", "Passwords and tokens in what you are about to commit", "odooCi.secretScan"],
       ["Install the secret pre-commit hook", "Stop a secret before it is committed", "odooCi.secretHook"],
       ["Open the layout guide", "How the folders of a version are organised", "odooCi.openLayout"],
-      ["Refresh versions", "Read the versions and their projects again", "odooCi.refreshEnv"]]],
+      ["Refresh versions", "Read this version and its tools again", "odooCi.refreshEnv"]]],
   ];
 
   function renderTools() {

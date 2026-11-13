@@ -870,7 +870,7 @@ def _index_migrations(builder, sources) -> None:
 # module conventions
 # --------------------------------------------------------------------------
 
-#: What Odoo itself will not load a module without. Not a Acme choice.
+#: What Odoo itself will not load a module without. Not a choice of any project.
 REQUIRED_BY_ODOO = {
     "manifest": ("__manifest__.py", "a module without a manifest is not a "
                  "module; Odoo will not see it"),
@@ -901,8 +901,19 @@ COUNTED_FILES = (
     ("readme", "README.md", "the module carries a README.md"),
 )
 
-#: Naming. Counted, never asserted.
-NAME_PREFIX = "acme_"
+def name_prefix(module_names) -> str:
+    """The "<word>_" most project modules start with ("" when none is shared).
+
+    Naming is counted, never asserted: the prefix is read from the modules, not chosen here. A word counts when at
+    least two modules start with it.
+    """
+    counts: dict = {}
+    for name in module_names:
+        head, sep, _rest = str(name).partition("_")
+        if sep and head:
+            counts[head + "_"] = counts.get(head + "_", 0) + 1
+    best = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    return best[0][0] if best and best[0][1] >= 2 else ""
 
 
 def _index_conventions(builder, sources, module_names) -> None:
@@ -964,9 +975,11 @@ def _index_conventions(builder, sources, module_names) -> None:
                "observed_pattern" if share >= OBSERVED_THRESHOLD
                else "recommendation")
 
-    prefixed = {m for m in module_names if m.startswith(NAME_PREFIX)}
+    prefix = name_prefix(module_names)
+    prefixed = {m for m in module_names if prefix and m.startswith(prefix)}
     record("name_prefix", "naming",
-           f"a project module's technical name starts with {NAME_PREFIX!r}",
+           f"a project module's technical name starts with {prefix!r}" if prefix
+           else "a project module's technical name shares a common prefix",
            prefixed,
            "observed_pattern" if len(prefixed) / total >= OBSERVED_THRESHOLD
            else "recommendation")
@@ -992,7 +1005,7 @@ CONVENTION_TOKENS = {
     "static_description": "static/description/",
     "access_csv": "ir.model.access.csv",
     "readme": "README.md",
-    "name_prefix": "acme_",
+    "name_prefix": None,   # the project's own prefix, read from its modules when the documents are linked
 }
 
 
@@ -1005,8 +1018,8 @@ def _link_conventions_to_documents(builder) -> None:
 
     An earlier version of this function did promote: a section whose text
     contained the first word of a convention's statement turned an
-    `observed_pattern` into a `documented_acme_rule`. That produced six
-    "Acme rules" nobody had written -- "models/" appearing in a porting plan
+    `observed_pattern` into a `documented_rule`. That produced six
+    "organisation rules" nobody had written -- "models/" appearing in a porting plan
     is not a rule that models live in models/. Promotion is a human decision,
     and the milestone says so: a recommendation may never be presented as an
     existing organisational rule without a documented source *and* later human
@@ -1024,6 +1037,8 @@ def _link_conventions_to_documents(builder) -> None:
         return
     for convention in builder.layer.conventions:
         token = CONVENTION_TOKENS.get(convention.key)
+        if convention.key == "name_prefix":
+            token = name_prefix(builder.facts.modules)
         if not token:
             continue
         for section in structure_sections:

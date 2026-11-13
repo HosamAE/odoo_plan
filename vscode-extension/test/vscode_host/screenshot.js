@@ -16,7 +16,8 @@ const local = process.env.LOCALAPPDATA || "";
 const exe = process.env.CODE_EXE || [path.join(local, "odoo-ci", "vscode-test", "Code.exe"), path.join(local, "Programs", "Antigravity IDE", "Antigravity IDE.exe")].find((p) => fs.existsSync(p));
 if (!exe) { console.error("no editor found (set CODE_EXE)"); process.exit(2); }
 const extensionDir = path.join(__dirname, "..", "..");
-const project = process.env.ODOO_CI_TEST_PROJECT || "C:\\odoo\\ProjectsOdoo19\\Acme";
+const project = process.env.ODOO_CI_TEST_PROJECT || "";
+if (!project) { console.error("set ODOO_CI_TEST_PROJECT to an Odoo project folder"); process.exit(2); }
 const python = process.env.ODOO_CI_TEST_PYTHON || path.join(path.dirname(path.dirname(extensionDir)), "venv", "Scripts", "python.exe");
 const cli = path.join(path.dirname(extensionDir), "cli.py");
 const cleanEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(VSCODE_|ELECTRON_)/.test(k)));
@@ -36,6 +37,7 @@ public class Win {
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint f);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
   public struct RECT { public int L, T, R, B; }
   public static List<IntPtr> Of(uint pid) {
     var found = new List<IntPtr>();
@@ -44,6 +46,7 @@ public class Win {
   }
 }
 "@
+[Win]::SetProcessDPIAware() | Out-Null   # without it a scaled screen gives the rectangle of the unscaled window: a cropped picture
 $handles = [Win]::Of([uint32]$ProcessId)
 if ($handles.Count -eq 0) { Write-Output "NOWINDOW"; exit 3 }
 $h = $handles[0]
