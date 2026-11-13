@@ -40,6 +40,7 @@ function makeVscode(refusedViews) {
         return { dispose: noop };
       },
       onDidChangeVisibleTextEditors: () => ({ dispose: noop }), visibleTextEditors: [],
+      onDidChangeActiveTextEditor: () => ({ dispose: noop }), activeTextEditor: undefined,
       createTextEditorDecorationType: () => ({ dispose: noop }),
       showErrorMessage: noop, showWarningMessage: (text, ...buttons) => { warnings.push({ text, buttons }); return { then: noop }; },
       createTerminal: () => ({ show: noop, sendText: noop }),

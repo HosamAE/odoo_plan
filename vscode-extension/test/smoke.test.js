@@ -27,7 +27,7 @@ const vscodeMock = {
     registerCodeActionsProvider: (selector, provider) => { registered.codeActions = provider; return { dispose: noop }; },
   },
   workspace: {
-    workspaceFolders: [{ uri: { fsPath: process.env.SMOKE_PROJECT || "C:\odoo\ProjectsOdoo19\Acme" } }],
+    workspaceFolders: [{ uri: { fsPath: process.env.SMOKE_PROJECT || ["C:", "odoo", "ProjectsOdoo19", "Acme"].join("\\") } }],
     workspaceFile: null,
     getConfiguration: () => ({ get: () => undefined, update: noop }),
   },
@@ -37,6 +37,7 @@ const vscodeMock = {
     registerTreeDataProvider: (id, provider) => { registered.trees[id] = provider; return { dispose: noop }; },
     registerWebviewViewProvider: (id, provider) => { registered.views[id] = provider; return { dispose: noop }; },
     onDidChangeVisibleTextEditors: () => ({ dispose: noop }), visibleTextEditors: [],
+    onDidChangeActiveTextEditor: () => ({ dispose: noop }), activeTextEditor: undefined,
     createTextEditorDecorationType: () => ({ dispose: noop }),
     showErrorMessage: noop, showWarningMessage: noop, createTerminal: () => ({ show: noop, sendText: noop }),
   },
@@ -83,12 +84,29 @@ assert.deepStrictEqual(actions.map((a) => a.title), ["Use search_count()", "This
 assert.ok(!pkg.contributes.views.odooStudio.some((v) => v.id === "odooCi.steps"), "the separate CI view must be gone");
 assert.ok(!registered.trees["odooCi.steps"], "no tree registered for the removed view");
 const panel = registered.trees["odooCi.actions"];
-const groups = panel.getChildren();
-assert.deepStrictEqual(groups.map((g) => g.label.replace(/ \(Port \d+\)/, "")), ["Server", "Quality & CI Gates", "Developer Tools"]);
-const ci = panel.getChildren(groups[1]).map((i) => i.label);
-assert.ok(ci.includes("Run Static Checks (Lint & Security)") && ci.includes("Run Full CI Suite (Clean DB)"), "CI buttons stay in the panel");
-const server = panel.getChildren(groups[0]);
+const rows = panel.getChildren();
+assert.deepStrictEqual(rows.map((r) => r.label.replace(/ \(Port \d+\)/, "")),
+  ["Acme · Odoo 19", "Server", "Quality", "Databases", "Graph", "Server log", "Tools & Maintenance", "Remote servers"], "a slim sidebar: the project, then one row for each page of the cockpit");
+assert.strictEqual(rows[0].command.command, "odooCi.cockpitPanel", "the project row opens the cockpit");
+const pageOf = { Databases: "dbs", Quality: "quality", Graph: "graph", "Server log": "log", "Tools & Maintenance": "tools", "Remote servers": "remote" };
+for (const row of rows.filter((r) => pageOf[r.label])) {
+  assert.deepStrictEqual([row.command.command, row.command.arguments], ["odooCi.cockpitTab", [pageOf[row.label]]], `${row.label} opens its page of the cockpit`);
+  assert.ok(registered.commands["odooCi.cockpitTab"], "and that command is registered");
+}
+assert.strictEqual(rows.find((r) => r.label === "Quality").contextValue, "quality");
+assert.strictEqual(rows.find((r) => r.label === "Graph").contextValue, "graph");
+const server = panel.getChildren(rows[1]);
 assert.ok(server.some((i) => /^Server: (Running|Stopped)$/.test(i.label)), "the server state is shown");
+assert.ok(server.every((i) => !/^(Start|Stop|Upgrade|Check|Open in)/.test(i.label)), "the buttons of the server are inline or on the cockpit's Server page, not rows again");
+const statusRow = server.find((i) => /^Server: /.test(i.label));
+assert.ok(["server-running", "server-stopped"].includes(statusRow.contextValue), "the state row says which buttons it takes");
+// every inline button belongs to a row that exists, and starts a command that is declared and registered
+const rowKinds = new Set(["server-running", "server-stopped", "quality", "graph", "issue", "issueWithSource"]);
+for (const m of pkg.contributes.menus["view/item/context"]) {
+  assert.ok(pkg.contributes.commands.some((c) => c.command === m.command) && registered.commands[m.command], `inline command ${m.command} is declared and registered`);
+  const kind = (m.when.match(/viewItem (?:==|=~) \/?\^?([\w-]+)/) || [])[1];
+  assert.ok(!kind || [...rowKinds].some((k) => k.startsWith(kind)), `inline button for a row that exists: ${m.when}`);
+}
 assert.ok(!JSON.stringify(pkg.contributes.menus).includes("odooCi.steps"), "no menu entry may target the removed view");
 assert.ok(pkg.contributes.commands.every((c) => c.icon !== "$(camera)"), "$(camera) is not a VS Code icon");
 

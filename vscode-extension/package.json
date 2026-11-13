@@ -1,7 +1,7 @@
 {
   "name": "odoo-ci",
   "displayName": "Cockpit Odoo",
-  "description": "Cockpit Odoo: control every Odoo server of a project from one page (v17-20): start, stop, follow, databases, log, errors, remote databases over SSH, translations, fast tests, XPath validator and DB snapshots.",
+  "description": "One control room for the Odoo projects on your machine (17-20): servers, databases, quality checks, errors tied to your code, the project's knowledge graph with the dependency tree of the module you are editing, tools, and remote databases over SSH.",
   "publisher": "HosamAE",
   "author": {
     "name": "HosamAE",
@@ -13,7 +13,7 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -33,7 +33,9 @@
     "testing",
     "xpath",
     "i18n",
-    "studio"
+    "studio",
+    "knowledge-graph",
+    "dependencies"
   ],
   "activationEvents": [
     "workspaceContains:**/__manifest__.py",
@@ -98,13 +100,13 @@
       },
       {
         "command": "odooCi.static",
-        "title": "Run static checks (seconds)",
+        "title": "Run static checks",
         "category": "Odoo CI",
         "icon": "$(checklist)"
       },
       {
         "command": "odooCi.fastTest",
-        "title": "Fast DB Test (Template DB - 3s)",
+        "title": "Fast DB Test (Template DB)",
         "category": "Odoo Studio",
         "icon": "$(zap)"
       },
@@ -127,13 +129,13 @@
       },
       {
         "command": "odooCi.dbSnapSave",
-        "title": "Take Instant DB Snapshot (~1s)",
+        "title": "Take Instant DB Snapshot",
         "category": "Odoo Studio",
         "icon": "$(device-camera)"
       },
       {
         "command": "odooCi.dbSnapRestore",
-        "title": "Restore DB from Snapshot (~2s)",
+        "title": "Restore DB from Snapshot",
         "category": "Odoo Studio",
         "icon": "$(history)"
       },
@@ -156,6 +158,12 @@
         "icon": "$(pulse)"
       },
       {
+        "command": "odooCi.audit",
+        "title": "Audit Security CSV & Manifest of This Module",
+        "category": "Odoo Studio",
+        "icon": "$(shield)"
+      },
+      {
         "command": "odooCi.setupWizard",
         "title": "Quick Project Setup Wizard",
         "category": "Odoo Studio",
@@ -163,7 +171,7 @@
       },
       {
         "command": "odooCi.initFastDb",
-        "title": "Initialize Fast Template DB (3s Test)",
+        "title": "Initialize Fast Template DB",
         "category": "Odoo Studio",
         "icon": "$(database)"
       },
@@ -305,6 +313,24 @@
         "icon": "$(dashboard)"
       },
       {
+        "command": "odooCi.graphModule",
+        "title": "Show the Graph of This Module",
+        "category": "Odoo Studio",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "odooCi.graphUpdate",
+        "title": "Update the Project Graph",
+        "category": "Odoo Studio",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "odooCi.cockpitTab",
+        "title": "Open a Page of the Cockpit Odoo",
+        "category": "Odoo Studio",
+        "icon": "$(dashboard)"
+      },
+      {
         "command": "odooCi.translations",
         "title": "Translations: Open the Translations Page",
         "category": "Odoo Studio",
@@ -357,7 +383,7 @@
       },
       {
         "view": "odooCi.actions",
-        "contents": "Cockpit Odoo by HosamAE:\n[$(gear) Setup Wizard](command:odooCi.setupWizard)\n[$(play) Start Server](command:odooCi.serverRunQuick)\n[$(globe) Open Browser](command:odooCi.serverOpen)\n[$(zap) Fast Test (3s)](command:odooCi.fastTest)\n[$(camera) DB Snapshot](command:odooCi.dbSnapSave)\n[$(checklist) Static Checks](command:odooCi.static)\n[$(beaker) Full CI Suite](command:odooCi.full)\n[$(add) New Addon](command:odooCi.newAddon)"
+        "contents": "Cockpit Odoo by HosamAE:\n[$(gear) Setup Wizard](command:odooCi.setupWizard)\n[$(play) Start Server](command:odooCi.serverRunQuick)\n[$(globe) Open Browser](command:odooCi.serverOpen)\n[$(zap) Fast Test](command:odooCi.fastTest)\n[$(camera) DB Snapshot](command:odooCi.dbSnapSave)\n[$(checklist) Static Checks](command:odooCi.static)\n[$(beaker) Full CI Suite](command:odooCi.full)\n[$(add) New Addon](command:odooCi.newAddon)"
       }
     ],
     "menus": {
@@ -433,6 +459,42 @@
           "command": "odooCi.issueOpenSource",
           "when": "view == odooCi.issues && viewItem == issueWithSource",
           "group": "inline@2"
+        },
+        {
+          "command": "odooCi.serverStop",
+          "when": "view == odooCi.actions && viewItem == server-running",
+          "group": "inline@1"
+        },
+        {
+          "command": "odooCi.serverRestart",
+          "when": "view == odooCi.actions && viewItem == server-running",
+          "group": "inline@2"
+        },
+        {
+          "command": "odooCi.serverOpen",
+          "when": "view == odooCi.actions && viewItem == server-running",
+          "group": "inline@3"
+        },
+        {
+          "command": "odooCi.serverRunQuick",
+          "when": "view == odooCi.actions && viewItem == server-stopped",
+          "group": "inline@1"
+        },
+        {
+          "command": "odooCi.static",
+          "when": "view == odooCi.actions && viewItem == quality && !odooCi.running",
+          "group": "inline@1"
+        },
+        {
+          "command": "odooCi.graphUpdate",
+          "when": "view == odooCi.actions && viewItem == graph",
+          "group": "inline@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "odooCi.cockpitTab",
+          "when": "false"
         }
       ],
       "explorer/context": [
@@ -485,6 +547,22 @@
           "type": "boolean",
           "default": false,
           "description": "Back a database up before upgrading it, and stop if the backup fails."
+        },
+        "odooCi.graph.keepGenerations": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "Knowledge graph: every update leaves a new generation (tens of MB) that the engine never removes. 0 keeps them all (nothing is deleted). A number keeps the published one and that many of the newest, and removes the rest after each update."
+        },
+        "odooCi.graph.autoUpdate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Knowledge graph: when the project opens and its graph is behind the code, update it quietly in the background (no pop-up). Turn off to update it only with the Update button of the Graph page."
+        },
+        "odooCi.graph.followEditor": {
+          "type": "boolean",
+          "default": true,
+          "description": "Knowledge graph: the Graph page draws the whole dependency tree of the module of the file you are editing, and follows you from file to file. Pressing a module on the map pins it until you tick 'Follow the file I'm editing' again."
         },
         "odooCi.remoteSudoUser": {
           "type": "string",

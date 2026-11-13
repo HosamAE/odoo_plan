@@ -16,14 +16,16 @@ FILES = [
     "cockpit.js",
     "remote.js",
     "translations.js",
+    "rulefixes.js",
+    "detect.js",
+    "project.js",
+    "graph.js",
     "media/cockpit.html",
     "media/translations.html",
     "README.md",
     "media/ci.svg",
     "media/studio.svg",
-    "media/icon.png",
-    "media/fast_test_benchmark.png",
-    "media/studio_architecture.png"
+    "media/icon.png"
 ]
 
 pkg = json.loads((HERE / "package.json").read_text(encoding="utf-8"))

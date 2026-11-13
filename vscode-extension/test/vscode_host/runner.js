@@ -95,34 +95,26 @@ exports.run = async function run() {
     check("at line 40", codeEditor && codeEditor.selection.active.line + 1 === 40, codeEditor && codeEditor.selection.active.line + 1);
     check("and the log beside it", visible.some((e) => e.document.uri.fsPath.toLowerCase() === log.toLowerCase()), visible.map((e) => e.document.uri.fsPath).join(", "));
 
-    // the cockpit, opened in the editor: the page runs under the editor's content-security policy and draws
+    // the cockpit: one command opens the bottom panel, beside Terminal and Problems; the page runs under the
+    // editor's content-security policy and draws
     const cockpit = api._test.cockpit;
-    await vscode.commands.executeCommand("odooCi.cockpit");
-    check("the cockpit panel opens", cockpit.isOpen(), "no panel");
-    const drawn = await until(() => { const r = cockpit.lastRender(); return r && r.dbRows > 0 ? r : null; }, 90000, 500);
-    check("the page ran and drew the databases read by the real tools", drawn, JSON.stringify(cockpit.lastRender()));
+    let viewError = null;
+    try { await vscode.commands.executeCommand("odooCi.cockpit"); } catch (e) { viewError = e; }
+    check("the Open Cockpit command works", !viewError, viewError && viewError.message);
+    check("the cockpit opens in the bottom panel", await until(() => cockpit.isViewOpen(), 30000, 300), "no bottom view");
+    check("and not as a second copy in an editor tab", !cockpit.isOpen(), "an editor tab is open");
+    const drawn = await until(() => { const r = cockpit.lastRender("panel"); return r && r.dbRows > 0 ? r : null; }, 90000, 500);
+    check("the page ran in the bottom panel and drew the databases read by the real tools", drawn, JSON.stringify(cockpit.lastRender("panel")));
     const first2 = drawn || {};
+    check("in its compact layout", first2.mode === "panel", JSON.stringify(first2));
+    check("with its door and eight pages as tabs", first2.tabs === 9, JSON.stringify(first2));
     check("it drew the log lines and the issues it was given", first2.logLines > 0 && first2.issues === 2, JSON.stringify(first2));
     check("it coloured the error and the two warning lines", first2.errorLines >= 1 && first2.warningLines === 2, JSON.stringify(first2));
     check("the header shows a state", first2.pill, JSON.stringify(first2));
 
-    // the same page in the bottom panel, beside Terminal and Problems
-    let viewError = null;
-    try { await vscode.commands.executeCommand("workbench.view.extension.odooCockpit"); } catch (e) { viewError = e; }
-    check("the editor opens the bottom-panel container", !viewError, viewError && viewError.message);
-    const inPanel = await until(() => { const r = cockpit.lastRender("panel"); return r && r.dbRows > 0 ? r : null; }, 90000, 500);
-    check("the page ran in the bottom panel and drew the databases", inPanel, JSON.stringify(cockpit.lastRender("panel")));
-    check("in its compact layout", inPanel && inPanel.mode === "panel", JSON.stringify(inPanel));
-    check("with its door and five pages as tabs", inPanel && inPanel.tabs === 6, JSON.stringify(inPanel));
-
-    // one button opens it in the bottom panel; the page itself can move up to the editor and back
+    // the second Open Cockpit command opens the very same page
     await vscode.commands.executeCommand("odooCi.cockpitPanel");
-    check("the one Open Cockpit command works in the editor", cockpit.isViewOpen(), "no bottom view");
-    await cockpit.handle({ cmd: "move", to: "editor" }, "panel");
-    check("the page can move up into an editor tab", cockpit.isOpen(), "no editor tab");
-    await cockpit.handle({ cmd: "move", to: "panel" }, "editor");
-    await sleep(800);
-    check("and back down to the bottom panel (the tab is closed)", cockpit.isViewOpen() && !cockpit.isOpen(), `view ${cockpit.isViewOpen()} tab ${cockpit.isOpen()}`);
+    check("both Open Cockpit commands open the one page", cockpit.isViewOpen() && !cockpit.isOpen(), `view ${cockpit.isViewOpen()} tab ${cockpit.isOpen()}`);
 
     // the translations page, fed by the real tools reading the real project (it changes nothing)
     const tr = api._test.translations;
@@ -156,15 +148,23 @@ exports.run = async function run() {
       }
     }
 
-    // the control panel: the rows a person is meant to find
+    // the sidebar: the project, the state of the server with its buttons inline, and one row for each page of the cockpit
     const roots = api._test.actionsTree.getChildren();
-    const serverGroup = roots.find((r) => String(r.label).startsWith("Server"));
-    const rows = serverGroup ? api._test.actionsTree.getChildren(serverGroup).map((r) => String(r.label)) : [];
-    for (const wanted of ["Open Cockpit", "Start Odoo Server", "Start with Options...", "Upgrade Modules...", "Check Database vs Code", "Stop Odoo Server", "Open in Browser"]) {
-      check(`the control panel has "${wanted}"`, rows.includes(wanted), rows.join(" | "));
+    const labels = roots.map((r) => String(r.label));
+    check("the sidebar has the project row and a row for each page of the cockpit",
+      labels[0] === "Acme · Odoo 19" && ["Quality", "Databases", "Graph", "Server log", "Tools & Maintenance", "Remote servers"].every((l) => labels.includes(l)), labels.join(" | "));
+    check("the project row opens the cockpit", roots[0].command && roots[0].command.command === "odooCi.cockpitPanel", JSON.stringify(roots[0].command));
+    const serverGroup = roots.find((r) => String(r.label).startsWith("Server ("));
+    const stateRow = serverGroup && api._test.actionsTree.getChildren(serverGroup).find((r) => /^Server: /.test(String(r.label)));
+    check("the state of the server takes its buttons inline", stateRow && ["server-running", "server-stopped"].includes(stateRow.contextValue), JSON.stringify(stateRow && stateRow.contextValue));
+    for (const [label, tab] of [["Databases", "dbs"], ["Quality", "quality"], ["Graph", "graph"], ["Server log", "log"], ["Tools & Maintenance", "tools"], ["Remote servers", "remote"]]) {
+      const row = roots.find((r) => String(r.label) === label);
+      check(`the "${label}" row opens the ${tab} page`, row && row.command && row.command.command === "odooCi.cockpitTab" && row.command.arguments[0] === tab, JSON.stringify(row && row.command));
     }
-    const startRow = api._test.actionsTree.getChildren(serverGroup).find((r) => String(r.label) === "Start Odoo Server");
-    check("the Start row starts the server at once (no questions)", startRow && startRow.command && startRow.command.command === "odooCi.serverRunQuick", JSON.stringify(startRow && startRow.command));
+    // pressed for real: the page appears in the real bottom panel
+    await vscode.commands.executeCommand("odooCi.cockpitTab", "tools");
+    const shownPage = await until(() => { const r = cockpit.lastRender("panel"); return r && r.tab === "tools" ? r : null; }, 20000, 300);
+    check("pressing a row shows that page in the real panel", shownPage, JSON.stringify(cockpit.lastRender("panel")));
 
     // two real servers at once, each with its own log; one is stopped and the other keeps running
     const scratch = process.env.ODOO_CI_TEST_SERVERS;
