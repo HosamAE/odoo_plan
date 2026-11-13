@@ -209,6 +209,10 @@ class TestGraphOutOfTheWorkspace(unittest.TestCase):
         self.assertNotIn("VS Code task", workspace_sync.KG_SECTION)
 
 
+# Names of an estate this machine once worked with, written in pieces so that this file does not carry them either.
+NAMES = tuple("".join(parts) for parts in (("high", "nox"), ("ho", "ss"), ("bah", "nhof"), ("k", "fv"), ("flow_", "engine"), ("helper_", "module"), ("shared_", "repo")))
+
+
 class TestNothingAboutAnEstateIsBuiltIn(unittest.TestCase):
     """The tools know no company and no project: what is known about an estate comes from tools/local/workspace_local.py."""
 
@@ -221,12 +225,12 @@ class TestNothingAboutAnEstateIsBuiltIn(unittest.TestCase):
     def test_the_shared_sources_name_no_company_or_customer(self):
         with open(workspace_sync.__file__, encoding="utf-8") as handle:
             source = handle.read().lower()
-        for word in ("acme", "hoss", "clientb", "clientc", "sample_engine", "sample_helper", "sample_shared"):
+        for word in NAMES:
             self.assertNotIn(word, source, word)
 
     def test_no_shared_file_of_the_tools_names_a_company_or_customer(self):
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        words = ("acme", "clientb", "clientc", "sample_engine", "sample_helper")
+        words = NAMES
         skip = {"local", "node_modules", "tests", "__pycache__", ".git", "out"}
         found = []
         listed = subprocess.run(["git", "-C", root, "ls-files"], capture_output=True, text=True)   # what is published
