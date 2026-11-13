@@ -30,7 +30,7 @@ function makeVscode(refusedViews) {
     env: { shell: "powershell.exe" },
     CodeAction: class {}, CodeActionKind: { QuickFix: "quickfix" }, WorkspaceEdit: class {},
     languages: { createDiagnosticCollection: () => ({ clear: noop, set: noop, dispose: noop }), registerCodeActionsProvider: () => ({ dispose: noop }) },
-    workspace: { workspaceFolders: [{ uri: { fsPath: process.env.SMOKE_PROJECT || "C:\\odoo\\ProjectsOdoo19\\Acme" } }], workspaceFile: null, getConfiguration: () => ({ get: () => undefined, update: noop }) },
+    workspace: { workspaceFolders: [{ uri: { fsPath: process.env.SMOKE_PROJECT || "C:\\odoo\\ProjectsOdoo19\\Demo" } }], workspaceFile: null, getConfiguration: () => ({ get: () => undefined, update: noop }) },
     window: {
       createOutputChannel: () => ({ appendLine: noop, append: noop, show: noop, clear: noop, dispose: noop }),
       createStatusBarItem: () => { const item = { show: () => { item.shown = true; }, hide: noop, dispose: noop }; statusItems.push(item); return item; },
@@ -40,6 +40,7 @@ function makeVscode(refusedViews) {
         return { dispose: noop };
       },
       onDidChangeVisibleTextEditors: () => ({ dispose: noop }), visibleTextEditors: [],
+      onDidChangeActiveTextEditor: () => ({ dispose: noop }), activeTextEditor: undefined,
       createTextEditorDecorationType: () => ({ dispose: noop }),
       showErrorMessage: noop, showWarningMessage: (text, ...buttons) => { warnings.push({ text, buttons }); return { then: noop }; },
       createTerminal: () => ({ show: noop, sendText: noop }),

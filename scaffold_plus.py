@@ -6,15 +6,28 @@ Guarantees zero lint and zero framework rule violations out of the box.
 """
 
 import os
+import subprocess
 import sys
+
+
+def _setting(name, default):
+    """What a project wants in its manifests (its category, its company) comes from its environment, not from these tools."""
+    return os.environ.get(name) or default
+
+
+def _git_user():
+    try:
+        return subprocess.run(["git", "config", "user.name"], capture_output=True, text=True, timeout=5).stdout.strip() or "Your Company"
+    except (OSError, subprocess.SubprocessError):
+        return "Your Company"
 
 MANIFEST_TEMPLATE = """# -*- coding: utf-8 -*-
 {{
     'name': '{title}',
     'version': '{version}.0.1.0.0',
-    'category': 'Acme/Custom',
+    'category': '{category}',
     'summary': '{summary}',
-    'author': 'HosamAE',
+    'author': '{author}',
     'license': 'LGPL-3',
     'depends': ['base'],
     'data': [
@@ -149,7 +162,7 @@ def create_scaffold_module(name, target_dir, version="19", summary="Custom busin
 
     # 1. __manifest__.py
     with open(os.path.join(addon_path, "__manifest__.py"), "w", encoding="utf-8") as f:
-        f.write(MANIFEST_TEMPLATE.format(title=title, version=version, summary=summary, name=name))
+        f.write(MANIFEST_TEMPLATE.format(title=title, version=version, summary=summary, name=name, category=_setting('ODOO_SCAFFOLD_CATEGORY', 'Custom'), author=_setting('ODOO_SCAFFOLD_AUTHOR', _git_user())))
 
     # 2. __init__.py files
     with open(os.path.join(addon_path, "__init__.py"), "w", encoding="utf-8") as f:

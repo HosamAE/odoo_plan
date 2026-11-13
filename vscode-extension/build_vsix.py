@@ -16,14 +16,29 @@ FILES = [
     "cockpit.js",
     "remote.js",
     "translations.js",
+    "rulefixes.js",
+    "detect.js",
+    "project.js",
+    "graph.js",
     "media/cockpit.html",
     "media/translations.html",
     "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
     "media/ci.svg",
     "media/studio.svg",
     "media/icon.png",
-    "media/fast_test_benchmark.png",
-    "media/studio_architecture.png"
+    # the pictures of README.md
+    "media/screenshots/home.png",
+    "media/screenshots/setup-notice.png",
+    "media/screenshots/graph-map.png",
+    "media/screenshots/server.png",
+    "media/screenshots/databases.png",
+    "media/screenshots/quality.png",
+    "media/screenshots/errors.png",
+    "media/screenshots/tools.png",
+    "media/screenshots/remote.png",
+    "media/screenshots/light-theme.png"
 ]
 
 pkg = json.loads((HERE / "package.json").read_text(encoding="utf-8"))
