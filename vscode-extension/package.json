@@ -13,7 +13,8 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "2.4.7",
+  "galleryBanner": { "color": "#1f1f1f", "theme": "dark" },
+  "version": "2.4.8",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
