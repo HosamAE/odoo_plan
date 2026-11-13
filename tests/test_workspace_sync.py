@@ -216,11 +216,22 @@ NAMES = tuple("".join(parts) for parts in (("high", "nox"), ("ho", "ss"), ("bah"
 class TestNothingAboutAnEstateIsBuiltIn(unittest.TestCase):
     """The tools know no company and no project: what is known about an estate comes from tools/local/workspace_local.py."""
 
+    def fresh_module_without_a_local_file(self):
+        """workspace_sync loaded again with no estate file: what a machine that has none sees. It is loaded here and not
+        taken from the shared import, because `odoo-ai test-self` and the doctor import it before any test runs."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("workspace_sync_fresh", os.path.join(TOOLS_DIR, "workspace_sync.py"))
+        module = importlib.util.module_from_spec(spec)
+        with mock.patch.dict(os.environ, {"ODOO_AI_WORKSPACE_LOCAL": ""}):
+            spec.loader.exec_module(module)
+        return module
+
     def test_without_a_local_file_every_project_is_alike(self):
-        self.assertEqual(workspace_sync.family("17", "anything"), "other")
-        self.assertEqual(workspace_sync.family("19", "Acme"), "other")
-        self.assertEqual((workspace_sync.PROJECT_ID_OVERRIDES, workspace_sync.PATTERN_PROJECT, workspace_sync.NEW_PORTS), ({}, {}, {}))
-        self.assertEqual(workspace_sync.project_id("My Project", "19"), workspace_sync.project_id("My Project", "19"))
+        fresh = self.fresh_module_without_a_local_file()
+        self.assertEqual(fresh.family("17", "anything"), "other")
+        self.assertEqual(fresh.family("19", "Acme"), "other")
+        self.assertEqual((fresh.PROJECT_ID_OVERRIDES, fresh.PATTERN_PROJECT, fresh.NEW_PORTS), ({}, {}, {}))
+        self.assertEqual(fresh.project_id("My Project", "19"), fresh.project_id("My Project", "19"))
 
     def test_the_shared_sources_name_no_company_or_customer(self):
         with open(workspace_sync.__file__, encoding="utf-8") as handle:
