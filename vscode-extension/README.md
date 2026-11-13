@@ -56,7 +56,7 @@ Open a file of any module and the **Graph** page draws the whole tree of what th
 
 ![Databases with their size, version, modules and the buttons that act on one](media/screenshots/databases.png)
 
-A database of another Odoo version is dimmed and offers no upgrade. *Back up a database before upgrading it* makes the upgrade stop if the backup fails.
+The page lists the databases of the project's Odoo version; those written by another version are hidden behind a button that says how many, and when shown they are dimmed and offer no upgrade. *Back up a database before upgrading it* makes the upgrade stop if the backup fails.
 
 ### Quality
 

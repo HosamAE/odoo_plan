@@ -1,8 +1,31 @@
 # odoo_plan: the structure and tools of one Odoo version
 
+**One window, one Odoo project, in VS Code, on Odoo 17 to 20.** Press a button instead of remembering a command:
+
+- **Servers**: start, stop and follow every server of the project, however it was started, with its log and its errors tied to the line of your code.
+- **Databases**: size, version and modules at a glance; upgrade, back up (with the filestore), check against the code, snapshot and roll back.
+- **Quality**: the checks your CI runs, before you push: static checks, a fast test on a throwaway database, XML and XPath validation, a module audit.
+- **A map of the module you are editing**: what it depends on, down to `base`, and what in your project needs it.
+
+**Try it**: you need Windows (the only system it was tested on), Git, Python 3.12 and PostgreSQL. Follow [Getting to work on a new machine](#getting-to-work-on-a-new-machine), open your project's folder, and click the **Cockpit Odoo** icon. Nothing about your project or your company is stored in this repository; what belongs to one machine stays on it.
+
 Each branch is one Odoo version (`17.0`, `18.0`, `19.0`, `20.0`), checked out as that version's tools in `C:\odoo\odoo<NN>\tools`. It carries the structure and everything around the code - the CI, the knowledge graph, the AI rules, lint, the project template, the plan projects follow - so nothing has to be built again from the start. The branches are generated from `main` (`odoo-ai sync-versions`): a change that every version shares is made once, in `main`; only what really differs between versions lives in `versions/<NN>/`.
 
 What it does **not** carry: Odoo, enterprise, the themes, third-party addons and the venv. You download and create those yourself, as usual; `odoo-ai setup --check` says which are missing and gives the command for each.
+
+## What it looks like
+
+The Cockpit Odoo extension (`vscode-extension/`) puts one window on one project: its server, databases, quality checks, errors and module graph.
+
+![The cockpit: the state of the project, and the buttons of every day](vscode-extension/media/screenshots/home.png)
+
+![Two servers running: follow one, open it, stop it, start another](vscode-extension/media/screenshots/server.png)
+
+![The dependency tree of a module: Odoo modules are hexagons, your own are plain rectangles](vscode-extension/media/screenshots/graph-map.png)
+
+![The errors and warnings of the server, each tied to the line of your code](vscode-extension/media/screenshots/errors.png)
+
+More pages, a light theme and the settings: [vscode-extension/README.md](vscode-extension/README.md).
 
 ## What is public, and what stays on your machine
 
@@ -14,7 +37,7 @@ This branch is the same for everyone. What belongs to one machine or one project
 | The knowledge graph of a project and its config | `%LOCALAPPDATA%\odoo-kg\projects\<project>`, `kg\config\local\<project>.toml` | no (`kg/config/local/` is ignored) |
 | Machine paths | `local.json` | no |
 | Your manifests' category and author for new addons | the environment variables `ODOO_SCAFFOLD_CATEGORY`, `ODOO_SCAFFOLD_AUTHOR` (default: `Custom`, your `git config user.name`) | no |
-| What `odoo-ai workspace` should know about YOUR estate: project ids, ports, families of projects with shared rules, the text of a CLAUDE.md | `tools\local\workspace_local.py` (an example: `docs	emplates\workspace_local.example.py`); not needed for an ordinary project | no (`/local/` is ignored) |
+| What `odoo-ai workspace` should know about YOUR estate: project ids, ports, families of projects with shared rules, the text of a CLAUDE.md | `tools\local\workspace_local.py` (an example: `docs\templates\workspace_local.example.py`); not needed for an ordinary project | no (`/local/` is ignored) |
 | Another place to fetch the tools from | the environment variable `ODOO_PLAN_REMOTE` | no |
 
 Nothing here stores a password or a key; `odoo-ai` has a secret scan (`odoo-ai secrets`) for what you are about to commit.
