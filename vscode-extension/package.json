@@ -13,7 +13,7 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "2.4.3",
+  "version": "2.4.5",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -42,6 +42,13 @@
     "onStartupFinished"
   ],
   "main": "./extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Cockpit Odoo runs the project's Python, scripts and CI checks, and the tools in it. Trust the folder first."
+    },
+    "virtualWorkspaces": false
+  },
   "contributes": {
     "commands": [
       {
@@ -363,7 +370,7 @@
       "odooStudio": [
         {
           "id": "odooCi.env",
-          "name": "Versions & Environment"
+          "name": "This Odoo Version"
         },
         {
           "id": "odooCi.actions",
@@ -385,7 +392,7 @@
     "viewsWelcome": [
       {
         "view": "odooCi.env",
-        "contents": "Every Odoo version on this machine.\n[$(rocket) Set up an Odoo version](command:odooCi.newVersion)\n[$(pulse) Doctor](command:odooCi.doctor)"
+        "contents": "The Odoo version of this project.\n[$(rocket) Set up an Odoo version](command:odooCi.newVersion)\n[$(pulse) Doctor](command:odooCi.doctor)"
       },
       {
         "view": "odooCi.actions",

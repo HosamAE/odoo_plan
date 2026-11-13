@@ -1,5 +1,6 @@
 """The workspace sync must follow the layout that is on disk: ProjectsOdoo<NN>\\<project> or odoo<NN>\\projects\\<project>."""
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -9,6 +10,7 @@ TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if TOOLS_DIR not in sys.path:
     sys.path.insert(0, TOOLS_DIR)
 
+os.environ["ODOO_AI_WORKSPACE_LOCAL"] = ""   # these tests are about the tools, not about the estate of the machine they run on
 import workspace_sync  # noqa: E402
 
 V = workspace_sync.TOOLS_VERSION
@@ -194,7 +196,7 @@ class TestGraphOutOfTheWorkspace(unittest.TestCase):
         self.assertEqual(len(changed), 2)
 
     def test_an_empty_block_is_not_touched(self):
-        # Acme 19 and 20 have one: the old tool stopped the whole sync on it ("add the server by hand")
+        # Odoo 19 and 20 projects had one: the old tool stopped the whole sync on it ("add the server by hand")
         for text in ('{"settings": {"mcp": {"servers": {}}}}', '{"settings": {"mcp": {"servers": {},},},}'):
             self.assertEqual(workspace_sync.remove_graph_registration(text), (text, []))
 
@@ -205,6 +207,80 @@ class TestGraphOutOfTheWorkspace(unittest.TestCase):
     def test_the_rules_file_points_to_the_cockpit(self):
         self.assertIn("Graph page of the Cockpit Odoo", workspace_sync.KG_SECTION)
         self.assertNotIn("VS Code task", workspace_sync.KG_SECTION)
+
+
+class TestNothingAboutAnEstateIsBuiltIn(unittest.TestCase):
+    """The tools know no company and no project: what is known about an estate comes from tools/local/workspace_local.py."""
+
+    def test_without_a_local_file_every_project_is_alike(self):
+        self.assertEqual(workspace_sync.family("17", "anything"), "other")
+        self.assertEqual(workspace_sync.family("19", "Acme"), "other")
+        self.assertEqual((workspace_sync.PROJECT_ID_OVERRIDES, workspace_sync.PATTERN_PROJECT, workspace_sync.NEW_PORTS), ({}, {}, {}))
+        self.assertEqual(workspace_sync.project_id("My Project", "19"), workspace_sync.project_id("My Project", "19"))
+
+    def test_the_shared_sources_name_no_company_or_customer(self):
+        with open(workspace_sync.__file__, encoding="utf-8") as handle:
+            source = handle.read().lower()
+        for word in ("acme", "hoss", "clientb", "clientc", "sample_engine", "sample_helper", "sample_shared"):
+            self.assertNotIn(word, source, word)
+
+    def test_no_shared_file_of_the_tools_names_a_company_or_customer(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        words = ("acme", "clientb", "clientc", "sample_engine", "sample_helper")
+        skip = {"local", "node_modules", "tests", "__pycache__", ".git", "out"}
+        found = []
+        listed = subprocess.run(["git", "-C", root, "ls-files"], capture_output=True, text=True)   # what is published
+        tracked = {os.path.normpath(os.path.join(root, line)) for line in listed.stdout.splitlines()}
+        with open(os.path.join(root, ".gitignore"), encoding="utf-8") as handle:   # files kept out of git are not published (a copy without .git still knows)
+            ignored = {line.strip().strip("/") for line in handle if line.strip() and not line.startswith(("#", "!")) and "*" not in line}
+        for folder, dirs, files in os.walk(root):
+            dirs[:] = [d for d in dirs if d not in skip]
+            for name in files:
+                path = os.path.join(folder, name)
+                if os.path.relpath(path, root).replace(os.sep, "/") in ignored or (tracked and os.path.normpath(path) not in tracked)                         or name == "package-lock.json" or not name.endswith(
+                        (".py", ".js", ".md", ".json", ".toml", ".bat", ".code-workspace", ".html")):
+                    continue
+                with open(path, encoding="utf-8", errors="ignore") as handle:
+                    text = handle.read().lower()
+                found += [f"{os.path.relpath(path, root)}: {w}" for w in words if w in text]
+        self.assertEqual(found, [])
+
+    def with_local(self, text):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = os.path.join(tmp.name, "workspace_local.py")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        patch = mock.patch.object(workspace_sync, "LOCAL_FILE", path)
+        patch.start()
+        self.addCleanup(patch.stop)
+        loaded = workspace_sync._load_local()
+        patch2 = mock.patch.object(workspace_sync, "LOCAL", loaded)
+        patch2.start()
+        self.addCleanup(patch2.stop)
+
+    def test_a_local_file_declares_families_ids_and_addon_repos(self):
+        self.with_local(
+            'FAMILIES = [{"name": "acme", "versions": ["17"], "projects": ["Core", "web"], "origins": {"x": "vendor"}}]\n'
+            'ADDON_REPOS = {"shared_addons"}\n'
+            'PROJECT_IDS = {("17", "core"): "acme-core"}\n')
+        with mock.patch.object(workspace_sync, "FAMILIES", list(workspace_sync.LOCAL.FAMILIES)), \
+                mock.patch.object(workspace_sync, "ADDON_REPOS", set(workspace_sync.LOCAL.ADDON_REPOS)):
+            self.assertEqual(workspace_sync.family("17", "core"), "acme")
+            self.assertEqual(workspace_sync.family("19", "core"), "other", "a family is for the versions it names")
+            self.assertEqual(workspace_sync.family("17", "Shared_Addons"), "addon-repo")
+            self.assertEqual(workspace_sync.family_of("17", "WEB")["origins"], {"x": "vendor"})
+
+    def test_a_broken_local_file_is_loud_not_ignored(self):
+        with self.assertRaises(SyntaxError):
+            self.with_local("FAMILIES = [")
+
+    def test_the_claude_section_of_a_family_comes_from_the_local_file(self):
+        self.with_local('def claude_section(version, name, family, git, project_path):\n'
+                        '    return "## About %s" % name if family == "acme" else None\n')
+        with mock.patch.object(workspace_sync, "family", lambda v, n: "acme"):
+            text = workspace_sync.claude_md("17", "core", "core-odoo17", "acme", None, None, [])
+        self.assertIn("## About core", text)
 
 
 if __name__ == "__main__":

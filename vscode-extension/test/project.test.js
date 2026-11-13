@@ -28,8 +28,8 @@ workspace.workspaceFolders = [folder("C:\\odoo\\odoo17\\projects\\core")];
 assert.deepStrictEqual(findProject(), { version: "17", name: "core", root: "C:\\odoo\\odoo17\\projects\\core" });
 
 // the Odoo source folder of a multi-root workspace does not count; the project folder next to it does
-workspace.workspaceFolders = [folder("C:\\odoo\\odoo19\\odoo"), folder("C:\\odoo\\ProjectsOdoo19\\sample_engine")];
-assert.deepStrictEqual(findProject(), { version: "19", name: "sample_engine", root: "C:\\odoo\\ProjectsOdoo19\\sample_engine" });
+workspace.workspaceFolders = [folder("C:\\odoo\\odoo19\\odoo"), folder("C:\\odoo\\ProjectsOdoo19\\demo_project")];
+assert.deepStrictEqual(findProject(), { version: "19", name: "demo_project", root: "C:\\odoo\\ProjectsOdoo19\\demo_project" });
 
 // nothing recognisable: the first folder, marked generic, version 19
 workspace.workspaceFolders = [folder("D:\\work\\somewhere")];

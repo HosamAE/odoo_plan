@@ -41,7 +41,7 @@ EVIDENCE_MEANING = {
 
 CONVENTION_STATUS_MEANING = {
     "required_by_odoo": "the framework will not load the module without it",
-    "documented_acme_rule": (
+    "documented_rule": (
         "a document in this repository states it as a rule, and a person "
         "confirmed that reading"
     ),
@@ -515,7 +515,7 @@ def find_conventions(connection, status, limit):
         "FROM node_convention WHERE (? = '' OR status = ?) "
         "ORDER BY CASE status "
         "  WHEN 'required_by_odoo' THEN 0 "
-        "  WHEN 'documented_acme_rule' THEN 1 "
+        "  WHEN 'documented_rule' THEN 1 "
         "  WHEN 'observed_pattern' THEN 2 ELSE 3 END, share DESC, key "
         "LIMIT ?",
         (status or "", status or ""), limit,

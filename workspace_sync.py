@@ -20,6 +20,7 @@ import re
 import sys
 
 from env_root import get_odoo_root
+from jsonc_edit import loads_jsonc, remove_graph_registration, remove_kg_tasks, set_setting, drop_setting
 
 # Dynamic Root Resolution: preserves the exact directory structure while supporting any root drive/folder
 TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,16 +38,29 @@ TOOLS_VERSION = _TOOLS_MATCH.group(1) if _TOOLS_MATCH else ""  # "" outside odoo
 KG_DIR = f"{WIN_ROOT}/odoo{TOOLS_VERSION}/tools/kg"
 LEGACY_KG_DIR = f"{WIN_ROOT}/odoo-kg"
 
-KG_TASK_LABELS = ("odoo-kg: build graph", "odoo-kg: status", "odoo-kg: doctor")
 
-#: Origins the canonical acme-testing19 config states. Acme 19 is the same repository.
-ACME19_ORIGINS = {
-    "base_accounting_kit": "vendor",
-    "base_account_budget": "vendor",
-    "dynamic_accounts_report": "vendor",
-    "website_helpdesk_support_ticket": "vendor",
-    "membership": "core-vendored",
-}
+# What belongs to one estate of projects (names, ports, rules of a company) is not in these tools: it is read from
+# tools/local/workspace_local.py when that file exists (git-ignored; its contract is in its docstring). Without it
+# every project is treated alike, found by its manifests.
+LOCAL_FILE = os.environ.get("ODOO_AI_WORKSPACE_LOCAL", os.path.join(TOOLS_DIR, "local", "workspace_local.py"))   # "" turns it off
+
+
+def _load_local():
+    if not os.path.isfile(LOCAL_FILE):
+        return None
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("workspace_local", LOCAL_FILE)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+LOCAL = _load_local()
+
+
+def _local(name, default):
+    return getattr(LOCAL, name, default) if LOCAL else default
+
 
 SKIP_DIRS = {".git", ".history", "venv", ".venv", "node_modules", "__pycache__", "sessions", ".claude"}
 
@@ -83,41 +97,6 @@ def write_text(path, text, crlf=False, dry=False):
         return
     with open(path, "wb") as handle:
         handle.write(text.encode("utf-8"))
-
-
-def strip_jsonc_comments(text):
-    """Drop // and /* */ comments outside strings (VS Code files allow them)."""
-    out, i, n, in_str = [], 0, len(text), False
-    while i < n:
-        c = text[i]
-        if in_str:
-            out.append(c)
-            if c == "\\" and i + 1 < n:
-                out.append(text[i + 1])
-                i += 2
-                continue
-            if c == '"':
-                in_str = False
-            i += 1
-        elif c == '"':
-            in_str = True
-            out.append(c)
-            i += 1
-        elif text.startswith("//", i):
-            while i < n and text[i] != "\n":
-                i += 1
-        elif text.startswith("/*", i):
-            end = text.find("*/", i + 2)
-            i = n if end < 0 else end + 2
-        else:
-            out.append(c)
-            i += 1
-    return "".join(out)
-
-
-def loads_jsonc(text):
-    """VS Code files allow comments and trailing commas; json does neither."""
-    return json.loads(re.sub(r",(\s*[}\]])", r"\1", strip_jsonc_comments(text)))
 
 
 def project_id(name, version):
@@ -182,32 +161,30 @@ def find_localappdata(explicit=None):
 #: Marker in every file this script writes. A file without it belongs to the project and is never touched.
 MARKER = "Written by `odoo-ai workspace`"
 
-#: Project ids the repositories themselves name (docs/MIGRATION_PLAN_20.md in acme20).
-PROJECT_ID_OVERRIDES = {("20", "acme"): "acme-testing20"}
+#: Project ids a repository names itself ({(version, "name"): id}); every other project's id is made from its name.
+PROJECT_ID_OVERRIDES = dict(_local("PROJECT_IDS", {}))
 
-#: Module prefixes the Odoo 17 Acme ONBOARDING.md assigns ("Module families").
-ACME17_ORIGIN_RULES = [
-    ("acme_*", "project"),
-    ("hoss_acme_*", "project"),
-    ("om_*", "vendor"),
-    ("wk_*", "vendor"),
-    ("saas_kit_*", "vendor"),
-    ("odoo_saas_kit", "vendor"),
-    ("web_gantt", "vendor"),
-]
+#: Projects other projects load through their addons_path.
+ADDON_REPOS = set(_local("ADDON_REPOS", ()))
 
-ADDON_REPOS = {"sample_engine", "sample_helper"}
+#: Projects that share rules: [{"name", "versions", "projects", "origins", "origin_rules"}]
+FAMILIES = list(_local("FAMILIES", ()))
+
+
+def family_of(version, name):
+    """The declared family of a project (a dict), or None."""
+    n = name.lower()
+    for fam in FAMILIES:
+        if (not fam.get("versions") or version in fam["versions"]) and n in {p.lower() for p in fam.get("projects", ())}:
+            return fam
+    return None
 
 
 def family(version, name):
-    n = name.lower()
-    if n in ADDON_REPOS:
+    if name.lower() in {r.lower() for r in ADDON_REPOS}:
         return "addon-repo"
-    if version == "17" and n in {"sample_shared", "core", "acme", "clientb", "fo", "hc", "clientc", "km", "sw"}:
-        return "acme17"
-    if n == "acme":
-        return "acme"
-    return "other"
+    fam = family_of(version, name)
+    return fam["name"] if fam else "other"
 
 
 def read_conf(pdir, name):
@@ -247,7 +224,7 @@ def kg_config_text(pid, version, repo_root, data_dir, profile, origins, rules=()
         rule_lines = "# Prefixes from the project's ONBOARDING.md (\"Module families\").\n" + "\n".join(
             f'[[origin.rules]]\npattern = "{p}"\norigin = "{o}"\n' for p, o in rules)
     else:
-        rule_lines = '# [[origin.rules]]\n# pattern = "acme_*"\n# origin = "project"\n'
+        rule_lines = '# [[origin.rules]]\n# pattern = "<prefix>_*"\n# origin = "project"\n'
     return f"""# odoo-kg project configuration -- {pid}
 #
 # Written by `odoo-ai workspace`. Local to this machine: config/local/ is never
@@ -269,7 +246,7 @@ db_filename = "graph.db"
 expected_series = "{version}.0"
 
 [acceptance]
-# "testing19" enforces the floors measured on the Acme testing19 checkout.
+# "testing19" enforces the floors measured on the canonical testing19 checkout.
 # "generic" keeps every integrity check and drops those floors.
 profile = "{profile}"
 
@@ -288,104 +265,6 @@ extra_file_globs = []
 [limits]
 max_hash_bytes = 8388608
 """
-
-
-def _object_span(text, inside):
-    """(start, end) of the JSON object around index `inside`, strings respected."""
-    depth, i, start = 0, inside, None
-    while i >= 0:
-        if text[i] == "}":
-            depth += 1
-        elif text[i] == "{":
-            if depth == 0:
-                start = i
-                break
-            depth -= 1
-        i -= 1
-    if start is None:
-        return None
-    depth, i, in_str = 0, start, False
-    while i < len(text):
-        c = text[i]
-        if in_str:
-            if c == "\\":
-                i += 1
-            elif c == '"':
-                in_str = False
-        elif c == '"':
-            in_str = True
-        elif c == "{":
-            depth += 1
-        elif c == "}":
-            depth -= 1
-            if depth == 0:
-                return start, i + 1
-        i += 1
-    return None
-
-
-def _cut(text, start, end):
-    """Remove text[start:end] - an item of an array or a member of an object - with its comma and its own line."""
-    line_start = text.rfind("\n", 0, start) + 1
-    if not text[line_start:start].strip():
-        start = line_start
-    tail = end
-    while tail < len(text) and text[tail] in " \t":
-        tail += 1
-    if tail < len(text) and text[tail] == ",":
-        tail += 1
-        while tail < len(text) and text[tail] in " \t":
-            tail += 1
-        if text.startswith("\r\n", tail):
-            tail += 2
-        elif text.startswith("\n", tail):
-            tail += 1
-        return text[:start] + text[tail:]
-    head = start   # the last one of its list: the comma to drop is the one before it
-    while head > 0 and text[head - 1] in " \t\r\n":
-        head -= 1
-    if head > 0 and text[head - 1] == ",":
-        head -= 1
-    return text[:head] + text[end:]
-
-
-def remove_kg_tasks(text):
-    """Drop the three odoo-kg tasks that older versions of this tool wrote. The Cockpit's Graph page builds,
-    checks and keeps the graph fresh when the project opens; a task for each showed up as a separate thing."""
-    removed = 0
-    for label in KG_TASK_LABELS:
-        while True:
-            m = re.search(r'"label"\s*:\s*"' + re.escape(label) + '"', text)
-            span = _object_span(text, m.start()) if m else None
-            if not span:
-                break
-            text = _cut(text, span[0], span[1])
-            removed += 1
-    if removed:
-        loads_jsonc(text)   # must still parse
-    return text, removed
-
-
-def remove_graph_registration(text):
-    """VS Code's own MCP list (Copilot agent mode) no longer gets odoo-kg: it appeared there as a separate thing, and
-    Claude Code reads the graph from .mcp.json. An mcp block that holds other servers keeps them."""
-    m = re.search(r'"odoo-kg"\s*:\s*\{', text)
-    if not m or "odoo-kg" not in loads_jsonc(text).get("settings", {}).get("mcp", {}).get("servers", {}):
-        return text, []
-    span = _object_span(text, m.end() - 1)
-    if not span:
-        return text, []
-    text = _cut(text, m.start(), span[1])
-    changed = ["odoo-kg removed from VS Code's MCP list"]
-    block = loads_jsonc(text).get("settings", {}).get("mcp", {})
-    if block.get("servers") == {} and set(block) == {"servers"}:   # nothing else in it: the block goes too
-        at = re.search(r'"mcp"\s*:\s*\{', text)
-        mspan = _object_span(text, at.end() - 1) if at else None
-        if mspan:
-            text = _cut(text, at.start(), mspan[1])
-            changed.append("the empty mcp block removed")
-    loads_jsonc(text)
-    return text, changed
 
 
 def mcp_json(kg_python, config_win):
@@ -429,42 +308,9 @@ Updates and tests always end with `--stop-after-init`. Addons path:
 {addons}
 """
 
-ACME17_SECTION = """## What this repository is
-
-{what}
-
-Odoo 17 Acme addons: coworking, conference, rental and SaaS on Odoo 17.
-`ONBOARDING.md` is the day-one read; `ACCESS_RIGHTS.md` and `VERSION_BUMP.md` are the two rules people break.
-Odoo 17 syntax rules: `C:\\odoo\\odoo17\\projects\\core\\ODOO17_FRAMEWORK_RULES_AND_DIFFERENCES.md`
-(Odoo 17 `_()`, `odoo.osv.expression`; not the Odoo 19 forms).
-
-## Rules from ONBOARDING.md
-
-- **Versions are bumped by the pre-commit hook, never by hand.** Run `bash install-hook.sh`
-  once per checkout{hook_note}. Without it customer databases do not notice a change on upgrade.
-  Legacy `'version': '0.1'` strings stay as they are: changing one forces an upgrade pass.
-- **Module families decide what may be edited:** `acme_*` / `hoss_acme_*` are ours;
-  `om_*` (OdooMates accounting) is vendored, extend it by inheritance; `wk_*`, `saas_kit_*`,
-  `odoo_saas_kit`, `web_gantt` are third-party, wrap or replace, never edit. Domain modules
-  (`booking_agency`, `rental_room`, `conference_room`, `meeting_room`, `rooms_product`,
-  `buildings`, ...): check `author` in the manifest first.
-- **Access rights for Acme roles come from the `acme_all` UI** (Acme > Access Rights,
-  role x category x R/W/C/D), not hand-written `ir.model.access.csv`. New model or menu:
-  **Initialize Categories**.
-- **Swedish first.** In-house strings live in `acme_i18n/i18n/sv.po` (keep `sv_SE.po`
-  identical); `msgfmt --check-format acme_i18n/i18n/sv.po -o /dev/null` must pass, and no
-  empty `msgstr` on commit.
-- `acme_menus` depends on almost everything: check its `depends` before adding to it.
-- `odoo_saas_kit` is committed but not running.
-- **No CI.** `python -m py_compile` the changed files and load the branch on a dev database
-  before merging.
-- Deployment is one VM, one folder per customer: `git pull` + restart, per customer.
-"""
-
 ADDON_REPO_SECTION = """## What this repository is
 
-`{name}` by HosamAE ({remote}), one branch per Odoo series (`17.0`, `18.0`, `19.0`); this
-checkout is `{branch}`. Other projects load it through their `addons_path`, so a change here
+`{name}` ({remote}); this checkout is `{branch}`. Other projects load it through their `addons_path`, so a change here
 reaches every project of Odoo {version} that lists this folder:
 
 {users}
@@ -480,33 +326,11 @@ def claude_md(version, name, pid, fam, conf, git, users):
              "# Project operating instructions", "",
              f"Odoo {v}.0 project `{name}`. Shared rules: `C:\\odoo\\AGENTS.md` and "
              f"`C:\\odoo\\odoo{v}\\AGENTS.md`.", ""]
-    if fam == "acme17":
-        b = (git or {}).get("branch", "?")
-        r = (git or {}).get("remote", "")
-        if name == "sample_shared":
-            what = (f"The local hub of the customer checkouts: a clone of `{r}` (branch `{b}`). "
-                    "`clientb`, `fo`, `hc`, `clientc`, `km` and `sw` are clones of this folder, one branch "
-                    "per customer, and their `origin` remote is this folder, not GitHub.")
-        elif r.lower().replace("\\", "/").endswith("projectsodoo17/sample_shared"):
-            what = (f"Customer checkout `{name}`: branch `{b}`, cloned from the local "
-                    "`C:\\odoo\\odoo17\\projects\\sample_shared` (its `origin`). Customer-specific work stays on this branch.")
-        elif b == "core":
-            what = (f"`core` of `{r}`: the production trunk. Changes arrive through `testing` "
-                    "(`C:\\odoo\\odoo17\\projects\\acme`). `deploy_remove_enterprise.sh` is the server "
-                    "deploy that removed the Enterprise modules; read it before deploying core.")
-        else:
-            what = (f"Branch `{b}` of `{r}`: staging. Branch off `testing`, merge back into `testing`, "
-                    "promote to `main`/`core` when ready.")
-        pdir = fs(project_dir(v, name))
-        alt = os.path.join(pdir, ".git", "objects", "info", "alternates")
-        if os.path.isfile(alt) and "sample_shared" in open(alt, encoding="utf-8", errors="ignore").read():
-            what += ("\n\nIts git objects live in `C:\\odoo\\odoo17\\projects\\sample_shared` "
-                     "(`.git/objects/info/alternates`): never move, delete or `git gc --prune` `sample_shared`, "
-                     "or this checkout loses its history.")
-        hook = os.path.isfile(os.path.join(fs(project_dir(v, name)), ".git", "hooks", "pre-commit"))
-        parts.append(ACME17_SECTION.format(
-            what=what, hook_note="" if hook else " (**not installed in this checkout yet**)"))
-    elif fam == "addon-repo":
+    hook = _local("claude_section", None)
+    section = hook(version, name, fam, git, fs(project_dir(v, name))) if hook else None
+    if section:
+        parts.append(section)
+    if fam == "addon-repo":
         parts.append(ADDON_REPO_SECTION.format(
             name=name, version=v, remote=(git or {}).get("remote", "?"), branch=(git or {}).get("branch", "?"),
             users="\n".join(f"- `{u}`" for u in users) or "- (no project lists it yet)"))
@@ -652,18 +476,13 @@ def exclude_locally(pdir, pattern, dry):
     return True
 
 
-
 # ----------------------------------------------------- conf / workspace cloning
 
 #: The project of each version whose .conf and workspace are the pattern for new ones.
-PATTERN_PROJECT = {"17": "core", "18": "SampleProject18", "19": "Acme", "20": "Acme"}
+PATTERN_PROJECT = dict(_local("PATTERN_PROJECTS", {}))
 
-#: Ports for projects that had no .conf (the existing ones keep theirs).
-NEW_PORTS = {
-    ("17", "sample_shared"): 1710, ("17", "sample_engine"): 1711, ("17", "sample_helper"): 1712,
-    ("18", "sample_engine"): 1811, ("18", "sample_helper"): 1812,
-    ("19", "sample_engine"): 1911, ("19", "sample_helper"): 1912,
-}
+#: Ports for projects that had no .conf ({(version, "name"): port}); the others get the next free one.
+NEW_PORTS = dict(_local("PORTS", {}))
 
 
 def conf_name(pdir, name):
@@ -745,6 +564,8 @@ def clone_workspace(version, name, pid, inner, dry):
         if made:
             return made
     sib = PATTERN_PROJECT.get(version)
+    if not sib:
+        return None
     sib_dir = fs(project_dir(version, sib))
     src = os.path.join(sib_dir, f"{sib}.code-workspace") if inner else \
         fs(f"{projects_root(version)}/{sib}.code-workspace")
@@ -776,7 +597,6 @@ def clone_workspace(version, name, pid, inner, dry):
         fs(f"{projects_root(version)}/{name}.code-workspace")
     write_text(dst, t, crlf=crlf, dry=dry)
     return os.path.relpath(dst, FS_ROOT)
-
 
 
 def fix_folders(text, version, name, inner):
@@ -883,71 +703,6 @@ def odools_text(version, name, conf):
     return "\n".join(lines)
 
 
-def _value_end(text, i):
-    """End offset of the JSON value starting at text[i]."""
-    c = text[i]
-    if c in "[{":
-        depth, in_str = 0, False
-        while i < len(text):
-            ch = text[i]
-            if in_str:
-                if ch == "\\":
-                    i += 2
-                    continue
-                if ch == '"':
-                    in_str = False
-            elif ch == '"':
-                in_str = True
-            elif ch in "[{":
-                depth += 1
-            elif ch in "]}":
-                depth -= 1
-                if depth == 0:
-                    return i + 1
-            i += 1
-        raise ValueError("unbalanced value")
-    if c == '"':
-        i += 1
-        while text[i] != '"':
-            i += 2 if text[i] == "\\" else 1
-        return i + 1
-    return re.compile(r"[,\n}]").search(text, i).start()
-
-
-def _find_setting(text, key):
-    m = re.search(r'^[ \t]*"' + re.escape(key) + r'"\s*:\s*', text, re.M)
-    if not m:
-        return None
-    return m.start(), m.end(), _value_end(text, m.end())
-
-
-def set_setting(text, key, value):
-    """Set one key of "settings" to a JSON value; keeps the rest of the file as written."""
-    rendered = json.dumps(value, ensure_ascii=False)
-    found = _find_setting(text, key)
-    if found:
-        _, vs, ve = found
-        try:
-            if loads_jsonc('{"v": ' + text[vs:ve] + "}")["v"] == value:
-                return text, False
-        except ValueError:
-            pass
-        return text[:vs] + rendered + text[ve:], True
-    m = re.search(r'"settings"\s*:\s*\{', text)
-    return text[:m.end()] + "\n    " + f'"{key}": {rendered},' + text[m.end():], True
-
-
-def drop_setting(text, key):
-    found = _find_setting(text, key)
-    if not found:
-        return text, False
-    start, _, ve = found
-    end = re.compile(r"[ \t]*,?[ \t]*\r?\n?").match(text, ve).end()
-    return text[:start] + text[end:], True
-
-
-#: Extensions the workspaces must not propose (owner's decisions): Copilot (2026-11-08,
-#: "the message must not show again") and the old Odoo extension OdooLS replaced.
 UNWANTED_EXTENSIONS = ("github.copilot", "github.copilot-chat", "trinhanhngoc.vscode-odoo")
 WANTED_EXTENSIONS = ("HosamAE.odoo-ci",)
 
@@ -1095,9 +850,9 @@ def sync_project(version, name, kg_python, localappdata, dry=False, create_works
     pid = PROJECT_ID_OVERRIDES.get((version, name.lower()), project_id(name, version))
     fam = family(version, name)
     profile = "generic"  # testing19 floors belong to the canonical config only
-    # The vendor modules are the same in every Acme checkout; generic checks them only if present.
-    origins = ACME19_ORIGINS if fam in ("acme", "acme17") else {}
-    rules = ACME17_ORIGIN_RULES if fam == "acme17" else ()
+    declared = family_of(version, name) or {}
+    origins = declared.get("origins", {})
+    rules = declared.get("origin_rules", ())
     config_win = f"{KG_DIR}/config/local/{pid}.toml"
     config_fs = fs(config_win)
     data_dir = f"{localappdata}/odoo-kg/projects/{pid}"

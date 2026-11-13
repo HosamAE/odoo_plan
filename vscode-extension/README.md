@@ -95,6 +95,14 @@ The tools are the `tools` folder of the repository this extension belongs to (br
 
 Windows is where it is tested. The code has paths for Linux and macOS, but they are not verified.
 
+## Limits and safety
+
+- **Windows only, in practice.** Everything was tested on Windows (the `C:\odoo\odoo<NN>` layout, PowerShell, `venv\Scripts`). Linux and macOS paths exist in the code and are not verified.
+- **Trusted folders only.** The extension runs the project's Python, its scripts and its CI checks, so it declares that it does not support an untrusted workspace: VS Code asks you to trust the folder first.
+- **Snapshots are exact.** `db-snap restore <label>` replaces the database only by the snapshot named exactly `snap_<db>_<label>`; it never guesses from part of a name, and the extension asks you to confirm first. Labels, module names and language codes you type are checked before they reach a command line.
+- **Automatic translation sends text out.** The untranslated terms of a module are sent to the endpoint you configure. A model on your own machine (`localhost`) keeps them there; a hosted one receives them. The page says which one it is.
+- **The graph is yours.** It is built per project, on your disk, and never committed.
+
 ## Settings
 
 | Setting | Meaning |

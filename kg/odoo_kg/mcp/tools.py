@@ -147,7 +147,7 @@ _MODULE_ARG = {
     "type": "string",
     "minLength": 1,
     "maxLength": MAX_MODULE_NAME_LENGTH,
-    "description": "Technical name of the module, e.g. 'acme_base'.",
+    "description": "Technical name of the module, e.g. 'my_module_base'.",
 }
 
 _DEPTH_ARG = {
@@ -813,7 +813,7 @@ _M3_TOOLS: tuple[Tool, ...] = (
             "xmlid": {
                 "type": "string",
                 "maxLength": 256,
-                "description": "Full XML ID, e.g. 'acme_base.menu_cw_root'.",
+                "description": "Full XML ID, e.g. 'my_module_base.menu_root'.",
             },
             "limit": _ROWS_PROPERTY,
         }, ["xmlid"]),
@@ -1296,7 +1296,7 @@ _M43_TOOLS: tuple[Tool, ...] = (
         name="kg_module_blueprint",
         title="How a module is normally built here",
         description=(
-            "What a Acme Odoo 19 module contains, in four buckets that never "
+            "What a module of this project contains, in four buckets that never "
             "merge: what Odoo requires, what a document states as a rule, what "
             "the repository is observed to do (with the count), and what this "
             "build suggests. A recommendation is never an existing "
@@ -1306,7 +1306,7 @@ _M43_TOOLS: tuple[Tool, ...] = (
         input_schema=_schema({
             "status": {
                 "type": "string",
-                "enum": ["required_by_odoo", "documented_acme_rule",
+                "enum": ["required_by_odoo", "documented_rule",
                          "observed_pattern", "recommendation"],
                 "description": "Restrict to one bucket.",
             },
