@@ -123,6 +123,11 @@ function create(api) {
     if (!project || g.loading) return;
     g.loading = true; g.project = project.name; api.changed();
     try {
+      if (api.tools && !api.tools(project).found) {   // without the odoo-ai tools there is nothing to read: say so, do not guess
+        Object.assign(g, { status: { state: "no-tools", detail: "The odoo-ai tools were not found for this Odoo version, so the graph cannot be built or read.", indexedAt: null }, stats: null, config: null, projectId: null, dataDir: null });
+        g.wiring = mcpWiring(project.root, null);
+        return;
+      }
       const [st, doc] = await Promise.all([
         api.runCli(project, ["kg", "status", "--path", project.root], 90000),
         api.runCli(project, ["kg", "doctor", "--path", project.root], 90000),
@@ -163,7 +168,11 @@ function create(api) {
     g.map.module = name; g.map.error = null;
     if (!g.dataDir) await refresh();
     if (g.map.module !== name) return;
-    if (!g.dataDir) { g.map.loading = false; g.map.data = null; g.map.error = "This project has no graph yet: build it first (Update graph)."; api.changed(); return; }
+    if (!g.dataDir) {
+      g.map.loading = false; g.map.data = null;
+      g.map.error = g.status && g.status.state === "no-tools" ? "The odoo-ai tools were not found, so there is no graph to read (see the notice at the top)." : "This project has no graph yet: build it first (Update graph).";
+      api.changed(); return;
+    }
     const key = `${g.status && g.status.generation}:${name}`;
     if (mapCache.has(key)) { g.map.data = mapCache.get(key); g.map.loading = false; api.changed(); return; }
     g.map.loading = true; api.changed();

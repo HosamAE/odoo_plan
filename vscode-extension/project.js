@@ -30,14 +30,49 @@ function findProject() {
     }
   }
 
-  // Generic Fallback: Any open workspace folder containing Odoo files or custom addons
+  // Any other folder: an Odoo project that does not follow this layout. Its version is read from its own manifests.
   if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
     const root = vscode.workspace.workspaceFolders[0].uri.fsPath;
     const name = path.basename(root);
-    const version = forcedVersion || "19";
+    const version = forcedVersion || seriesFromManifests(root) || "19";
     return { version, name, root, isGeneric: true };
   }
   return null;
+}
+
+const SKIP_DIRS = new Set([".git", "node_modules", "venv", ".venv", "__pycache__", "static", "i18n", "tests"]);
+
+/** The Odoo series ("17") that the first manifest found under `root` declares ("17.0.1.0.0"), or null. */
+function seriesFromManifests(root) {
+  const queue = [[root, 0]];
+  let looked = 0;
+  while (queue.length && looked < 400) {
+    const [dir, depth] = queue.shift();
+    looked += 1;
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { continue; }
+    if (entries.some((e) => e.isFile() && e.name === "__manifest__.py")) {
+      try {
+        const m = fs.readFileSync(path.join(dir, "__manifest__.py"), "utf8").match(/['"]version['"]\s*:\s*['"](\d{2})\.0/);
+        if (m) return m[1];
+      } catch (e) { /* unreadable: the next one */ }
+    }
+    if (depth < 3) for (const e of entries) if (e.isDirectory() && !SKIP_DIRS.has(e.name) && !e.name.startsWith(".")) queue.push([path.join(dir, e.name), depth + 1]);
+  }
+  return null;
+}
+
+/** The server configuration of a project: <name>.conf (the layout of these tools), else odoo.conf, else the only *.conf in its root. */
+function findConf(project) {
+  for (const name of [`${project.name}.conf`, "odoo.conf", ".odoorc"]) {
+    const file = path.join(project.root, name);
+    if (fs.existsSync(file)) return file;
+  }
+  try {
+    const confs = fs.readdirSync(project.root).filter((f) => /\.conf$/i.test(f));
+    if (confs.length === 1) return path.join(project.root, confs[0]);
+  } catch (e) { /* no folder to read: the default name below */ }
+  return path.join(project.root, `${project.name}.conf`);   // the name a project of this layout gets; it may not exist yet
 }
 
 function getProjectPort(project) {
@@ -47,15 +82,15 @@ function getProjectPort(project) {
   if (cfgPort && typeof cfgPort === "number" && cfgPort > 0) {
     return cfgPort;
   }
-  const confFile = path.join(project.root, `${project.name}.conf`);
+  const confFile = findConf(project);
   if (fs.existsSync(confFile)) {
     try {
       const txt = fs.readFileSync(confFile, "utf8");
       const m = txt.match(/^\s*(?:http_port|xmlrpc_port)\s*=\s*(\d+)/m);
       if (m) return parseInt(m[1], 10);
-    } catch (e) {}
+    } catch (e) { /* unreadable: the default below */ }
   }
-  return parseInt(`${project.version}00`, 10) || 8069;
+  return project.isGeneric ? 8069 : parseInt(`${project.version}00`, 10) || 8069;   // a project of these tools' layout takes NN00
 }
 
 function getOdooRoot(project) {
@@ -143,4 +178,13 @@ function checkPortOpen(port, cb) {
   req.setTimeout(400, () => { req.destroy(); cb(false); });
 }
 
-module.exports = { findProject, getProjectPort, getOdooRoot, getPythonExe, getCliPath, checkPortOpen };
+/** Are the odoo-ai tools there for this project? {found, cli}. A CLI the person named in the settings is believed. */
+function toolsStatus(project) {
+  const configured = String(vscode.workspace.getConfiguration("odooCi").get("cliPath") || "").trim();
+  if (configured) return { found: true, cli: configured };
+  const cli = getCliPath(project);
+  const real = path.isAbsolute(cli) && fs.existsSync(cli);
+  return { found: real, cli: real ? cli : null };
+}
+
+module.exports = { findProject, getProjectPort, getOdooRoot, getPythonExe, getCliPath, checkPortOpen, findConf, seriesFromManifests, toolsStatus };

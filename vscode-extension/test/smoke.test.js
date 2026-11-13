@@ -27,7 +27,7 @@ const vscodeMock = {
     registerCodeActionsProvider: (selector, provider) => { registered.codeActions = provider; return { dispose: noop }; },
   },
   workspace: {
-    workspaceFolders: [{ uri: { fsPath: process.env.SMOKE_PROJECT || ["C:", "odoo", "ProjectsOdoo19", "Acme"].join("\\") } }],
+    workspaceFolders: [{ uri: { fsPath: process.env.SMOKE_PROJECT || ["C:", "odoo", "ProjectsOdoo19", "Demo"].join("\\") } }],
     workspaceFile: null,
     getConfiguration: () => ({ get: () => undefined, update: noop }),
   },
@@ -86,7 +86,7 @@ assert.ok(!registered.trees["odooCi.steps"], "no tree registered for the removed
 const panel = registered.trees["odooCi.actions"];
 const rows = panel.getChildren();
 assert.deepStrictEqual(rows.map((r) => r.label.replace(/ \(Port \d+\)/, "")),
-  ["Acme · Odoo 19", "Server", "Quality", "Databases", "Graph", "Server log", "Tools & Maintenance", "Remote servers"], "a slim sidebar: the project, then one row for each page of the cockpit");
+  ["Demo · Odoo 19", "Server", "Quality", "Databases", "Graph", "Server log", "Tools & Maintenance", "Remote servers"], "a slim sidebar: the project, then one row for each page of the cockpit");
 assert.strictEqual(rows[0].command.command, "odooCi.cockpitPanel", "the project row opens the cockpit");
 const pageOf = { Databases: "dbs", Quality: "quality", Graph: "graph", "Server log": "log", "Tools & Maintenance": "tools", "Remote servers": "remote" };
 for (const row of rows.filter((r) => pageOf[r.label])) {
@@ -113,14 +113,14 @@ assert.ok(pkg.contributes.commands.every((c) => c.icon !== "$(camera)"), "$(came
 // finding a server however it was started
 const { parseOdooCommand, splitCommandLine } = ext._test;
 const B = "\\";   // one backslash
-const project19 = { root: ["C:", "odoo", "ProjectsOdoo19", "Acme"].join(B), name: "Acme", version: "19" };
+const project19 = { root: ["C:", "odoo", "ProjectsOdoo19", "Demo"].join(B), name: "Demo", version: "19" };
 const win = (...parts) => ["C:", ...parts].join(B);
 assert.deepStrictEqual(
   splitCommandLine(`"${win("a b", "python.exe")}" odoo-bin -c "${win("x y", "z.conf")}"`),
   [win("a b", "python.exe"), "odoo-bin", "-c", win("x y", "z.conf")]);
 const python = win("odoo", "odoo19", "venv", "Scripts", "python.exe");
 const bin = win("odoo", "odoo19", "odoo", "odoo-bin");
-const conf = win("odoo", "ProjectsOdoo19", "Acme", "Acme.conf");
+const conf = win("odoo", "ProjectsOdoo19", "Demo", "Demo.conf");
 let hit = parseOdooCommand(`"${python}" ${bin} -c ${conf} --http-port=1900 --dev=all`, project19);
 assert.deepStrictEqual([hit.port, hit.mine], [1900, true], "started from a terminal, a task or the debugger: the same");
 hit = parseOdooCommand(`python odoo-bin --config=${win("other", "Other.conf")} -p 8070`, project19);
@@ -130,7 +130,7 @@ assert.deepStrictEqual([hit.port, hit.mine], [8071, true], "no --config, but the
 assert.strictEqual(parseOdooCommand("python odoo-bin", project19).port, 8069, "Odoo's default port");
 // the Cockpit's own helper (the drift check) carries odoo-bin as the VALUE of --odoo-bin: it is not a server. In the
 // real window it appeared as "a server on :8069" for as long as the check ran, with a Stop button that would have ended it.
-const helper = `"${python}" ${win("odoo", "odoo19", "tools", "cli.py")} server drift --conf ${conf} --python ${python} --odoo-bin ${bin} -d hx_try`;
+const helper = `"${python}" ${win("odoo", "odoo19", "tools", "cli.py")} server drift --conf ${conf} --python ${python} --odoo-bin ${bin} -d dev_db`;
 assert.strictEqual(parseOdooCommand(helper, project19), null, "a helper that is handed odoo-bin is not a server");
 assert.strictEqual(parseOdooCommand("python odoo-bin -u my_module --stop-after-init", project19), null, "an update is not a server");
 assert.strictEqual(parseOdooCommand("python odoo-bin shell -d db", project19), null, "a shell is not a server");

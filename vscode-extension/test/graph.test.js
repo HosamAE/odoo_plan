@@ -6,7 +6,7 @@ const os = require("os");
 const path = require("path");
 const { parseStatus, parseStats, parseDoctor, mcpWiring } = require(path.join(__dirname, "..", "graph.js"));
 
-const STALE = `project         acme-odoo19
+const STALE = `project         demo-odoo19
 source          generation
 generation      gen-03dea867e8b84dd6aa90db72e49760eb
 state           stale_commit
@@ -16,7 +16,7 @@ working tree    1767376789a191c1bf913fb2ad70dd3db6915b4e  branch=testing19
 indexed_at      2026-11-12T00:16:04.522914+00:00
 
 Stale means the graph describes an older tree than the one on disk.
-[KG] Acme (Odoo 19): -m odoo_kg status --config C:/odoo/odoo19/tools/kg/config/local/acme-odoo19.toml`;
+[KG] Demo (Odoo 19): -m odoo_kg status --config C:/odoo/odoo19/tools/kg/config/local/demo-odoo19.toml`;
 const FRESH = STALE.replace("stale_commit", "fresh").replace("graph commit    81641986642a9e4cc96481eb0a89a05a1b86043c", "graph commit    1767376789a191c1bf913fb2ad70dd3db6915b4e")
   .replace("HEAD moved from 8164198 to 1767376 since indexing", "graph matches HEAD 1767376 and the working tree");
 
@@ -32,8 +32,8 @@ assert.strictEqual(parseStatus("[KG] no graph config for Demo yet: run `odoo-ai 
 assert.strictEqual(parseStatus("no graph database yet").state, "missing");
 assert.strictEqual(parseStatus("").state, "unknown");
 
-const STATS = `project         acme-odoo19  milestone=M4
-repo_root       C:\\odoo\\ProjectsOdoo19\\Acme
+const STATS = `project         demo-odoo19  milestone=M4
+repo_root       C:\\odoo\\ProjectsOdoo19\\Demo
 files           4291
 modules         152
 depends_on      571
@@ -44,26 +44,26 @@ diagnostics     0`;
 assert.deepStrictEqual(parseStats(STATS), { files: 4291, modules: 152, dependsOn: 571, resolved: 311, unresolved: 260, diagnostics: 0 });
 assert.strictEqual(parseStats("nothing useful"), null);
 
-const DOCTOR = `config          C:\\odoo\\odoo19\\tools\\kg\\config\\local\\acme-odoo19.toml
-project_id      acme-odoo19
-repo_root       C:\\odoo\\ProjectsOdoo19\\Acme  exists=True
-data_dir        C:\\Users\\me\\AppData\\Local\\odoo-kg\\projects\\acme-odoo19
-db_path         C:\\Users\\me\\AppData\\Local\\odoo-kg\\projects\\acme-odoo19\\graph.db  exists=False`;
-assert.deepStrictEqual(parseDoctor(DOCTOR), { config: "C:\\odoo\\odoo19\\tools\\kg\\config\\local\\acme-odoo19.toml", projectId: "acme-odoo19", dataDir: "C:\\Users\\me\\AppData\\Local\\odoo-kg\\projects\\acme-odoo19" });
+const DOCTOR = `config          C:\\odoo\\odoo19\\tools\\kg\\config\\local\\demo-odoo19.toml
+project_id      demo-odoo19
+repo_root       C:\\odoo\\ProjectsOdoo19\\Demo  exists=True
+data_dir        C:\\Users\\me\\AppData\\Local\\odoo-kg\\projects\\demo-odoo19
+db_path         C:\\Users\\me\\AppData\\Local\\odoo-kg\\projects\\demo-odoo19\\graph.db  exists=False`;
+assert.deepStrictEqual(parseDoctor(DOCTOR), { config: "C:\\odoo\\odoo19\\tools\\kg\\config\\local\\demo-odoo19.toml", projectId: "demo-odoo19", dataDir: "C:\\Users\\me\\AppData\\Local\\odoo-kg\\projects\\demo-odoo19" });
 
 // Claude's connection: the project's .mcp.json
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "odoo-ci-graph-"));
 const write = (text) => fs.writeFileSync(path.join(root, ".mcp.json"), text);
-const config = "C:\\odoo\\odoo19\\tools\\kg\\config\\local\\acme-odoo19.toml";
+const config = "C:\\odoo\\odoo19\\tools\\kg\\config\\local\\demo-odoo19.toml";
 try {
   assert.strictEqual(mcpWiring(root, config).state, "missing");
   write("{ not json");
   assert.strictEqual(mcpWiring(root, config).state, "broken");
   write('{\n  "mcpServers": {\n  }\n}\n');
-  assert.strictEqual(mcpWiring(root, config).state, "empty", "the skeleton Acme had until 2026-11-13");
+  assert.strictEqual(mcpWiring(root, config).state, "empty", "the skeleton Demo had until 2026-11-13");
   write(JSON.stringify({ mcpServers: { other: { command: "x" } } }));
   assert.strictEqual(mcpWiring(root, config).state, "other");
-  write(JSON.stringify({ mcpServers: { "odoo-kg": { args: ["-m", "odoo_kg", "serve", "--config", "C:/odoo/odoo19/tools/kg/config/local/acme-odoo19.toml"] } } }));
+  write(JSON.stringify({ mcpServers: { "odoo-kg": { args: ["-m", "odoo_kg", "serve", "--config", "C:/odoo/odoo19/tools/kg/config/local/demo-odoo19.toml"] } } }));
   assert.strictEqual(mcpWiring(root, config).state, "ok", "slashes and case do not matter");
   write(JSON.stringify({ mcpServers: { "odoo-kg": { args: ["--config", "C:/odoo/odoo19/tools/kg/config/local/another.toml"] } } }));
   assert.strictEqual(mcpWiring(root, config).state, "other", "a server that reads another graph is not this project's");

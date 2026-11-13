@@ -35,6 +35,9 @@ h2 { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: v
 .top .spacer { flex: 1; }
 .top .brand { color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600; padding-right: 10px; border-right: 1px solid var(--line); }
 .pill.link { cursor: pointer; }
+.banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; margin: 0 0 10px; border: 1px solid var(--warn); border-radius: 8px; background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.banner[hidden] { display: none; }
+.banner .spacer { flex: 1; }
 .top .acts { display: flex; gap: 6px; align-items: center; }
 .livedot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--muted); }
 .livedot.ok { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
@@ -158,6 +161,7 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
 </head>
 <body>
 <div class="top" id="top"></div>
+<div class="banner" id="banner" role="status" hidden></div>
 <div class="tabs" id="tabs" role="tablist"></div>
 <div class="page" id="page-home" data-tab="home">
   <section class="doors" id="home" aria-label="Cockpit"></section>
@@ -330,7 +334,7 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
         errs ? [btn("Open the list", "issuesView", null, "secondary small"), btn("Pick one…", "issuePick", null, "secondary small")] : null),
       door("graph", "Graph", S.graph && S.graph.status ? (GRAPH_LABEL[S.graph.status.state] || S.graph.status.state) : "…",
         S.graph && S.graph.stats ? S.graph.stats.modules + " modules · what depends on what, for Claude too" : "The project's knowledge graph",
-        S.graph && S.graph.status && S.graph.status.state !== "unconfigured" ? [btn(S.graph.busy ? "Updating…" : "Update", "graphUpdate", null, "secondary small", !!S.graph.busy)] : null),
+        S.graph && S.graph.status && ["unconfigured", "no-tools"].indexOf(S.graph.status.state) < 0 ? [btn(S.graph.busy ? "Updating…" : "Update", "graphUpdate", null, "secondary small", !!S.graph.busy)] : null),
       door("remote", "Remote servers", S.remote && S.remote.host ? S.remote.host : "SSH", "Pull, push and back up databases over SSH"),
     ]);
   }
@@ -495,8 +499,8 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
   }
 
   // ----------------------------------------------------------------------------- the project's knowledge graph
-  var GRAPH_LABEL = { fresh: "Fresh", stale: "Behind the code", missing: "Not built yet", unconfigured: "No graph config", unknown: "Unknown" };
-  var GRAPH_TONE = { fresh: "ok", stale: "warn", missing: "bad", unconfigured: "bad" };
+  var GRAPH_LABEL = { fresh: "Fresh", stale: "Behind the code", missing: "Not built yet", unconfigured: "No graph config", "no-tools": "Tools missing", unknown: "Unknown" };
+  var GRAPH_TONE = { fresh: "ok", stale: "warn", missing: "bad", unconfigured: "bad", "no-tools": "bad" };
   function when(iso) { var d = iso ? new Date(iso) : null; return d && !isNaN(d.getTime()) ? d.toLocaleString() : (iso || "-"); }
   function check(ok, text, detail) {
     return h("div", { class: "check " + (ok ? "ok" : "bad") }, h("b", {}, ok ? "✓" : "✗"), h("span", {}, text), detail ? h("span", { class: "hint" }, detail) : null);
@@ -509,7 +513,7 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
       nodes.push(h("div", { class: "row" }, btn("Read it", "graphRefresh", null, "secondary small", !!(G && G.loading))));
       put($("graph"), nodes); return;
     }
-    var st = G.status, stats = G.stats, busy = !!G.busy, can = st.state !== "unconfigured";
+    var st = G.status, stats = G.stats, busy = !!G.busy, can = ["unconfigured", "no-tools"].indexOf(st.state) < 0;
     nodes.push(h("div", { class: "row" },
       h("span", { class: "pill " + (GRAPH_TONE[st.state] || "idle") }, GRAPH_LABEL[st.state] || st.state),
       st.detail ? h("span", { class: "hint" }, st.detail) : null));
@@ -724,7 +728,15 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
       nodes.push(box);
       nodes.push(h("div", { class: "hint" }, "Arrows point to what a module depends on. Modules outside the project are read from their own manifests; the ones that need this module are the project's."));
       put(el, nodes);
-      box.scrollLeft = Math.max(0, drawn.focusX - box.clientWidth / 2);   // the module in the middle starts in view
+      // a map a little wider than its box is shrunk to fit (the text stays readable); a much wider one keeps its size and scrolls,
+      // starting with the module in the middle in view
+      var natural = parseFloat(drawn.svg.getAttribute("width")), room = box.clientWidth, scale = room > 0 ? room / natural : 1;
+      if (scale < 1 && scale >= 0.75) {
+        drawn.svg.setAttribute("width", String(Math.floor(natural * scale)));
+        drawn.svg.setAttribute("height", String(Math.floor(parseFloat(drawn.svg.getAttribute("height")) * scale)));
+      } else {
+        box.scrollLeft = Math.max(0, drawn.focusX - room / 2);
+      }
       return;
     }
     put(el, nodes);
@@ -803,6 +815,15 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
     put($("remote"), nodes);
   }
 
+  /** Without the odoo-ai tools the servers, the quality checks and the graph have nothing to run: say so once, at the top, with the way out. */
+  function renderBanner() {
+    var el = $("banner"), missing = S.tools && !S.tools.found;
+    el.hidden = !missing;
+    if (!missing) { el.textContent = ""; return; }
+    put(el, [h("span", {}, "The odoo-ai tools were not found for Odoo " + S.project.version + ". Starting servers, the quality checks and the graph need them."),
+      h("span", { class: "spacer" }), runBtn("Set up the tools", "odooCi.newVersion", "small"), runBtn("Read the guide", "odooCi.openGuide", "secondary small")]);
+  }
+
   // The map is only worked out while its page is shown: the editor is told when the Graph tab opens and closes.
   var mapWasShown = null;
   function tellMapVisible() {
@@ -814,7 +835,7 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
     if (!S) return;
     document.body.className = S.mode === "panel" ? "panel" : "";
     renderTabs(); renderRemote();
-    renderTop(); renderHome(); renderServer(); renderProgress(); renderIssues(); renderDbs(); renderModules(); renderGraph(); renderMap(); renderQuality(); renderTools(); tellMapVisible();
+    renderTop(); renderHome(); renderServer(); renderProgress(); renderIssues(); renderDbs(); renderModules(); renderGraph(); renderMap(); renderQuality(); renderTools(); renderBanner(); tellMapVisible();
     var keepScroll = $("log") ? $("log").scrollTop : 0;
     renderLog();
     if (!ui.autoscroll && $("log")) $("log").scrollTop = keepScroll;
@@ -824,7 +845,7 @@ pre.report { font: 12px/1.45 var(--mono); background: var(--bg); border: 1px sol
       issues: document.querySelectorAll("#issues .issue").length, pill: (document.querySelector("#top .pill") || {}).textContent || null,
       progressShown: !$("progress").hidden, barWidth: bar ? bar.style.width : null, modulesShown: !$("modules").hidden,
       mode: S.mode, tab: ui.tab, tabs: document.querySelectorAll("#tabs .tab").length, remoteRows: document.querySelectorAll("#remote tbody tr").length,
-      remoteHosts: document.querySelectorAll("#remote select option").length - 1,
+      remoteHosts: document.querySelectorAll("#remote select option").length - 1, bannerShown: !$("banner").hidden,
       mapNodes: document.querySelectorAll("#graphmap .mapbox .node").length });
   }
 

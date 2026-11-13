@@ -1,87 +1,132 @@
 # Cockpit Odoo
 
-**One control room for the Odoo projects on your machine: servers, databases, quality checks, errors, the project's
-knowledge graph and its dependency map, tools, and remote databases over SSH.**
+**Run, test and inspect your Odoo projects from one panel in VS Code**: servers, databases, quality checks, errors linked to your code, the project's knowledge graph, and a map of the dependencies of the module you are editing.
 
 ![Odoo 17 | 18 | 19 | 20](https://img.shields.io/badge/Odoo-17%20%7C%2018%20%7C%2019%20%7C%2020-714B67?logo=odoo)
 ![License MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-Cockpit Odoo is the face of a set of command-line tools (`odoo-ai`, the knowledge-graph engine, the gates and the lint
-rules). Everything it does is also available from a terminal, so the same work runs in CI and from an AI assistant;
-the cockpit is where you see it and press it.
+![The cockpit: the state of the project, and the buttons of every day](media/screenshots/home.png)
 
-## How it is laid out
+It works on **any Odoo project**, whatever its layout. It is the face of a set of command-line tools (`odoo-ai`: the CI, the lint rules, the knowledge-graph engine, the database tools). Everything the cockpit does can also be done from a terminal, so the same work runs in CI and from an AI assistant; the cockpit is where you see it and press it.
 
-**The sidebar** (the Cockpit Odoo icon in the Activity Bar) is a short list:
+> Pictures in this guide are made from sample data (a project called "Demo"), by the extension's own test suite.
 
-- **The project row** (`Project · Odoo 19`) opens the cockpit.
-- **Server** shows whether Odoo is running, the health of its log, an upgrade in progress and the database in use.
-  *Start*, *Stop*, *Restart* and *Open in browser* are buttons on that row.
-- **Quality**, **Databases**, **Graph**, **Server log**, **Tools & Maintenance** and **Remote servers** each open their
-  page of the cockpit. *Quality* carries the live steps of the last run; *Graph* shows whether the graph is fresh.
-- **Errors & Warnings** and **Versions & Environment** are views of their own.
+## What you get
 
-**The cockpit** is one view in the bottom panel, beside Terminal and Problems (drag it anywhere VS Code allows). It
-opens on a page of cards, each with the buttons used every day, and has one tab for each area:
-
-| Page | What it is for |
+| | |
 | --- | --- |
-| **Cockpit** | The state of the project at a glance, and the buttons of every day |
-| **Server** | Every Odoo server on the machine, however it was started: follow one, open it, stop it, start another, start with options (database, upgrade, mode), upgrade modules, check a database against the code |
-| **Databases** | Every database with size, version, modules and last login; upgrade, back up (also before an upgrade), check against the code, drop; the modules of one database against the code on disk; snapshots and the fast test database |
-| **Quality** | Static checks, fast database test, XML and XPath validation, full CI, audit of a module; the phases and steps of the last run, why a step failed, cancel |
-| **Log** | The server's log with errors and warnings painted; every line opens the log at that line |
-| **Errors & warnings** | The errors and warnings of the running server, tied to your code: press one to open the file at the line |
-| **Graph** | The project's knowledge graph: is it fresh, update it, check how Claude Code is connected to it, and the **map of the module you are editing** (below) |
-| **Tools** | Setup wizard, scaffold an addon, doctor, translations, secrets, gates, version maintenance |
-| **Remote servers** | Databases on a host of your SSH config: pull to a new local database, push, back up, drop |
+| **Servers** | Every Odoo server on the machine, however it was started (a terminal, a task, the debugger): follow one, open it, stop it, start another, start with options |
+| **Databases** | Size, version, modules, last login; upgrade, back up, check against the code, drop; the modules of a database against the code on disk; snapshots |
+| **Quality** | Static checks, a fast database test, XML and XPath validation, a full CI run, a module audit; the steps of the last run and why one failed |
+| **Errors** | The errors and warnings of the running server, tied to your code: press one to open the file at the line |
+| **Graph** | The project's knowledge graph, and the dependency tree of the module you are editing |
+| **Tools** | Project setup, addon scaffolding, translations, secret scanning, and the maintenance of the tools themselves |
+| **Remote** | Databases on a host of your SSH config: pull to a new local database, push, back up |
 
-## The map of the module you are editing
+## Get started
 
-Open a file of any module and the **Graph** page draws the whole tree of what that module depends on, down to `base`,
-and the project's modules that need it. It follows you from file to file.
+1. **Install** the extension (`Extensions: Install from VSIX…`).
+2. **Open an Odoo project folder** (any folder that holds addons with a `__manifest__.py`). Click the **Cockpit Odoo** icon in the Activity Bar, or run `Odoo Studio: Open Cockpit Odoo in the Bottom Panel`.
+3. **If a notice at the top says the tools were not found**, press **Set up the tools** (see [What it needs](#what-it-needs)). The pages that run something (servers, quality, graph) need them.
 
-- Modules from Odoo are **hexagons**, Odoo Enterprise ones hexagons with a dashed outline, third-party modules dashed,
-  your project's own modules plain rectangles, and the module in the middle has a heavy outline.
-- Press any module, also one of Odoo's (`hr_attendance`), and its own whole tree is drawn: a module that is not in your
-  project is read from its own `__manifest__.py`, which is read as data and never run. **Back** returns, and the trail
-  is shown. **Open manifest** opens the file.
-- **Show the Graph of This Module** (Command Palette) brings the page up on the file you are in.
-- Limits: the modules that need an Odoo module are the project's only; a side is cut at 400 modules and says so.
+![When the odoo-ai tools are missing, a notice says so once, with the way out](media/screenshots/setup-notice.png)
 
-## Quick fixes for the Odoo rules
+## A tour of the pages
 
-A gate finding such as `R3 len(search(...))` shows in the Problems tab with its rule code. The light bulb offers
-*Use search_count()* (only where it is safe) and, for a line that must break a rule on purpose, *add `noqa`*.
+The sidebar is a short list: the project, the state of the server with its buttons (*Start*, *Stop*, *Restart*, *Open*), and one row for each page of the cockpit. The cockpit itself is one view in the bottom panel, beside Terminal and Problems.
+
+### The map of the module you are editing
+
+Open a file of any module and the **Graph** page draws the whole tree of what that module depends on, down to `base`, and the modules of your project that need it. It follows you from file to file.
+
+![The dependency tree of a module: Odoo modules are hexagons, your own are plain rectangles](media/screenshots/graph-map.png)
+
+- Modules from Odoo are **hexagons**, Odoo Enterprise ones hexagons with a dashed outline, third-party modules dashed, your project's own modules plain rectangles, and the module in the middle has a heavy outline. Shape and outline say what a module is, not colour alone.
+- Press any module, also one of Odoo's, and its own whole tree is drawn. A module that is not in your project is read from its own `__manifest__.py`, which is read as data and never run. **Back** returns; **Open manifest** opens the file.
+- The command **Show the Graph of This Module** brings the page up on the file you are in.
+- Limits: the modules that need an Odoo module are your project's only, and a side is cut at 400 modules and says so.
+
+### Servers
+
+![Two servers running: follow one, open it, stop it, start another](media/screenshots/server.png)
+
+*Start never stops a server that is running*: a new one takes the next free port. *Restart* and *Stop* on the page act on the server marked with a dot only, so the others keep running.
+
+### Databases
+
+![Databases with their size, version, modules and the buttons that act on one](media/screenshots/databases.png)
+
+A database of another Odoo version is dimmed and offers no upgrade. *Back up a database before upgrading it* makes the upgrade stop if the backup fails.
+
+### Quality
+
+![The last run: which step failed and why](media/screenshots/quality.png)
+
+### Errors and warnings
+
+![The errors and warnings of the server, each tied to the line of your code](media/screenshots/errors.png)
+
+### Tools
+
+![Every tool, one tile each](media/screenshots/tools.png)
+
+### Remote servers
+
+![Databases on a host of your SSH config](media/screenshots/remote.png)
+
+Passwords are never stored. A pull reads the host and makes a **new** local database (never over one that exists), switched safe: no scheduled actions, no outgoing mail.
+
+### Light and dark
+
+The cockpit uses the colours of your VS Code theme.
+
+![The same page in a light theme](media/screenshots/light-theme.png)
 
 ## What it needs
 
-The cockpit runs the tools of the version you are working in, from `<root>\odoo<NN>\tools` (the `<NN>.0` branch of the
-tools repository), with the project in `<root>\ProjectsOdoo<NN>\<project>` (or `<root>\odoo<NN>\projects\<project>`).
-`<root>` is found from where the project is (or the environment variable `ODOO_ROOT`), and is `C:\odoo` on Windows and
-`~/odoo` elsewhere when neither says; the setting `odooCi.odooRoot` overrides all of that.
+The cockpit calls `cli.py` of the `odoo-ai` tools. It looks for it, in this order:
 
-- **First time:** *Odoo Studio: Set up an Odoo Version* clones the tools of a version and lists what you still download
-  (*Check only* changes nothing). *Odoo Studio: Run Odoo-AI Doctor Check* says what is missing and how to repair it.
-- **A project:** *Quick Project Setup Wizard* asks for the Python, the port and the translation language; the Graph
-  page's *Check wiring* shows how a project is connected to its graph and what fixing it would change before it does.
-- Windows is where it is tested. The code has paths for Linux and macOS, but they are not verified.
+1. the setting `odooCi.cliPath`;
+2. `<root>/odoo<NN>/tools/cli.py` for the Odoo version of your project (then the one of Odoo 19), where `<root>` is the setting `odooCi.odooRoot`, else the environment variable `ODOO_ROOT`, else found from where the project is, else `C:\odoo` on Windows and `~/odoo` elsewhere.
+
+The tools are the `tools` folder of the repository this extension belongs to (branch `<NN>.0` for Odoo NN). **Set up an Odoo version** (`odoo-ai new-version NN`) clones them, makes the folders and lists what you still download; its *Check only* mode changes nothing. **Run Odoo-AI Doctor Check** says what is missing and how to repair it.
+
+**A project that does not follow the layout of the tools** is read for what it declares: the Odoo version comes from its manifests (`17.0.1.0.0` is Odoo 17), the server configuration is `<project>.conf` or `odoo.conf`, and the port is the one that file gives. The cockpit never assigns a port; a project in the layout of the tools keeps the port of its own `.conf`.
+
+Windows is where it is tested. The code has paths for Linux and macOS, but they are not verified.
 
 ## Settings
 
 | Setting | Meaning |
 | --- | --- |
 | `odooCi.python` | The Python that runs `odoo-ai` (empty: the interpreter chosen for the workspace, else the version's own venv) |
-| `odooCi.cliPath` | The CLI script (empty: the version's `tools\cli.py`) |
-| `odooCi.version` | Force an Odoo version instead of reading it from the folder |
-| `odooCi.serverPort` | The port to open (empty: the project's `.conf`) |
+| `odooCi.cliPath` | The CLI script (empty: the version's `tools/cli.py`) |
+| `odooCi.version` | Force an Odoo version instead of reading it from the project |
+| `odooCi.serverPort` | The port to open (empty: the project's configuration file) |
 | `odooCi.odooRoot` | The folder that holds the `odoo<NN>` folders |
 | `odooCi.backupDir`, `odooCi.backupBeforeUpgrade` | Where backups go, and whether an upgrade backs up first |
 | `odooCi.graph.autoUpdate` | Update the graph quietly when the project opens and it is behind the code |
 | `odooCi.graph.followEditor` | The module map follows the file you are editing |
 | `odooCi.graph.keepGenerations` | Every graph update leaves an old generation on disk that the engine never removes. `0` (the default) deletes nothing; a number keeps the published one and that many of the newest |
-| `odooCi.defaultLang`, `odooCi.i18n.*` | Translation languages and the translator link |
+| `odooCi.defaultLang`, `odooCi.i18n.*` | Translation languages, and a model of your own for automatic translation |
 | `odooCi.remoteSudoUser` | The one account a remote host opens to you for its databases |
+
+## Privacy and safety
+
+- Nothing is sent anywhere by the extension itself, and it collects no telemetry. What reaches another machine is what you ask for: remote databases over your own SSH, and (only when you set `odooCi.i18n.translatorUrl`) strings to translate sent to that endpoint.
+- The page can start only the commands this extension declares, by name. Dropping a database asks first, in a window you must answer, and offers to back it up; an upgrade of a database another session is using warns you before it runs.
+- A module's `__manifest__.py` is parsed as data; nothing in it is ever run.
+- The cockpit's page runs under a strict content-security policy and builds its nodes from data, never from markup strings.
+
+## Troubleshooting
+
+| You see | Why, and what to do |
+| --- | --- |
+| *The odoo-ai tools were not found* | Press **Set up the tools**, or set `odooCi.cliPath` / `odooCi.odooRoot` |
+| *Graph: Tools missing* or *Not built yet* | The first needs the tools; the second: press **Update graph** |
+| *No graph config* | The project has not been wired to a graph: **Check wiring…** shows what would change before it does |
+| The map says a module was *not found on disk* | It is declared in a manifest but its folder is not in the Odoo folders the cockpit knows |
+| The wrong Odoo version | Set `odooCi.version` |
 
 ## Working on the extension
 
@@ -89,16 +134,13 @@ tools repository), with the project in `<root>\ProjectsOdoo<NN>\<project>` (or `
 | --- | --- |
 | `extension.js` | Activation, commands, the sidebar, the server and CI runners |
 | `cockpit.js` | The state the page draws, and what its buttons ask of the editor |
-| `media/cockpit.html` | The page: builds nodes (never markup strings), under a strict content-security policy |
-| `graph.js` | The graph page: status, update, wiring, the map of a module |
+| `media/cockpit.html` | The page |
+| `graph.js` | The Graph page: status, update, wiring, the map of a module |
 | `project.js`, `detect.js`, `rulefixes.js` | Which project and version; finding running servers; the quick fixes |
 | `remote.js`, `translations.js` | The Remote servers page and the Translations page |
 
-To add a page: add its section and tab to `media/cockpit.html`, its state to `buildState` in `cockpit.js`, and a test.
-The tests are plain Node scripts: `node test/<name>.test.js` (the page is checked in a real Chrome when one is found),
-and `node test/vscode_host.test.js` starts a real VS Code with the extension under development. A command the page
-starts by name must be declared in `package.json`; a test checks it. `build_vsix.py` packs the extension.
+To add a page: add its section and tab to `media/cockpit.html`, its state to `buildState` in `cockpit.js`, and a test. The tests are plain Node scripts (`node test/<name>.test.js`; the page is checked in a real Chrome when one is found), and `node test/cockpit_ui.test.js --shot <folder>` makes the pictures of this guide. A command the page starts by name must be declared in `package.json`; a test checks it. `build_vsix.py` packs the extension.
 
 ---
 
-*Developed and maintained by [HosamAE](https://github.com/HosamAE) · MIT License*
+*MIT License · see [CHANGELOG](CHANGELOG.md)*

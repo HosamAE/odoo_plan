@@ -30,20 +30,20 @@ if (!chrome) {
 }
 
 // ---- a state with something in every part
-const item = (kind, line, extra) => Object.assign({ kind, line, lines: [line], count: 1, message: `${kind} message ${line}`, detail: null, module: "mod_a", db: "hx_try", location: null }, extra);
+const item = (kind, line, extra) => Object.assign({ kind, line, lines: [line], count: 1, message: `${kind} message ${line}`, detail: null, module: "mod_a", db: "dev_db", location: null }, extra);
 const LOG = [
-  "2026-11-10 23:00:00,000 1 INFO hx_try odoo.modules.loading: Loading module sale (5/324)",
-  "2026-11-10 23:00:01,000 1 ERROR hx_try odoo.http: Exception during request handling.",
+  "2026-11-10 23:00:00,000 1 INFO dev_db odoo.modules.loading: Loading module sale (5/324)",
+  "2026-11-10 23:00:01,000 1 ERROR dev_db odoo.http: Exception during request handling.",
   "ValueError: boom",
-  "2026-11-10 23:00:02,000 1 WARNING hx_try odoo.tools.convert: Skipping deletion for missing XML ID",
-  "2026-11-10 23:00:03,000 1 INFO hx_try odoo.service: <img src=x onerror=\"window.__xss=1\"> <b>not bold</b>",
+  "2026-11-10 23:00:02,000 1 WARNING dev_db odoo.tools.convert: Skipping deletion for missing XML ID",
+  "2026-11-10 23:00:03,000 1 INFO dev_db odoo.service: <img src=x onerror=\"window.__xss=1\"> <b>not bold</b>",
 ].join("\n") + "\n";
 const items = [item("error", 2, { detail: "ValueError: boom", location: { file: "/p/mod_a/models/x.py", line: 40 } }), item("warning", 4, { count: 3, lines: [4, 8, 9] })];
 const verdict = { state: "problems", errors: 1, critical: 0, http_500: 0, warnings: 3, hint: null, databases_failing: [], items, marks: { error: [2, 3], warning: [4] },
   progress: { index: 120, total: 324, percent: 37, module: "website", file: "views/a.xml", remaining: 204, elapsed_s: 90, eta_s: 150, finished: false, updated: 30, slowest: [] }, first_issue: items[0] };
 const DBS = [
-  { name: "hx_try", size_mb: 119, version: "19.0.1.3", modules: 176, last_login: "2026-11-10", usable: true, reason: null },
-  { name: "acme_v19", size_mb: 183, version: "19.0.1.3", modules: 279, last_login: "2026-09-14", usable: true, reason: null },
+  { name: "dev_db", size_mb: 119, version: "19.0.1.3", modules: 176, last_login: "2026-11-10", usable: true, reason: null },
+  { name: "sales_demo", size_mb: 183, version: "19.0.1.3", modules: 279, last_login: "2026-09-14", usable: true, reason: null },
   { name: "core", size_mb: 227, version: "17.0.1.3", modules: 281, last_login: "2026-07-05", usable: true, reason: null },
   { name: "broken_one", size_mb: 8, version: null, modules: null, last_login: null, usable: false, reason: "OperationalError" },
 ];
@@ -60,30 +60,30 @@ const node = (name, kind, depth, extra) => Object.assign({ name, kind, depth, la
 const MAPDATA = { module: "hr_attendance", generation: "gen-x", truncated: false, counts: { dependencies: 6, dependents: 2, outside: 6 },
   nodes: [node("base", "core", -4), node("web", "core", -3), node("mail", "core", -2), node("hr", "core", -1), node("ent_x", "enterprise", -1),
     node("ghost", "unknown", -1, { folder: null, openable: false }), node("hr_attendance", "focus", 0, { origin: "core", label: "Attendances", version: "1.1" }),
-    node("acme_work_plan", "project", 1), node("acme_portal_api_work", "project", 2)],
+    node("sale_planning", "project", 1), node("sale_planning_portal", "project", 2)],
   edges: [["hr_attendance", "hr"], ["hr_attendance", "ent_x"], ["hr_attendance", "ghost"], ["hr", "mail"], ["mail", "web"], ["web", "base"],
-    ["acme_work_plan", "hr_attendance"], ["acme_portal_api_work", "acme_work_plan"]] };
-const GRAPH_MAP = { module: "hr_attendance", data: MAPDATA, loading: false, error: null, follow: true, trail: [], wanted: true, fileModule: "acme_work_plan" };
+    ["sale_planning", "hr_attendance"], ["sale_planning_portal", "sale_planning"]] };
+const GRAPH_MAP = { module: "hr_attendance", data: MAPDATA, loading: false, error: null, follow: true, trail: [], wanted: true, fileModule: "sale_planning" };
 const GRAPH = { loading: false, project: "Demo", map: GRAPH_MAP, projectId: "demo-odoo19", config: "C:\\kg\\config\\local\\demo-odoo19.toml", dataDir: "C:\\kg\\data\\demo-odoo19",
   status: { state: "stale", detail: "HEAD moved from 8164198 to 1767376 since indexing", generation: "gen-x", indexedAt: "2026-11-12T00:16:04+00:00", graphCommit: "81641986", workingTree: "17673767", branch: "testing19" },
   stats: { files: 4291, modules: 152, dependsOn: 571, resolved: 311, unresolved: 260, diagnostics: 0 },
   wiring: { state: "empty", detail: ".mcp.json lists no server: Claude cannot read the graph" }, busy: null, last: null, report: null, canApply: false };
 const base = {
   graph: GRAPH, ci: CI_OK,
-  project: { name: "Demo", version: "19", root: "/p" }, port: 1900, servers: [{ mine: true, pid: 42, db: "hx_try", port: 1900 }], focusPort: 1900, launchedPorts: [1900], serverRunning: true, serverDb: "hx_try",
+  project: { name: "Demo", version: "19", root: "/p" }, port: 1900, servers: [{ mine: true, pid: 42, db: "dev_db", port: 1900 }], focusPort: 1900, launchedPorts: [1900], serverRunning: true, serverDb: "dev_db",
   health: Object.assign({}, verdict, { state: "healthy" }), source: { label: "Server", log: "/tmp/x.log", verdict }, upgrade: null, databases: DBS,
   modulesInfo: null, drift: null, logText: LOG, logFirst: 1, backupDir: "/backups", backupBeforeUpgrade: false,
 };
-const withModules = Object.assign({}, base, { modulesInfo: { db: "hx_try", error: null, counts: { ok: 2, version_differs: 1, available: 5 },
+const withModules = Object.assign({}, base, { modulesInfo: { db: "dev_db", error: null, counts: { ok: 2, version_differs: 1, available: 5 },
   modules: [{ name: "fine", state: "installed", status: "ok", installed_version: "19.0.1", code_version: "19.0.1" },
     { name: "behind", state: "installed", status: "version_differs", installed_version: "19.0.1.0", code_version: "19.0.1.5" },
     { name: "extra", state: "uninstalled", status: "available", installed_version: null, code_version: "19.0.1" }] } });
-const upgrading = Object.assign({}, base, { upgrade: { db: "hx_try", what: "all modules", text: "x", errors: 1, warnings: 2, progress: verdict.progress } });
-const two = Object.assign({}, base, { servers: [{ mine: true, pid: 42, db: "hx_try", port: 1900 }, { mine: true, pid: 77, db: "acme_v19", port: 1901 }], focusPort: 1901, launchedPorts: [1901] });
+const upgrading = Object.assign({}, base, { upgrade: { db: "dev_db", what: "all modules", text: "x", errors: 1, warnings: 2, progress: verdict.progress } });
+const two = Object.assign({}, base, { servers: [{ mine: true, pid: 42, db: "dev_db", port: 1900 }, { mine: true, pid: 77, db: "sales_demo", port: 1901 }], focusPort: 1901, launchedPorts: [1901] });
 const stopped = Object.assign({}, base, { serverRunning: false, servers: [], health: null, serverDb: null, logText: "", source: null });
 
-const REMOTE = { hosts: [{ name: "acme17", hostname: "h", user: "root" }, { name: "acme19", hostname: "h", user: "hossam" }], host: "acme19", error: null, needsKey: false,
-  busy: false, job: null, last: { level: "ok", text: "Pulled demo from acme19 as hx_demo (26 MB)." },
+const REMOTE = { hosts: [{ name: "staging17", hostname: "h", user: "root" }, { name: "staging19", hostname: "h", user: "deploy" }], host: "staging19", error: null, needsKey: false,
+  busy: false, job: null, last: { level: "ok", text: "Pulled demo from staging19 as dev_demo (26 MB)." },
   info: { databases: [{ name: "demo", size_mb: 348, owner: "odoo19_demo", sessions: 0 }, { name: "apps", size_mb: 419, owner: "odoo19_apps", sessions: 6 }],
     instances: [{ conf: "/etc/odoo19/demo.conf", db_name: "demo", db_user: "odoo19_demo" }, { conf: "/etc/odoo19/apps.conf", db_name: "apps", db_user: "odoo19_apps" }] } };
 const remoteState = Object.assign({}, base, { remote: REMOTE });
@@ -94,11 +94,14 @@ const graphReport = Object.assign({}, base, { graph: Object.assign({}, GRAPH, { 
 const graphBusy = Object.assign({}, base, { graph: Object.assign({}, GRAPH, { busy: { what: "Updating the graph", since: 1 } }) });
 const graphFresh = Object.assign({}, base, { graph: Object.assign({}, GRAPH, { status: Object.assign({}, GRAPH.status, { state: "fresh", detail: "graph matches HEAD" }), wiring: { state: "ok", detail: "Claude Code reads this project's graph" } }) });
 const withMap = (map) => Object.assign({}, base, { graph: Object.assign({}, GRAPH, { map: Object.assign({}, GRAPH_MAP, map) }) });
-const graphMapPinned = withMap({ follow: false, trail: ["acme_work_plan"] });
+const graphMapPinned = withMap({ follow: false, trail: ["sale_planning"] });
 const graphMapLoading = withMap({ module: "hr", data: null, loading: true });
 const graphMapError = withMap({ module: "ghost", data: null, error: "this module is neither in the project's graph nor in Odoo's folders" });
 const graphMapEmpty = withMap({ module: null, data: null });
 const withCi = (ci) => Object.assign({}, base, { ci });
+const noTools = Object.assign({}, stopped, { tools: { found: false, cli: null }, graph: Object.assign({}, GRAPH, { config: null, projectId: null, dataDir: null, stats: null,
+  status: { state: "no-tools", detail: "The odoo-ai tools were not found for this Odoo version, so the graph cannot be built or read.", indexedAt: null },
+  wiring: { state: "missing", detail: "no .mcp.json in the project" }, map: Object.assign({}, GRAPH_MAP, { data: null, error: "The odoo-ai tools were not found, so there is no graph to read (see the notice at the top)." }) }) });
 const graphNone = Object.assign({}, base, { graph: Object.assign({}, GRAPH, { config: null, projectId: null, dataDir: null, stats: null, status: { state: "unconfigured", detail: "this project has no graph config yet", indexedAt: null }, wiring: { state: "missing", detail: "no .mcp.json in the project" } }) });
 
 // ---- the harness the page runs in: a stand-in for the editor's side
@@ -119,6 +122,7 @@ const checks = `
   function btn(root, label) { return Array.prototype.find.call(root.querySelectorAll("button"), function (b) { return b.textContent === label; }); }
   var S = ${JSON.stringify({ base: cockpit.buildState(base), withModules: cockpit.buildState(withModules), upgrading: cockpit.buildState(upgrading), stopped: cockpit.buildState(stopped), two: cockpit.buildState(two), remote: cockpit.buildState(remoteState), busy: cockpit.buildState(remoteBusy), key: cockpit.buildState(remoteKey), panel: cockpit.buildState(inPanel),
     graphReport: cockpit.buildState(graphReport), graphBusy: cockpit.buildState(graphBusy), graphFresh: cockpit.buildState(graphFresh), graphNone: cockpit.buildState(graphNone),
+    noTools: cockpit.buildState(noTools),
     ciRunning: cockpit.buildState(withCi(CI_RUNNING)), ciFailed: cockpit.buildState(withCi(CI_FAILED)), ciBlocked: cockpit.buildState(withCi(CI_BLOCKED)), ciNone: cockpit.buildState(withCi(CI_NONE)),
     graphMapPinned: cockpit.buildState(graphMapPinned), graphMapLoading: cockpit.buildState(graphMapLoading), graphMapError: cockpit.buildState(graphMapError), graphMapEmpty: cockpit.buildState(graphMapEmpty) })};
   (async function () {
@@ -159,15 +163,15 @@ const checks = `
     ok(window.__sent.some(function (m) { return m.cmd === "openIssue" && m.line === 2 && m.file === "/p/mod_a/models/x.py" && m.fline === 40; }), "an issue opens your code and the log");
 
     // the databases
-    click(row("hx_try"));
+    click(row("dev_db"));
     ok(window.__sent.some(function (m) { return m.cmd === "loadModules"; }), "a database row asks for its modules");
-    var first = row("hx_try");
+    var first = row("dev_db");
     click(btn(first, "Upgrade"));
     ok(window.__sent.some(function (m) { return m.cmd === "upgrade" && m.db; }), "Upgrade sends the database");
     click(btn(first, "Drop"));
     ok(window.__sent.some(function (m) { return m.cmd === "drop" && m.db; }), "Drop sends the database - and the host asks before doing anything");
     var filter = document.querySelector("#dbs input[type=text]");
-    filter.value = "acme"; filter.dispatchEvent(new Event("input", { bubbles: true })); await wait(30);
+    filter.value = "demo"; filter.dispatchEvent(new Event("input", { bubbles: true })); await wait(30);
     ok(document.querySelectorAll("#dbs tbody tr").length === 1, "the filter narrows the databases");
     filter.value = ""; filter.dispatchEvent(new Event("input", { bubbles: true })); await wait(30);
     var th = Array.prototype.find.call(document.querySelectorAll("#dbs th"), function (t) { return /^MB/.test(t.textContent); });
@@ -183,7 +187,7 @@ const checks = `
     var upgrade = btn(mods, "Upgrade");
     ok(!!upgrade, "a module whose code is ahead offers its own upgrade");
     click(upgrade);
-    ok(window.__sent.some(function (m) { return m.cmd === "upgrade" && m.modules === "behind" && m.db === "hx_try"; }), "that upgrade names the module");
+    ok(window.__sent.some(function (m) { return m.cmd === "upgrade" && m.modules === "behind" && m.db === "dev_db"; }), "that upgrade names the module");
 
     // progress
     ok(document.getElementById("progress").hidden === false || true, "progress is drawn from health while starting");
@@ -207,6 +211,20 @@ const checks = `
     ok(!document.getElementById("page-dbs").hidden && document.getElementById("page-home").hidden, "a door opens its page, whole");
     click(Array.prototype.find.call(document.querySelectorAll("#tabs .tab"), function (t) { return /^Cockpit$/.test(t.textContent); })); await wait(30);
     ok(!document.getElementById("page-home").hidden, "and the Cockpit tab returns to the door");
+    // a machine without the odoo-ai tools: the page says so once, at the top, and does not offer what cannot run
+    ok(document.getElementById("banner").hidden, "with the tools there is no notice");
+    post(S.noTools); await wait(60);
+    var banner = document.getElementById("banner");
+    ok(!banner.hidden && /odoo-ai tools were not found for Odoo 19/.test(banner.textContent), "without the tools a notice says so, for the version of the project");
+    window.__sent.length = 0; click(btn(banner, "Set up the tools")); click(btn(banner, "Read the guide"));
+    ok(window.__sent.some(function (m) { return m.command === "odooCi.newVersion"; }) && window.__sent.some(function (m) { return m.command === "odooCi.openGuide"; }), "with a way to set them up and a guide to read");
+    click(Array.prototype.find.call(document.querySelectorAll("#tabs .tab"), function (t) { return /^Graph$/.test(t.textContent); })); await wait(30);
+    ok(/Tools missing/.test(document.querySelector("#graph .pill").textContent) && btn(document.getElementById("graph"), "Update graph").disabled, "the Graph page says the tools are missing and offers no update");
+    ok(/odoo-ai tools were not found/.test(document.getElementById("graphmap").textContent) && !/build it first/.test(document.getElementById("graphmap").textContent), "the map says why it has nothing, not 'build it first'");
+    post(S.base); await wait(60);
+    ok(document.getElementById("banner").hidden, "and the notice goes when the tools are there");
+    click(Array.prototype.find.call(document.querySelectorAll("#tabs .tab"), function (t) { return /^Cockpit$/.test(t.textContent); })); await wait(30);
+
     // the editor can show any page by name (the sidebar rows, the "graph of this module" command): none is left out
     for (const name of ["home", "server", "dbs", "quality", "log", "issues", "graph", "tools", "remote"]) {
       window.postMessage({ type: "tab", tab: name }, "*"); await wait(30);
@@ -291,7 +309,7 @@ const checks = `
     ok(window.__sent.some(function (m) { return m.cmd === "graphFollow" && m.on === false; }), "and the box turns that off");
     post(S.graphMapPinned); await wait(60);
     gm = document.getElementById("graphmap");
-    ok(!btn(gm, "← Back").disabled && /acme_work_plan › hr_attendance/.test(gm.textContent) && !gm.querySelector("input[type=checkbox]").checked, "after pressing a module there is a way back, a trail, and the follow is off");
+    ok(!btn(gm, "← Back").disabled && /sale_planning › hr_attendance/.test(gm.textContent) && !gm.querySelector("input[type=checkbox]").checked, "after pressing a module there is a way back, a trail, and the follow is off");
     window.__sent.length = 0; click(btn(gm, "← Back"));
     ok(window.__sent.some(function (m) { return m.cmd === "graphBack"; }), "Back asks for the previous module");
     post(S.graphMapLoading); await wait(60);
@@ -327,27 +345,27 @@ const checks = `
     post(S.remote); await wait(60);
     var rem = document.getElementById("remote");
     ok(rem.querySelectorAll("select option").length === 3, "the hosts of the ssh config are offered");
-    ok(rem.querySelector("select").value === "acme19", "the chosen host is selected");
+    ok(rem.querySelector("select").value === "staging19", "the chosen host is selected");
     ok(rem.querySelectorAll("tbody tr").length === 2, "the host's databases are rows");
     ok(/apps/.test(rem.textContent) && /odoo19_apps/.test(rem.textContent), "with owner and instance");
     ok(btn(Array.prototype.find.call(rem.querySelectorAll("tbody tr"), function (r) { return /apps/.test(r.textContent); }), "Drop").disabled, "a database with sessions cannot be dropped from here");
     var demoRow = Array.prototype.find.call(rem.querySelectorAll("tbody tr"), function (r) { return /demo/.test(r.textContent); });
     click(btn(demoRow, "Pull to local"));
-    ok(window.__sent.some(function (m) { return m.cmd === "remotePull" && m.host === "acme19" && m.db === "demo"; }), "Pull sends the host and the database");
+    ok(window.__sent.some(function (m) { return m.cmd === "remotePull" && m.host === "staging19" && m.db === "demo"; }), "Pull sends the host and the database");
     click(btn(demoRow, "Backup file"));
     ok(window.__sent.some(function (m) { return m.cmd === "remoteBackup" && m.db === "demo"; }), "Backup sends the database");
     click(btn(demoRow, "Drop"));
     ok(window.__sent.some(function (m) { return m.cmd === "remoteDrop" && m.db === "demo"; }), "Drop sends it - and the host asks, with the name typed again");
     click(btn(rem, "Push a local database…"));
-    ok(window.__sent.some(function (m) { return m.cmd === "remotePush" && m.host === "acme19"; }), "Push asks the host side to guide it");
+    ok(window.__sent.some(function (m) { return m.cmd === "remotePush" && m.host === "staging19"; }), "Push asks the host side to guide it");
     ok(/Pulled demo/.test(rem.textContent), "the last result is shown");
     post(S.busy); await wait(60);
     ok(/step 3 of 6/.test(rem.textContent) && rem.querySelector(".bar > i").style.width === "50%", "a running job shows its step and a bar");
     ok(btn(rem, "Refresh").disabled && Array.prototype.every.call(rem.querySelectorAll("tbody button"), function (b) { return b.disabled; }), "nothing else can be started meanwhile");
     post(S.key); await wait(60);
-    ok(/password or another key/.test(rem.textContent) && !!btn(rem, "Set up key login for acme19…"), "a host that wants a password offers to set up a key");
-    click(btn(rem, "Set up key login for acme19…"));
-    ok(window.__sent.some(function (m) { return m.cmd === "remoteKey" && m.host === "acme19"; }), "and asks the host side to open the terminal");
+    ok(/password or another key/.test(rem.textContent) && !!btn(rem, "Set up key login for staging19…"), "a host that wants a password offers to set up a key");
+    click(btn(rem, "Set up key login for staging19…"));
+    ok(window.__sent.some(function (m) { return m.cmd === "remoteKey" && m.host === "staging19"; }), "and asks the host side to open the terminal");
     var tabs = document.querySelector("#remote select"); tabs.focus();
     post(S.remote); await wait(60);
     ok(!/Pulled demo/.test(document.getElementById("remote").textContent), "a list being chosen from is not redrawn under the hand");
@@ -408,7 +426,7 @@ const checks = `
     var onTab = document.querySelector("#tabs .tab.on"); onTab.focus();
     onTab.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })); await wait(30);
     ok(/Databases/.test(document.querySelector("#tabs .tab.on").textContent) && document.activeElement === document.querySelector("#tabs .tab.on"), "an arrow key moves to the next tab and keeps focus there");
-    var rowServed = Array.prototype.find.call(document.querySelectorAll("#dbs tbody tr"), function (r) { return /acme_v19/.test(r.textContent); });
+    var rowServed = Array.prototype.find.call(document.querySelectorAll("#dbs tbody tr"), function (r) { return /sales_demo/.test(r.textContent); });
     ok(/serving :1901/.test(rowServed.textContent), "a database says which port serves it");
     post(S.stopped); await wait(60);
     ok(!!btn(document.getElementById("top"), "Start server"), "with nothing running the header offers Start");
@@ -449,7 +467,7 @@ const shotIndex = process.argv.indexOf("--shot");
 if (shotIndex > 0) {
   const folder = process.argv[shotIndex + 1];
   fs.mkdirSync(folder, { recursive: true });
-  const light = "<style nonce=\"" + nonce + "\">:root{--vscode-foreground:#3b3b3b;--vscode-editor-background:#ffffff;--vscode-sideBar-background:#f3f3f3;--vscode-panel-border:#d4d4d4;--vscode-descriptionForeground:#717171;--vscode-input-background:#ffffff;--vscode-input-foreground:#3b3b3b;--vscode-button-secondaryBackground:#e4e4e4;--vscode-button-secondaryForeground:#3b3b3b}</style>";
+  const light = "<style nonce=\"" + nonce + "\">:root{--vscode-foreground:#3b3b3b;--vscode-editor-background:#ffffff;--vscode-sideBar-background:#f3f3f3;--vscode-panel-border:#d4d4d4;--vscode-descriptionForeground:#717171;--vscode-input-background:#ffffff;--vscode-input-foreground:#3b3b3b;--vscode-button-secondaryBackground:#e4e4e4;--vscode-button-secondaryForeground:#3b3b3b;--vscode-testing-iconPassed:#007100;--vscode-errorForeground:#a1260d;--vscode-editorWarning-foreground:#bf8803;--vscode-focusBorder:#0090f1;--vscode-button-background:#007acc;--vscode-list-activeSelectionBackground:#d6ebff}</style>";   // the light theme's own status colours, as the editor defines them
   fs.writeFileSync(path.join(dir, "light.html"), assembled.replace("</head>", `${light}</head>`));
   // the bottom panel: wide, and not tall
   const marker = "post(S.base); await wait(60);" + String.fromCharCode(10) + "    var pre = document.createElement";
@@ -457,13 +475,24 @@ if (shotIndex > 0) {
   fs.writeFileSync(path.join(dir, "panel.html"), assembled.slice(0, at) + marker.replace("S.base", "S.panel") + assembled.slice(at + marker.length));
   run(["--virtual-time-budget=6000", "--window-size=1500,380", `--screenshot=${path.join(folder, "cockpit_panel_dark.png")}`, `file:///${path.join(dir, "panel.html").split(path.sep).join("/")}`]);
   // every page of the cockpit, in the bottom panel's shape (the door, then each of the six pages; two servers for the Server page, a wiring preview for the Graph page)
-  for (const [name, tab, stateKey] of [["home", "home", "panel"], ["server_two_servers", "server", "two"], ["databases", "dbs", "panel"], ["log", "log", "panel"], ["errors", "issues", "panel"], ["quality", "quality", "ciFailed"], ["tools", "tools", "panel"], ["graph", "graph", "panel"], ["graph_preview", "graph", "graphReport"], ["remote", "remote", "remote"]]) {
+  // [file name, page, state, window height]: the pages that hold a drawing or a long list get more height
+  for (const [name, tab, stateKey, height] of [["home", "home", "panel"], ["setup_notice", "home", "noTools"], ["server_two_servers", "server", "two"], ["databases", "dbs", "panel"], ["log", "log", "panel"],
+    ["errors", "issues", "panel"], ["quality", "quality", "ciFailed", 560], ["quality_passed", "quality", "panel", 420], ["tools", "tools", "panel", 760], ["graph", "graph", "panel", 640],
+    ["graph_preview", "graph", "graphReport", 640], ["remote", "remote", "remote", 520]]) {
     const inject = `window.__cockpit.ui.tab = "${tab}"; post(S.${stateKey}); await wait(60);` + String.fromCharCode(10) + "    var pre = document.createElement";
-    fs.writeFileSync(path.join(dir, `page_${name}.html`), assembled.slice(0, at) + inject + assembled.slice(at + marker.length));
-    run(["--virtual-time-budget=6000", "--window-size=1500,420", `--screenshot=${path.join(folder, `page_${name}.png`)}`, `file:///${path.join(dir, `page_${name}.html`).split(path.sep).join("/")}`]);
+    // the pictures are for the documentation: the test's own result line (a <pre> it appends to the page) is hidden
+    const hideResult = `<style nonce="${nonce}">body > pre { display: none; }</style>`;
+    fs.writeFileSync(path.join(dir, `page_${name}.html`), (assembled.slice(0, at) + inject + assembled.slice(at + marker.length)).replace("</head>", `${hideResult}</head>`));
+    run(["--virtual-time-budget=6000", `--window-size=1500,${height || 420}`, `--screenshot=${path.join(folder, `page_${name}.png`)}`, `file:///${path.join(dir, `page_${name}.html`).split(path.sep).join("/")}`]);
   }
   for (const [name, source] of [["dark", file], ["light", path.join(dir, "light.html")]]) {
     run(["--virtual-time-budget=6000", "--window-size=1500,1250", `--screenshot=${path.join(folder, `cockpit_${name}.png`)}`, `file:///${source.replace(/\\/g, "/")}`]);
+  }
+  // the same pages in the light theme (for the documentation)
+  for (const [name, height] of [["home", 420], ["graph", 640]]) {
+    const source = fs.readFileSync(path.join(dir, `page_${name}.html`), "utf8").replace("</head>", `${light}</head>`);
+    fs.writeFileSync(path.join(dir, `light_${name}.html`), source);
+    run(["--virtual-time-budget=6000", `--window-size=1500,${height}`, `--screenshot=${path.join(folder, `light_${name}.png`)}`, `file:///${path.join(dir, `light_${name}.html`).split(path.sep).join("/")}`]);
   }
 }
 console.log(`cockpit ui OK: ${result.passed} checks in a real browser (draws every part, sends the right command for each press, markup in a log line stays text)`);

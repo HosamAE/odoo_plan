@@ -122,6 +122,21 @@ const wait = (ms = 20) => new Promise((resolve) => setTimeout(resolve, ms));
     answer = () => "not json";
     await g.pin("garbled");
     assert.ok(/could not be read/.test(g.state().map.error));
+    // no odoo-ai tools on this machine: nothing is run, and the page is told why
+    let ran = 0;
+    const bare = create({
+      findProject: () => ({ name: "Demo", version: "17", root }), runCli: async () => { ran += 1; return { code: 1, stdout: "", stderr: "" }; },
+      cliPath: () => "odoo-ai", pythonExe: () => "py", odooRoot: () => "C:/none", autoUpdateEnabled: () => true, tools: () => ({ found: false, cli: null }),
+      openFile: () => {}, activeFile: () => null, changed: () => {},
+    });
+    await bare.refresh();
+    assert.strictEqual(bare.state().status.state, "no-tools");
+    assert.strictEqual(ran, 0, "without the tools no command is started");
+    await bare.autoUpdate();
+    assert.strictEqual(ran, 0, "and the quiet update on opening does nothing");
+    await bare.wanted(true);
+    await bare.pin("alpha");
+    assert.ok(/odoo-ai tools were not found/.test(bare.state().map.error) && !/build it first/.test(bare.state().map.error), "the map says the tools are missing, not 'build it first'");
     console.log("graph map OK: the module of a file; nothing read for a hidden page; read once and cached; pressing a module pins it with a way back; a late answer is dropped; errors are sentences");
   } finally {
     try { fs.rmSync(root, { recursive: true, force: true }); } catch (e) { /* harmless */ }

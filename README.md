@@ -23,10 +23,10 @@ python C:\odoo\odoo19\tools\cli.py setup
 python C:\odoo\odoo19\tools\cli.py setup --db-role     # the PostgreSQL role (asks for postgres's password)
 
 # 4. each project
-odoo-ai new-project Acme --git https://github.com/<owner>/<repo> --branch testing19
+odoo-ai new-project MyProject --git https://github.com/<owner>/<repo> --branch main
 ```
 
-Then open `C:\odoo\ProjectsOdoo19\Acme\Acme.code-workspace`.
+Then open `C:\odoo\ProjectsOdoo19\MyProject\MyProject.code-workspace`.
 
 Another version, in one command: `odoo-ai new-version 20` (clones the `20.0` tools, makes `ProjectsOdoo20`, runs `setup`; add `--check` to change nothing).
 

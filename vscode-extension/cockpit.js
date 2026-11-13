@@ -96,7 +96,7 @@ function slimIssues(source) {
 
 /** The whole state the page draws. `inputs` are plain values; nothing here touches the editor. */
 function buildState(inputs) {
-  const { project, port, servers, focusPort, launchedPorts, serverRunning, serverDb, health, source, upgrade, databases, modulesInfo, drift, logText, logFirst, backupDir, backupBeforeUpgrade, remote, graph, ci, mode } = inputs;
+  const { project, port, servers, focusPort, launchedPorts, serverRunning, serverDb, health, source, upgrade, databases, modulesInfo, drift, logText, logFirst, backupDir, backupBeforeUpgrade, remote, graph, ci, tools, mode } = inputs;
   const mine = (servers || []).find((s) => s.mine);
   const marks = source && source.verdict ? source.verdict.marks : null;
   return {
@@ -117,6 +117,7 @@ function buildState(inputs) {
     remote: remote || null,
     graph: graph || null,
     ci: ci || null,
+    tools: tools || { found: true, cli: null },   // are the odoo-ai tools there? the page says so when they are not
     mode: mode || "editor",
   };
 }
@@ -163,7 +164,7 @@ function create(api) {
     return buildState({
       project: p, port: api.getProjectPort(p), servers: api.state.servers, focusPort: api.state.focusPort, launchedPorts: api.launchedPorts(), serverRunning: api.state.serverRunning,
       serverDb: api.serverRun.db, health: api.state.health, source, upgrade: api.state.upgrade, databases, modulesInfo, drift,
-      logText, logFirst, backupDir: api.getBackupDir(p), backupBeforeUpgrade: api.backupBeforeUpgrade(), remote: remote.state(), graph: graph.state(), ci: api.ci(), mode,
+      logText, logFirst, backupDir: api.getBackupDir(p), backupBeforeUpgrade: api.backupBeforeUpgrade(), remote: remote.state(), graph: graph.state(), ci: api.ci(), tools: api.tools ? api.tools(p) : null, mode,
     });
   }
 

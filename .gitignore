@@ -8,3 +8,6 @@ local.json
 
 # per machine: each project's graph config (odoo-ai workspace writes it)
 kg/config/local/
+
+# per machine: a dashboard of THIS machine's own projects, with links to their local folders
+docs/index.html

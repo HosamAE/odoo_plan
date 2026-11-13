@@ -8,7 +8,7 @@ const fs = require("fs");
 const http = require("http");
 const { RuleFixes, fixLenSearch } = require("./rulefixes");
 const { moduleOfFile } = require("./graph");
-const { findProject, getProjectPort, getOdooRoot, getPythonExe, getCliPath, checkPortOpen } = require("./project");
+const { findProject, getProjectPort, getOdooRoot, getPythonExe, getCliPath, checkPortOpen, findConf, toolsStatus } = require("./project");
 const { splitCommandLine, parseOdooCommand, listOdooProcesses, detectServers, killTree } = require("./detect");
 
 const FILE_LINE_RX = /^\s*([\w./\\-]+\.(?:py|xml|csv|js|scss|po|yml|txt)):(\d+):\s*(.*)$/;
@@ -88,7 +88,7 @@ class ActionsProvider {
     if (!el) {
       const up = state.servers.some((s) => s.mine) || state.portOpen;
       const rows = [treeItem(`${project.name} · Odoo ${project.version}`, {
-        icon: "dashboard", description: up ? `running :${port}` : "stopped", tooltip: "Open the Cockpit Odoo: server, databases, quality, errors, graph, tools",
+        icon: "dashboard", description: (up ? `running :${port}` : "stopped") + (toolsStatus(project).found ? "" : " · tools missing"), tooltip: "Open the Cockpit Odoo: server, databases, quality, errors, graph, tools",
         command: { command: "odooCi.cockpitPanel", title: "Open Cockpit" } })];
       const server = new vscode.TreeItem(`Server (Port ${port})`, vscode.TreeItemCollapsibleState.Expanded);
       server.iconPath = new vscode.ThemeIcon(state.serverRunning ? "radio-tower" : "server");
@@ -379,7 +379,7 @@ const serverRun = { proc: null, db: null, log: null, healthBusy: false, driftChe
 let serverOutput, serverDiagnostics;
 
 function confPath(project) {
-  return path.join(project.root, `${project.name}.conf`);
+  return findConf(project);   // <name>.conf first (the layout of these tools, with its own xxyy port), else odoo.conf
 }
 
 function serverLogPath(project, port) {
@@ -496,7 +496,7 @@ async function pickUpgrade({ allowNone = true } = {}) {
   const picked = await vscode.window.showQuickPick(items, { title: "Upgrade", placeHolder: "Upgrade modules before the server starts?" });
   if (!picked) return undefined;
   if (picked.value !== "__typed__") return picked.value;
-  const typed = await vscode.window.showInputBox({ prompt: "Modules to upgrade, comma separated", placeHolder: "acme_work_plan,acme_alarm",
+  const typed = await vscode.window.showInputBox({ prompt: "Modules to upgrade, comma separated", placeHolder: "sale_extra,stock_extra",
     validateInput: (v) => (/^[a-z][a-z0-9_]*(\s*,\s*[a-z][a-z0-9_]*)*$/.test(v.trim()) ? null : "module names, separated by commas") });
   return typed ? typed.split(",").map((s) => s.trim()).join(",") : undefined;
 }
@@ -544,7 +544,7 @@ async function startServerWith(project, choices) {
  */
 async function readyToStart(project) {
   if (!project) { vscode.window.showErrorMessage("No active Odoo project found."); return false; }
-  if (!fs.existsSync(confPath(project))) { vscode.window.showErrorMessage(`${project.name}.conf was not found in ${project.root}.`); return false; }
+  if (!fs.existsSync(confPath(project))) { vscode.window.showErrorMessage(`${path.basename(confPath(project))} was not found in ${project.root}: the server needs its configuration file (<project>.conf or odoo.conf).`); return false; }
   return true;
 }
 
@@ -1694,7 +1694,7 @@ function activate(context) {
     extensionPath: context.extensionPath,
     cliCommand,
     cliPath: getCliPath, pythonExe: getPythonExe,
-    runCommand: runExtensionCommand, ci: ciView, graphChanged: () => actionsTree.refresh(),
+    runCommand: runExtensionCommand, ci: ciView, graphChanged: () => actionsTree.refresh(), tools: toolsStatus,
     odooRoot: (project) => path.join(getOdooRoot(project), `odoo${project.version}`),
     openFile: (file) => vscode.window.showTextDocument(vscode.Uri.file(file), { preview: true }),
     activeFile: () => { const e = vscode.window.activeTextEditor; return e && e.document.uri.scheme === "file" ? e.document.uri.fsPath : null; },
@@ -1767,6 +1767,7 @@ function activate(context) {
     vscode.commands.registerCommand("odooCi.newAddon", runNewAddon),
     vscode.commands.registerCommand("odooCi.doctor", runDoctor),
     vscode.commands.registerCommand("odooCi.audit", runAudit),
+    vscode.commands.registerCommand("odooCi.openGuide", () => vscode.commands.executeCommand("markdown.showPreview", vscode.Uri.file(path.join(context.extensionPath, "README.md")))),
     vscode.commands.registerCommand("odooCi.setupWizard", runSetupWizard),
     vscode.commands.registerCommand("odooCi.initFastDb", runInitFastDb),
     vscode.commands.registerCommand("odooCi.refresh", () => { pollServerStatus(); actionsTree.refresh(); envTree.refresh(); }),

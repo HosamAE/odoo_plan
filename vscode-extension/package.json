@@ -13,7 +13,7 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "2.4.1",
+  "version": "2.4.2",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -162,6 +162,12 @@
         "title": "Audit Security CSV & Manifest of This Module",
         "category": "Odoo Studio",
         "icon": "$(shield)"
+      },
+      {
+        "command": "odooCi.openGuide",
+        "title": "Open the Cockpit Odoo Guide",
+        "category": "Odoo Studio",
+        "icon": "$(book)"
       },
       {
         "command": "odooCi.setupWizard",
