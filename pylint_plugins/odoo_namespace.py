@@ -67,7 +67,7 @@ def _pytz_utc():
     """pytz defines ``UTC = utc = UTC()``: an instance named like its class.
 
     astroid then reads ``UTC.localize(dt)`` as an unbound method call and
-    reports E1120 "No value for argument 'dt'" on correct code (Acme calls
+    reports E1120 "No value for argument 'dt'" on correct code (a project calls
     it in several modules). Describe the instance as what it is.
     """
     return astroid.parse("""

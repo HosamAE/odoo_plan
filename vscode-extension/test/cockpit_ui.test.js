@@ -129,16 +129,13 @@ const checks = `
     await wait(50);
     post(S.base); await wait(80);
     ok(document.querySelector("#top .pill").textContent === "Healthy", "the header says Healthy");
-    ok(document.querySelectorAll("#dbs tbody tr").length === 4, "every database is a row");
+    ok(document.querySelectorAll("#dbs tbody tr").length === 3, "the project's databases are rows (the one of another Odoo version is hidden)");
     ok(!btn(document.getElementById("server"), "Start another").disabled && !btn(document.getElementById("server"), "Stop").disabled, "a running server does not block starting another, and Stop is on");
     ok(/serving/.test(document.querySelector("#dbs tbody tr").textContent) || /serving/.test(document.getElementById("dbs").textContent), "the database the server uses is marked");
     ok(/cannot open/.test(document.getElementById("dbs").textContent), "an unusable database says so");
-    ok(/Odoo 17/.test(document.getElementById("dbs").textContent), "a database of another Odoo version says so");
     var rows = document.querySelectorAll("#dbs tbody tr");
     var broken = Array.prototype.find.call(rows, function (r) { return /broken_one/.test(r.textContent); });
     ok(!btn(broken, "Upgrade"), "an unusable database offers no upgrade");
-    var core = Array.prototype.find.call(rows, function (r) { return /core/.test(r.textContent); });
-    ok(!btn(core, "Upgrade"), "nor does a database of another Odoo version");
 
     // the log: levels, text only
     var log = document.getElementById("log");
@@ -170,6 +167,16 @@ const checks = `
     ok(window.__sent.some(function (m) { return m.cmd === "upgrade" && m.db; }), "Upgrade sends the database");
     click(btn(first, "Drop"));
     ok(window.__sent.some(function (m) { return m.cmd === "drop" && m.db; }), "Drop sends the database - and the host asks before doing anything");
+    // a database of another Odoo version is not this project's: hidden until asked for
+    ok(!document.querySelector("#dbs").textContent.includes("core"), "a database of another Odoo version is hidden");
+    var toggle = Array.prototype.find.call(document.querySelectorAll("#dbs button"), function (x) { return /other Odoo versions/.test(x.textContent); });
+    ok(toggle && /Show 1 of other/.test(toggle.textContent), "and the page says how many it hides");
+    click(toggle); await wait(30);
+    ok(document.querySelector("#dbs").textContent.includes("core") && /Odoo 17/.test(document.getElementById("dbs").textContent), "asking shows it, marked with its Odoo version");
+    var core = Array.prototype.find.call(document.querySelectorAll("#dbs tbody tr"), function (r) { return /core/.test(r.textContent); });
+    ok(!btn(core, "Upgrade"), "a database of another Odoo version offers no upgrade");
+    click(Array.prototype.find.call(document.querySelectorAll("#dbs button"), function (x) { return /Hide 1 of other/.test(x.textContent); })); await wait(30);
+    ok(!document.querySelector("#dbs").textContent.includes("core"), "and it can be hidden again");
     var filter = document.querySelector("#dbs input[type=text]");
     filter.value = "demo"; filter.dispatchEvent(new Event("input", { bubbles: true })); await wait(30);
     ok(document.querySelectorAll("#dbs tbody tr").length === 1, "the filter narrows the databases");
@@ -177,7 +184,7 @@ const checks = `
     var th = Array.prototype.find.call(document.querySelectorAll("#dbs th"), function (t) { return /^MB/.test(t.textContent); });
     click(th); await wait(30);
     var names = Array.prototype.map.call(document.querySelectorAll("#dbs tbody tr td:first-child"), function (td) { return td.firstChild.textContent; });
-    ok(names[0] === "broken_one" && names[names.length - 1] === "core", "sorting by size puts the smallest first: " + names.join(","));
+    ok(names[0] === "broken_one" && names[names.length - 1] === "sales_demo", "sorting by size puts the smallest first: " + names.join(","));
 
     // modules
     ok(document.getElementById("modules").hidden, "no module card until one is asked for");
@@ -379,7 +386,7 @@ const checks = `
     // the bottom panel: the same page, laid out to fill what it is given
     post(S.panel); await wait(60);
     ok(document.body.className === "panel", "the bottom panel marks the page for its compact layout");
-    ok(getComputedStyle(document.body).height !== "auto" && document.querySelectorAll("#dbs tbody tr").length === 4 && document.querySelectorAll("#log div").length > 0, "and still draws everything");
+    ok(getComputedStyle(document.body).height !== "auto" && document.querySelectorAll("#dbs tbody tr").length === 3 && document.querySelectorAll("#log div").length > 0, "and still draws everything");
     ok(!btn(document.getElementById("top"), "Open in editor ↗") && !btn(document.getElementById("top"), "Move to bottom panel ↓"), "there is one cockpit: no button moves it between places");
 
     // the header: the state, the errors, and the buttons used every day

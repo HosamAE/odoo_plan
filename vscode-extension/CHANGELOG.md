@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.4.5
+
+- One window, one project, one Odoo version: the "Versions & Environment" view (now "This Odoo Version") shows only the version of the open project and what it needs, no longer all four versions and their projects.
+- Every server of the open project that is running gets its own row (port, pid, database); another project's servers are never listed.
+- The Databases page hides databases written by another Odoo version, with a button that says how many and shows them.
+- The typed-command code is its own file (`terminal_commands.js`, `inputs.js`) and the settings-file editing of `workspace_sync.py` is `jsonc_edit.py`.
+- Restoring a snapshot is exact: only `snap_<db>_<label>` is used (a part of a name used to match the first other snapshot and replace the live database by it), database names are quoted as identifiers, and the command asks for confirmation.
+- The labels, module names and language codes typed into the editor are checked before they go into a terminal command line.
+- The extension declares that it needs a trusted workspace.
+- The cockpit no longer sends an unchanged page to the webview every 3 seconds.
+- The graph engine reads the module prefix from the project's modules instead of a fixed one.
+
 ## 2.4.4
 
 - Nothing about a company or a customer is built into the tools any more: what `odoo-ai workspace` knows about an estate of projects (ids, ports, shared rules, the text of a CLAUDE.md) is read from `tools/local/workspace_local.py` when it exists, and every other project is simply found by its manifests.

@@ -361,7 +361,7 @@ def _v7_layer_checks(store: GraphReads, enforce_floors: bool = True) -> list[Che
         Check(
             "convention_status_vocabulary_is_closed",
             convention_statuses <= {
-                "required_by_odoo", "documented_acme_rule",
+                "required_by_odoo", "documented_rule",
                 "observed_pattern", "recommendation",
             },
             f"statuses in use: {sorted(convention_statuses) or 'none'}",
@@ -374,7 +374,7 @@ def _v7_layer_checks(store: GraphReads, enforce_floors: bool = True) -> list[Che
     # only exist if a person put it there.
     unsourced = store.connection.execute(
         "SELECT COUNT(*) FROM node_convention "
-        "WHERE status = 'documented_acme_rule' AND "
+        "WHERE status = 'documented_rule' AND "
         "(source_rel_path IS NULL OR TRIM(source_rel_path) = '')"
     ).fetchone()[0]
     checks.append(

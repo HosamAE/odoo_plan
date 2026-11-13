@@ -3,6 +3,7 @@
 
 const vscode = require("vscode");
 const cp = require("child_process");
+const terminalCommands = require("./terminal_commands");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -36,10 +37,12 @@ class ActionsProvider {
     const mine = state.servers.filter((s) => s.mine);
     const out = [];
     if (mine.length) {
-      out.push(item("Server: Running", "pass", {
-        color: "testing.iconPassed", description: `localhost:${mine[0].port} · pid ${mine[0].pid}`,
-        tooltip: mine[0].conf ? `Started with ${mine[0].conf}` : "Started without --config", extra: { contextValue: "server-running" },
-      }));
+      for (const s of mine) {   // any number of servers of this project: each one is shown, with its own port and database
+        out.push(item(mine.length > 1 ? `Server :${s.port}: Running` : "Server: Running", "pass", {
+          color: "testing.iconPassed", description: `localhost:${s.port} · pid ${s.pid}${s.db ? ` · ${s.db}` : ""}`,
+          tooltip: s.conf ? `Started with ${s.conf}` : "Started without --config", extra: { contextValue: "server-running" },
+        }));
+      }
     } else if (state.portOpen) {
       out.push(item("Server: Running", "pass", { color: "testing.iconPassed", description: `localhost:${port} · not a local process`,
         tooltip: "Something answers on this port (Docker, WSL or another machine).", extra: { contextValue: "server-running" } }));
@@ -90,7 +93,8 @@ class ActionsProvider {
       const rows = [treeItem(`${project.name} · Odoo ${project.version}`, {
         icon: "dashboard", description: (up ? `running :${port}` : "stopped") + (toolsStatus(project).found ? "" : " · tools missing"), tooltip: "Open the Cockpit Odoo: server, databases, quality, errors, graph, tools",
         command: { command: "odooCi.cockpitPanel", title: "Open Cockpit" } })];
-      const server = new vscode.TreeItem(`Server (Port ${port})`, vscode.TreeItemCollapsibleState.Expanded);
+      const running = state.servers.filter((s) => s.mine).map((s) => s.port);
+      const server = new vscode.TreeItem(running.length > 1 ? `Servers (${running.map((p) => `:${p}`).join(" ")})` : `Server (Port ${running[0] || port})`, vscode.TreeItemCollapsibleState.Expanded);
       server.iconPath = new vscode.ThemeIcon(state.serverRunning ? "radio-tower" : "server");
       server._kind = "server";
       rows.push(server);
@@ -1171,53 +1175,6 @@ async function pollServerStatus(force) {
   if (cockpit) cockpit.refresh();
 }
 
-function runFastTest() {
-  const project = findProject();
-  if (!project) return vscode.window.showErrorMessage("No active Odoo project found.");
-  vscode.window.showInputBox({
-    prompt: "Enter addon name to test on ephemeral template database",
-    placeHolder: "e.g. sale_discount_pro or custom_crm"
-  }).then(addon => {
-    if (!addon) return;
-    const term = vscode.window.createTerminal({ name: `Odoo Fast Test: ${addon}` });
-    term.show();
-    const python = getPythonExe(project);
-    const cli = getCliPath(project);
-    term.sendText(cliLine(python, cli, `test -m "${addon}" --fast`));
-  });
-}
-
-function runNewAddon() {
-  const project = findProject();
-  if (!project) return vscode.window.showErrorMessage("No active Odoo project found.");
-  vscode.window.showInputBox({
-    prompt: "Enter technical name for new addon",
-    placeHolder: "e.g. custom_portal_crm or hr_payroll_geo"
-  }).then(addon => {
-    if (!addon) return;
-    const term = vscode.window.createTerminal({ name: `Odoo New Addon: ${addon}` });
-    term.show();
-    const python = getPythonExe(project);
-    const cli = getCliPath(project);
-    term.sendText(cliLine(python, cli, `new-addon "${addon}"`));
-  });
-}
-
-function runDoctor() {
-  const { python, cli, root } = toolsContext();
-  runInTerminal("Odoo-AI Doctor", cliLine(python, cli, "doctor"), root);
-}
-
-/** `odoo-ai audit` (the module's security CSV and manifest) on the module of the file being edited. */
-function runAudit() {
-  const project = findProject();
-  if (!project) return vscode.window.showErrorMessage("No active Odoo project found.");
-  const editor = vscode.window.activeTextEditor;
-  const owner = editor && editor.document.uri.scheme === "file" ? moduleOfFile(editor.document.uri.fsPath) : null;
-  if (!owner) return vscode.window.showWarningMessage("Open a file of the module to audit: its security CSV and manifest are checked.");
-  runInTerminal(`Odoo audit: ${owner.name}`, cliLine(getPythonExe(project), getCliPath(project), `audit -p "${owner.folder}"`), project.root);
-}
-
 /** What the cockpit may start with a press: only the commands this extension declares, by id. */
 function runExtensionCommand(id) {
   const declared = new Set(require("./package.json").contributes.commands.map((c) => c.command));
@@ -1276,64 +1233,6 @@ function runXPathCheck() {
       vscode.window.showErrorMessage(`Odoo XPath Check found ${errorCount} error(s). See Problems tab.`);
       vscode.commands.executeCommand("workbench.actions.view.problems");
     }
-  });
-}
-
-function runDbSnapSave() {
-  const project = findProject();
-  if (!project) return;
-  vscode.window.showInputBox({
-    prompt: "Enter snapshot label (e.g. before_update or milestone_1)",
-    placeHolder: "before_update"
-  }).then(label => {
-    if (!label) return;
-    const term = vscode.window.createTerminal({ name: `Odoo DB Snap: ${label}` });
-    term.show();
-    const python = getPythonExe(project);
-    const cli = getCliPath(project);
-    term.sendText(cliLine(python, cli, `db-snap save "${label}"`));
-  });
-}
-
-function runDbSnapRestore() {
-  const project = findProject();
-  if (!project) return;
-  vscode.window.showInputBox({
-    prompt: "Enter snapshot label to restore",
-    placeHolder: "before_update"
-  }).then(label => {
-    if (!label) return;
-    const term = vscode.window.createTerminal({ name: `Odoo DB Restore: ${label}` });
-    term.show();
-    const python = getPythonExe(project);
-    const cli = getCliPath(project);
-    term.sendText(cliLine(python, cli, `db-snap restore "${label}"`));
-  });
-}
-
-function runI18nScan() {
-  const project = findProject();
-  if (!project) return vscode.window.showErrorMessage("No active Odoo project found.");
-  vscode.window.showInputBox({
-    prompt: "Enter addon name to scan/sync translations (e.g. sale_portal)",
-    placeHolder: "e.g. sale_portal or custom_crm"
-  }).then(mod => {
-    if (!mod) return;
-    const config = vscode.workspace.getConfiguration("odooCi");
-    const defaultLang = config.get("defaultLang") || "";
-    vscode.window.showInputBox({
-      prompt: "Target language code (leave blank to scan all existing PO files, or specify e.g. sv, ar, fr)",
-      value: defaultLang,
-      placeHolder: "e.g. sv, ar, de, fr (leave blank for all)"
-    }).then(lang => {
-      const targetLang = (lang !== undefined && lang !== null && lang.trim()) ? lang.trim() : defaultLang.trim();
-      const term = vscode.window.createTerminal({ name: `Odoo i18n: ${mod}` });
-      term.show();
-      const python = getPythonExe(project);
-      const cli = getCliPath(project);
-      const langFlag = targetLang ? ` -l "${targetLang}"` : "";
-      term.sendText(cliLine(python, cli, `i18n scan -m "${mod}"${langFlag}`));
-    });
   });
 }
 
@@ -1397,31 +1296,8 @@ async function runSetupWizard() {
   actionsTree.refresh();
 }
 
-function runInitFastDb() {
-  const project = findProject();
-  const python = getPythonExe(project);
-  const ver = (project && project.version) || "19";
-  const fastScript = `C:\\odoo\\odoo${ver}\\tools\\db_fast.py`;
-  const term = vscode.window.createTerminal({ name: `Odoo Init Fast DB (${ver})` });
-  term.show();
-  term.sendText(cliLine(python, fastScript, `init -v "${ver}"`));
-}
-
 
 // ------------------------------------------------------------- shell-aware command line
-
-/** `python cli args` for the terminal the user really has: PowerShell needs `&` before a quoted path, cmd/bash do not. */
-function cliLine(python, script, args) {
-  const shell = (vscode.env.shell || "").toLowerCase();
-  const ps = shell.includes("powershell") || shell.includes("pwsh");
-  return `${ps ? "& " : ""}"${python}" "${script}" ${args || ""}`.trim();
-}
-
-function runInTerminal(name, line, cwd) {
-  const term = vscode.window.createTerminal({ name, cwd });
-  term.show();
-  term.sendText(line);
-}
 
 // ------------------------------------------------------------- versions & environment
 
@@ -1436,19 +1312,6 @@ function readBranch(toolsDir) {
   }
 }
 
-function listProjects(root, v) {
-  const found = [];
-  for (const base of [path.join(root, `ProjectsOdoo${v}`), path.join(root, `odoo${v}`, "projects")]) {
-    let names = [];
-    try { names = fs.readdirSync(base, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch (e) { continue; }
-    for (const name of names) {
-      const ws = path.join(base, name, `${name}.code-workspace`);
-      if (fs.existsSync(ws)) found.push({ name, ws });
-    }
-  }
-  return found;
-}
-
 /** What one Odoo version has on this machine. */
 function versionInfo(root, v) {
   const dir = path.join(root, `odoo${v}`);
@@ -1459,7 +1322,6 @@ function versionInfo(root, v) {
     source: fs.existsSync(path.join(dir, "odoo", "odoo-bin")),
     venv: fs.existsSync(path.join(dir, "venv")),
     branch: readBranch(tools),
-    projects: listProjects(root, v),
   };
   info.ready = info.tools && info.source && info.venv;
   return info;
@@ -1483,26 +1345,20 @@ class EnvProvider {
   refresh() { this._emitter.fire(); }
   getTreeItem(el) { return el; }
 
+  /** The Odoo version of the open project and what it needs. Other versions and other projects are not this window's. */
   getChildren(el) {
-    const root = getOdooRoot(findProject());
     if (!el) {
-      const current = (findProject() || {}).version;
-      const nodes = VERSIONS.map((v) => {
-        const info = versionInfo(root, v);
-        const bits = [info.branch ? `branch ${info.branch}` : "no tools", `${info.projects.length} project${info.projects.length === 1 ? "" : "s"}`];
-        return treeItem(`Odoo ${v}${v === current ? "  (this window)" : ""}`, {
-          collapsible: vscode.TreeItemCollapsibleState[v === current ? "Expanded" : "Collapsed"],
-          icon: info.ready ? "pass" : "warning",
-          color: info.ready ? "testing.iconPassed" : "list.warningForeground",
-          description: bits.join(" · "),
-          tooltip: info.ready ? `Odoo ${v} is ready` : `Odoo ${v} is incomplete: use "Set up this version"`,
-          extra: { _kind: "version", _info: info },
-        });
-      });
+      const project = findProject();
+      const nodes = [];
+      if (project) {
+        const info = versionInfo(getOdooRoot(project), project.version);
+        nodes.push(...this.versionChildren(info));
+      } else {
+        nodes.push(treeItem("No active Odoo project detected", { icon: "info", description: "Open a workspace inside ProjectsOdoo<NN>/<project>" }));
+      }
       nodes.push(treeItem("Maintenance", { collapsible: vscode.TreeItemCollapsibleState.Expanded, icon: "tools", extra: { _kind: "maint" } }));
       return nodes;
     }
-    if (el._kind === "version") return this.versionChildren(el._info);
     if (el._kind === "maint") return this.maintenanceItems();
     return [];
   }
@@ -1514,18 +1370,17 @@ class EnvProvider {
       color: ok ? "testing.iconPassed" : "list.warningForeground",
       description: ok ? "" : hint,
     });
+    out.push(treeItem(`Odoo ${info.v}`, {
+      icon: info.ready ? "pass" : "warning", color: info.ready ? "testing.iconPassed" : "list.warningForeground",
+      description: info.branch ? `tools: branch ${info.branch}` : "no tools",
+      tooltip: info.ready ? `Odoo ${info.v} is ready` : `Odoo ${info.v} is incomplete: use "Set up this version"`,
+    }));
     out.push(mark(info.tools, "Tools", "odoo-ai new-version " + info.v));
     out.push(mark(info.source, "Odoo source", "download it (setup lists the command)"));
     out.push(mark(info.venv, "Python venv", "create it (setup lists the command)"));
     if (!info.ready) {
       out.push(treeItem(`Set up Odoo ${info.v}…`, {
         icon: "rocket", command: { command: "odooCi.newVersion", title: "Set up", arguments: [info.v] },
-      }));
-    }
-    for (const p of info.projects) {
-      out.push(treeItem(p.name, {
-        icon: "folder-opened", description: "open in a new window",
-        command: { command: "vscode.openFolder", title: "Open project", arguments: [vscode.Uri.file(p.ws), { forceNewWindow: true }] },
       }));
     }
     return out;
@@ -1580,12 +1435,6 @@ async function runNewVersion(preset) {
   if (envTree) setTimeout(() => envTree.refresh(), 4000);
 }
 
-function runSelfTest() {
-  const { python, cli, root } = toolsContext();
-  // tools-ci builds every version and tests it the way the CI does (no Odoo packages, no C:\odoo); test-self would not
-  runInTerminal("Odoo tools CI (before push)", cliLine(python, cli, "tools-ci"), root);
-}
-
 /**
  * The Cockpit in the bottom panel. The panel's container is read by the editor when the window starts, so a window
  * that has not been reloaded since the extension was updated does not know it: the Cockpit then opens as an editor tab
@@ -1612,33 +1461,18 @@ function offerReload(text) {
   reloadItem.show();
 }
 
-function runSyncVersions() {
-  const { python, cli, root } = toolsContext();
-  runInTerminal("Odoo version branches", cliLine(python, cli, "sync-versions"), root);
-}
-
-function runSecretScan() {
-  const { python, cli, cwd } = toolsContext();
-  runInTerminal("Secret scan", cliLine(python, cli, "secrets --staged"), cwd);
-}
-
-function runSecretHook() {
-  const { python, cli, cwd } = toolsContext();
-  runInTerminal("Secret hook", cliLine(python, cli, "secrets --install-hook"), cwd);
-}
-
-function runGates() {
-  const { project, python, cli } = toolsContext();
-  if (!project) return vscode.window.showErrorMessage("Odoo CI: open a project first (ProjectsOdoo<NN>/<project>).");
-  runInTerminal("Odoo gates", cliLine(python, cli, `gates --path "${project.root}"`), project.root);
-}
-
 function openLayoutGuide() {
   const { root } = toolsContext();
   const guide = path.join(root, "odoo19", "tools", "docs", "LAYOUT.md");
   if (fs.existsSync(guide)) vscode.commands.executeCommand("markdown.showPreview", vscode.Uri.file(guide));
   else vscode.window.showWarningMessage(`Not found: ${guide}`);
 }
+
+// ------------------------------------------------------------- terminal commands
+
+const { cliLine, runInTerminal, runFastTest, runNewAddon, runDoctor, runAudit, runDbSnapSave, runDbSnapRestore, runI18nScan, runInitFastDb, runSelfTest, runSyncVersions, runSecretScan, runSecretHook, runGates } = terminalCommands.create({
+  findProject, getPythonExe, getCliPath, toolsContext, moduleOfFile: (file) => moduleOfFile(file),
+});
 
 // ------------------------------------------------------------- activation
 

@@ -77,36 +77,9 @@ _CONFIG_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config"
 )
 
-#: The inherited M2 project. Named so that the few places which genuinely mean
-#: "the graph the live server reads" can say so, and so that nothing reaches it
-#: by default. Never the default in this worktree.
-M2_CONFIG = os.path.join(_CONFIG_DIR, "acme-testing19.toml")
-
-#: This milestone's own project, writing to its own data directory.
-M3_CONFIG = os.path.join(_CONFIG_DIR, "acme-testing19-m3.toml")
-
-#: M4.2's own project. It exists because the store refuses to rebuild across a
-#: schema-version change, and taking the refusal seriously beat deleting the v5
-#: graph M4.1 wrote. Same project_id, same repository, different data_dir.
-M4_CONFIG = os.path.join(_CONFIG_DIR, "acme-testing19-m4.toml")
-
-#: M4.3's own project, for the same reason M4.2 has one: the schema moved and
-#: the store will not rebuild across that boundary. Same project_id, same
-#: repository, different data_dir. No earlier graph is touched.
-M43_CONFIG = os.path.join(_CONFIG_DIR, "acme-testing19-m43.toml")
-
-#: What a command uses when no --config is given: the canonical project.
-#:
-#: Through M3 and M4 this deliberately pointed at the milestone's own dev
-#: project instead, because a bare `index --rebuild` rewrote the database in
-#: place and would have dropped the graph the registered server was serving.
-#: That hazard is gone: an index run writes a new generation and swaps a
-#: pointer, so it cannot overwrite a published graph, and the pre-generation
-#: `graph.db` in the canonical data directory is never opened for writing at
-#: all. With nothing left to protect against, defaulting to a development
-#: project would be the mistake -- it is the milestone configurations that are
-#: now the special case.
-DEFAULT_CONFIG = M2_CONFIG
+#: What a command uses when no --config is given: ODOO_KG_CONFIG when set, else the sample project. A real
+#: project's config lives in config/local/ (git-ignored) and is named with --config; `odoo-ai kg` always does.
+DEFAULT_CONFIG = os.environ.get("ODOO_KG_CONFIG") or os.path.join(_CONFIG_DIR, "sample-project.toml")
 
 
 def build_parser() -> argparse.ArgumentParser:

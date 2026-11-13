@@ -78,6 +78,61 @@ exports.run = async function run() {
     const errorNode = tree.getChildren(groups.find((g) => String(g.label).startsWith("Errors")))[0];
     check("the error ends in your code and says so", errorNode && errorNode.contextValue === "issueWithSource", errorNode && errorNode.contextValue);
 
+    // the timer's refresh sends a page only when it changed: an idle cockpit is not a stream of identical messages
+    {
+      const cockpit = api._test.cockpit;
+      const posted = [];
+      let disposed = () => {};
+      const view = {
+        visible: true, webview: { options: null, html: "", onDidReceiveMessage() {}, postMessage: (m) => { posted.push(m); return Promise.resolve(true); } },
+        onDidChangeVisibility() {}, onDidDispose: (fn) => { disposed = fn; },
+      };
+      cockpit.viewProvider(path.join(__dirname, "..", "..")).resolveWebviewView(view);
+      cockpit.refresh(); posted.length = 0;
+      cockpit.refresh(true); const first = posted.length;
+      cockpit.refresh(true); cockpit.refresh(true); const idle = posted.length - first;
+      cockpit.refresh(); const forced = posted.length - first - idle;
+      check("an unchanged page is not sent again by the timer's refresh", first === 1 && idle === 0, `first ${first}, idle ${idle}`);
+      check("a refresh asked for by a person or an event always sends", forced === 1, String(forced));
+      disposed();
+    }
+
+    // what is typed into the editor reaches a terminal command line only after it is checked, and a restore is confirmed first
+    {
+      const win = vscode.window;
+      const saved = { showInputBox: win.showInputBox, showWarningMessage: win.showWarningMessage, createTerminal: win.createTerminal };
+      const lines = [];
+      const warnings = [];
+      let typed = null;
+      let answer = "Restore";
+      let boxes = [];
+      try {
+        win.showInputBox = async (options) => { boxes.push(options); return typed; };
+        win.showWarningMessage = async (message, ...rest) => { warnings.push({ message, rest }); return answer; };
+        win.createTerminal = () => ({ show() {}, sendText(line) { lines.push(line); }, dispose() {} });
+
+        typed = 'before"; calc';
+        await vscode.commands.executeCommand("odooCi.dbSnapRestore");
+        const sent = await until(() => lines.length, 5000, 50);
+        check("a restore asks first, and says the data is dropped", warnings.length === 1 && /dropped/.test(warnings[0].message) && warnings[0].rest.some((r) => r === "Restore" || (r && r.modal)), JSON.stringify(warnings));
+        check("a label with a quote reaches the command line cleaned", !!sent && lines.length === 1 && /db-snap restore "before___calc"/.test(lines[0]) && !/calc"?\s*$/.test(lines[0].replace('before___calc"', "")), JSON.stringify(lines));
+
+        lines.length = 0; warnings.length = 0; answer = undefined; typed = "keep";
+        await vscode.commands.executeCommand("odooCi.dbSnapRestore");
+        await sleep(400);
+        check("declining the confirmation runs nothing", lines.length === 0 && warnings.length === 1, JSON.stringify(lines));
+
+        boxes = [];
+        typed = undefined;
+        await vscode.commands.executeCommand("odooCi.newAddon");
+        await sleep(300);
+        const check1 = boxes[0] && boxes[0].validateInput;
+        check("an addon name with a shell character is refused by the input box", typeof check1 === "function" && check1('a"; calc') !== null && check1("good_name") === null, JSON.stringify(boxes.map((b) => !!b.validateInput)));
+      } finally {
+        Object.assign(win, saved);
+      }
+    }
+
     // walking through: the editor opens the log at the line
     await vscode.commands.executeCommand("odooCi.issueNext");
     const first = await until(() => vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.uri.fsPath.toLowerCase() === log.toLowerCase() && vscode.window.activeTextEditor, 10000);
@@ -182,6 +237,12 @@ exports.run = async function run() {
       await m.startServerWith(pr, { db: scratch, update: "", dev: false, port: second });
       const both = await until(async () => { const l = (await m.detectServers(pr)).filter((s) => [first, second].includes(s.port)); return l.length === 2 ? l : null; }, 120000, 1000);
       check("two real servers run at once on two ports", both, JSON.stringify(await m.detectServers(pr)));
+      await m.pollServerStatus(true);
+      const treeRows = api._test.actionsTree.getChildren();
+      const serverRow = treeRows.find((r) => r._kind === "server");
+      const rowsOfServers = api._test.actionsTree.getChildren(serverRow).filter((r) => /^Server :\d+: Running/.test(String(r.label)));
+      check("the sidebar shows both running servers, one row each", rowsOfServers.length === 2 && String(serverRow.label).includes(`:${first}`) && String(serverRow.label).includes(`:${second}`), `${serverRow.label} | ${rowsOfServers.map((r) => r.label).join(", ")}`);
+      check("the cockpit page is given both", cockpit.currentList().filter((s) => [first, second].includes(s.port)).length === 2, JSON.stringify(cockpit.currentList().map((s) => s.port)));
       check("the pages follow the one started last", m.state.focusPort === second && m.serverRun.log && m.serverRun.log.endsWith(`.${second}.log`), `${m.state.focusPort} ${m.serverRun.log}`);
       m.focusServer(first);
       check("Follow switches the log to the other server", m.state.focusPort === first && m.serverRun.log.endsWith(`.${first}.log`), `${m.state.focusPort} ${m.serverRun.log}`);
@@ -243,7 +304,16 @@ exports.run = async function run() {
       check("a real server on a real database became healthy and the Cockpit says so", healthy, JSON.stringify(m.state.health && m.state.health.state));
       const seen = (await m.listOdooProcesses()).map((x) => `${x.pid}: ${x.cmd.slice(0, 220)}`);
       fs.writeFileSync(process.env.ODOO_CI_TEST_PROCESS_LOG || path.join(path.dirname(process.env.ODOO_CI_TEST_READY), "odoo_processes.txt"), seen.join(String.fromCharCode(10)));
-      check("the Cockpit lists exactly the servers that run (no ghost on the default port)", m.state.servers.length === 1, JSON.stringify(m.state.servers.map((x) => [x.port, x.pid])));
+      let extra = null;
+      if (process.env.ODOO_CI_TEST_SECOND_SERVER) {   // a second real server on the same project, for a picture with two
+        extra = port + 1;
+        await m.startServerWith(pr, { db: process.env.ODOO_CI_TEST_REAL_SERVER, update: "", dev: false, port: extra });
+        await until(async () => (await m.detectServers(pr)).filter((s) => [port, extra].includes(s.port)).length === 2, 120000, 1000);
+        await m.pollServerStatus(true);
+        check("two real servers of the project are listed", m.state.servers.length === 2, JSON.stringify(m.state.servers.map((x) => x.port)));
+      } else {
+        check("the Cockpit lists exactly the servers that run (no ghost on the default port)", m.state.servers.length === 1, JSON.stringify(m.state.servers.map((x) => [x.port, x.pid])));
+      }
       await vscode.commands.executeCommand("workbench.action.closeAllEditors");
       await vscode.commands.executeCommand("odooCi.cockpit");                   // the page in the editor area: the whole window shows it
       await vscode.commands.executeCommand("workbench.action.closeSidebar");
@@ -256,6 +326,7 @@ exports.run = async function run() {
         await until(() => fs.existsSync(`${process.env.ODOO_CI_TEST_READY}.${tab}.done`), 60000, 300);
       }
       await m.stopServerAt(port);
+      if (extra) await m.stopServerAt(extra);
       fs.writeFileSync(process.env.ODOO_CI_TEST_READY, "1");
     } else if (process.env.ODOO_CI_TEST_READY) {
       if (process.env.ODOO_CI_TEST_SHOT === "panel") {

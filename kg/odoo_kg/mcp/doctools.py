@@ -55,7 +55,7 @@ NOT_A_RULE_NOTE = (
     "An observed pattern is arithmetic, not a rule: it says how many modules "
     "do something. A recommendation is this build's suggestion and is never an "
     "existing organisational rule -- it has no documented source and no human "
-    "approval. Only 'required_by_odoo' and 'documented_acme_rule' are "
+    "approval. Only 'required_by_odoo' and 'documented_rule' are "
     "obligations, and the second one requires a person to have confirmed the "
     "reading."
 )
@@ -517,7 +517,7 @@ def kg_module_blueprint(context, args):
     )
     buckets = {
         "required_by_odoo": [],
-        "documented_acme_rule": [],
+        "documented_rule": [],
         "observed_pattern": [],
         "recommendation": [],
     }
@@ -543,7 +543,7 @@ def kg_module_blueprint(context, args):
         "limit_clamped": clamped,
         "status": args.get("status") or None,
         "required_by_odoo": buckets["required_by_odoo"],
-        "documented_acme_rule": buckets["documented_acme_rule"],
+        "documented_rule": buckets["documented_rule"],
         "observed_pattern": buckets["observed_pattern"],
         "recommendation": buckets["recommendation"],
         "counts": {name: len(items) for name, items in buckets.items()},

@@ -18,6 +18,8 @@ FILES = [
     "translations.js",
     "rulefixes.js",
     "detect.js",
+    "inputs.js",
+    "terminal_commands.js",
     "project.js",
     "graph.js",
     "media/cockpit.html",

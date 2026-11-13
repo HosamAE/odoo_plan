@@ -37,6 +37,7 @@ public class Win {
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint f);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
   public struct RECT { public int L, T, R, B; }
   public static List<IntPtr> Of(uint pid) {
     var found = new List<IntPtr>();
@@ -45,6 +46,7 @@ public class Win {
   }
 }
 "@
+[Win]::SetProcessDPIAware() | Out-Null   # without it a scaled screen gives the rectangle of the unscaled window: a cropped picture
 $handles = [Win]::Of([uint32]$ProcessId)
 if ($handles.Count -eq 0) { Write-Output "NOWINDOW"; exit 3 }
 $h = $handles[0]

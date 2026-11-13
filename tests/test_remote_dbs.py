@@ -32,7 +32,7 @@ Host *.internal bad!name
     User nobody
 """
 
-DB_LIST = "apps|419|odoo19_apps|6\nclientb_old|174|postgres|0\nnoise line\n"
+DB_LIST = "apps|419|odoo19_apps|6\nold_customer|174|postgres|0\nnoise line\n"
 INSTANCES = """== /etc/odoo19/apps.conf
 db_name = apps
 db_user = odoo19_apps
@@ -78,7 +78,7 @@ class TestHosts(unittest.TestCase):
 class TestParsing(unittest.TestCase):
     def test_databases_with_size_owner_and_sessions(self):
         rows = remote_dbs.parse_databases(DB_LIST)
-        self.assertEqual([r["name"] for r in rows], ["apps", "clientb_old"])
+        self.assertEqual([r["name"] for r in rows], ["apps", "old_customer"])
         self.assertEqual((rows[0]["size_mb"], rows[0]["owner"], rows[0]["sessions"]), (419, "odoo19_apps", 6))
 
     def test_instances_carry_only_the_four_keys_and_never_a_password(self):

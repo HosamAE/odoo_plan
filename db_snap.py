@@ -70,6 +70,27 @@ def detect_project_db():
     conf = read_conf_credentials()
     return conf.get("db_name", "odoo")
 
+class SnapshotError(ValueError):
+    """A name or label that cannot be used safely, or a snapshot that cannot be identified."""
+
+
+def ident(name):
+    """A database name as a quoted SQL identifier (the quote doubled), or SnapshotError when it cannot be one."""
+    name = str(name or "")
+    if not name or len(name.encode("utf-8")) > 63 or any(ord(c) < 32 or c == "\x7f" for c in name):
+        raise SnapshotError(f"'{name}' is not a usable database name (empty, longer than 63 bytes, or has control characters)")
+    return '"' + name.replace('"', '""') + '"'
+
+
+def snapshot_name(db_name, label):
+    """snap_<db>_<label>, with the label cleaned. The name must fit PostgreSQL's 63 bytes: a longer one is silently cut
+    by the server, and two different labels would become the same snapshot."""
+    clean = re.sub(r"[^a-zA-Z0-9_]", "_", label)
+    name = f"snap_{db_name}_{clean}"
+    ident(name)
+    return name, clean
+
+
 def terminate_connections(cur, db_name):
     cur.execute("""
         SELECT pg_terminate_backend(pid)
@@ -80,8 +101,8 @@ def terminate_connections(cur, db_name):
 def save_snapshot(label, db_name, conn):
     if not label:
         label = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    clean_label = re.sub(r"[^a-zA-Z0-9_]", "_", label)
-    snap_db = f"snap_{db_name}_{clean_label}"
+    snap_db, clean_label = snapshot_name(db_name, label)
+    ident(db_name)
 
     cur = conn.cursor()
     cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (db_name,))
@@ -93,35 +114,32 @@ def save_snapshot(label, db_name, conn):
     if cur.fetchone():
         print(f"[WARNING] Snapshot '{snap_db}' already exists. Overwriting...")
         terminate_connections(cur, snap_db)
-        cur.execute(f'DROP DATABASE "{snap_db}";')
+        cur.execute(f"DROP DATABASE {ident(snap_db)};")
 
     print(f"[*] Taking instant snapshot of '{db_name}' -> '{snap_db}'...")
     terminate_connections(cur, db_name)
-    cur.execute(f'CREATE DATABASE "{snap_db}" WITH TEMPLATE "{db_name}";')
+    cur.execute(f"CREATE DATABASE {ident(snap_db)} WITH TEMPLATE {ident(db_name)};")
     print(f"[SUCCESS] Snapshot '{clean_label}' saved successfully in ~1s!")
     return True
 
 def restore_snapshot(label, db_name, conn):
-    clean_label = re.sub(r"[^a-zA-Z0-9_]", "_", label)
-    snap_db = f"snap_{db_name}_{clean_label}"
+    """Replace db_name by a snapshot of it. Only the snapshot named exactly by the label is used: a guess would drop the
+    live database and bring back another one."""
+    snap_db, clean_label = snapshot_name(db_name, label)
+    ident(db_name)
 
     cur = conn.cursor()
     cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (snap_db,))
     if not cur.fetchone():
-        cur.execute("SELECT datname FROM pg_database WHERE datname LIKE %s;", (f"%{clean_label}%",))
-        matches = cur.fetchall()
-        if matches:
-            snap_db = matches[0][0]
-        else:
-            print(f"[ERROR] Snapshot '{snap_db}' not found.")
-            return False
+        print(f"[ERROR] Snapshot '{snap_db}' not found. Nothing was changed. Snapshots: `db-snap list --db {db_name}`.")
+        return False
 
     print(f"[*] Restoring '{db_name}' from snapshot '{snap_db}'...")
     terminate_connections(cur, db_name)
     terminate_connections(cur, snap_db)
 
-    cur.execute(f'DROP DATABASE IF EXISTS "{db_name}";')
-    cur.execute(f'CREATE DATABASE "{db_name}" WITH TEMPLATE "{snap_db}";')
+    cur.execute(f"DROP DATABASE IF EXISTS {ident(db_name)};")
+    cur.execute(f"CREATE DATABASE {ident(db_name)} WITH TEMPLATE {ident(snap_db)};")
     print(f"[SUCCESS] Database '{db_name}' restored to snapshot '{clean_label}'!")
     return True
 
@@ -148,7 +166,8 @@ def list_snapshots(db_name, conn):
 
 def drop_snapshot(label, db_name, conn):
     clean_label = re.sub(r"[^a-zA-Z0-9_]", "_", label)
-    snap_db = f"snap_{db_name}_{clean_label}" if not clean_label.startswith("snap_") else clean_label
+    snap_db = clean_label if clean_label.startswith("snap_") else snapshot_name(db_name, label)[0]
+    ident(snap_db)
 
     cur = conn.cursor()
     cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (snap_db,))
@@ -157,7 +176,7 @@ def drop_snapshot(label, db_name, conn):
         return False
 
     terminate_connections(cur, snap_db)
-    cur.execute(f'DROP DATABASE "{snap_db}";')
+    cur.execute(f"DROP DATABASE {ident(snap_db)};")
     print(f"[SUCCESS] Dropped snapshot '{snap_db}'.")
     return True
 
@@ -190,6 +209,8 @@ def main():
         sys.exit(1)
 
     try:
+        if args.action in ("save", "restore", "drop"):
+            ident(db_name)
         if args.action == "save":
             ok = save_snapshot(args.label, db_name, conn)
             sys.exit(0 if ok else 1)
@@ -201,6 +222,9 @@ def main():
         elif args.action == "drop":
             ok = drop_snapshot(args.label, db_name, conn)
             sys.exit(0 if ok else 1)
+    except SnapshotError as exc:
+        print(f"[ERROR] {exc}")
+        sys.exit(1)
     finally:
         conn.close()
 

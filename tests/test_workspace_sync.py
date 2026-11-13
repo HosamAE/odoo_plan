@@ -1,5 +1,6 @@
 """The workspace sync must follow the layout that is on disk: ProjectsOdoo<NN>\\<project> or odoo<NN>\\projects\\<project>."""
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -222,6 +223,27 @@ class TestNothingAboutAnEstateIsBuiltIn(unittest.TestCase):
             source = handle.read().lower()
         for word in ("acme", "hoss", "clientb", "clientc", "sample_engine", "sample_helper", "sample_shared"):
             self.assertNotIn(word, source, word)
+
+    def test_no_shared_file_of_the_tools_names_a_company_or_customer(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        words = ("acme", "clientb", "clientc", "sample_engine", "sample_helper")
+        skip = {"local", "node_modules", "tests", "__pycache__", ".git", "out"}
+        found = []
+        listed = subprocess.run(["git", "-C", root, "ls-files"], capture_output=True, text=True)   # what is published
+        tracked = {os.path.normpath(os.path.join(root, line)) for line in listed.stdout.splitlines()}
+        with open(os.path.join(root, ".gitignore"), encoding="utf-8") as handle:   # files kept out of git are not published (a copy without .git still knows)
+            ignored = {line.strip().strip("/") for line in handle if line.strip() and not line.startswith(("#", "!")) and "*" not in line}
+        for folder, dirs, files in os.walk(root):
+            dirs[:] = [d for d in dirs if d not in skip]
+            for name in files:
+                path = os.path.join(folder, name)
+                if os.path.relpath(path, root).replace(os.sep, "/") in ignored or (tracked and os.path.normpath(path) not in tracked)                         or name == "package-lock.json" or not name.endswith(
+                        (".py", ".js", ".md", ".json", ".toml", ".bat", ".code-workspace", ".html")):
+                    continue
+                with open(path, encoding="utf-8", errors="ignore") as handle:
+                    text = handle.read().lower()
+                found += [f"{os.path.relpath(path, root)}: {w}" for w in words if w in text]
+        self.assertEqual(found, [])
 
     def with_local(self, text):
         tmp = tempfile.TemporaryDirectory()
