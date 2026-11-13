@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.9
+
+- The pictures of the listing (Open VSX, the extension's page in the editor) show: they pointed into the repository root, where they do not exist; they are now full addresses, and the repository entry names the folder of the extension.
+
 ## 2.4.8
 
 - The front page of the repository says what the extension does for you and what it needs, and shows it; the Databases picture matches the page.
