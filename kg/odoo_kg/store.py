@@ -871,7 +871,7 @@ CREATE TABLE IF NOT EXISTS node_convention (
     category      TEXT NOT NULL,
     statement     TEXT NOT NULL,
     -- required_by_odoo      the framework will not load the module without it
-    -- documented_acme_rule  a document in this repository states it
+    -- documented_rule  a document in this repository states it
     -- observed_pattern      counted across modules, mandated by nobody
     -- recommendation        this build's suggestion, pending human approval
     status        TEXT NOT NULL,

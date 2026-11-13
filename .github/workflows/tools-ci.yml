@@ -40,6 +40,7 @@ jobs:
           node vscode-extension/test/detect.test.js
           node vscode-extension/test/server.test.js
           node vscode-extension/test/resilience.test.js
+          node vscode-extension/test/inputs.test.js
           node vscode-extension/test/cockpit.test.js
           node vscode-extension/test/cockpit_ui.test.js
           node vscode-extension/test/translations_ui.test.js

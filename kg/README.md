@@ -211,13 +211,13 @@ cd c:\odoo\tools\odoo-kg
 ### Validate the configuration and environment (writes nothing)
 
 ```powershell
-python -m odoo_kg doctor --config config\acme-testing19.toml
+python -m odoo_kg doctor --config config\sample-project.toml
 ```
 
 ### Build and publish a graph
 
 ```powershell
-python -m odoo_kg index --config config\acme-testing19.toml
+python -m odoo_kg index --config config\sample-project.toml
 ```
 
 This writes a **new generation** — `generations\gen-<run_id>\graph.db` inside
@@ -237,13 +237,13 @@ it.
 ### Inspect the published graph
 
 ```powershell
-python -m odoo_kg stats --config config\acme-testing19.toml
+python -m odoo_kg stats --config config\sample-project.toml
 ```
 
 ### See which generation is published
 
 ```powershell
-python -m odoo_kg published --config config\acme-testing19.toml
+python -m odoo_kg published --config config\sample-project.toml
 ```
 
 Prints the generation, its file, when it was published, the commit it was
@@ -254,7 +254,7 @@ matches.
 ### Is the graph still fresh?
 
 ```powershell
-python -m odoo_kg status --config config\acme-testing19.toml
+python -m odoo_kg status --config config\sample-project.toml
 ```
 
 `fresh` means the published graph describes the commit and working tree you
@@ -265,7 +265,7 @@ when not.
 ### List the generations on disk
 
 ```powershell
-python -m odoo_kg generations --config config\acme-testing19.toml
+python -m odoo_kg generations --config config\sample-project.toml
 ```
 
 Lists what is there and marks the published one. **It deletes nothing.** See
@@ -274,7 +274,7 @@ Lists what is there and marks the published one. **It deletes nothing.** See
 ### Check the acceptance criteria against the published graph
 
 ```powershell
-python -m odoo_kg verify --config config\acme-testing19.toml
+python -m odoo_kg verify --config config\sample-project.toml
 ```
 
 Exit code is `0` when every check passes, `1` when one fails, `2` on a
@@ -283,7 +283,7 @@ configuration or environment error.
 ### Run the MCP server (M2)
 
 ```powershell
-python -m odoo_kg serve --config config\acme-testing19.toml
+python -m odoo_kg serve --config config\sample-project.toml
 ```
 
 The server speaks JSON-RPC 2.0 over stdio and waits for a client on stdin. Run
@@ -299,7 +299,7 @@ $req = @(
   '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
   '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"kg_status","arguments":{}}}'
 ) -join "`n"
-$req | python -m odoo_kg serve --config config\acme-testing19.toml
+$req | python -m odoo_kg serve --config config\sample-project.toml
 ```
 
 No Claude configuration and no `.mcp.json` are created by this repository;
@@ -459,7 +459,7 @@ rules permit. `core_root` is recorded in the graph's project metadata but is
 `odoo_kg/safety.py` before every write:
 
 ```
-%LOCALAPPDATA%\odoo-kg\projects\acme-testing19\graph.db
+%LOCALAPPDATA%\odoo-kg\projects\sample-project\graph.db
 ```
 
 The write guard refuses any target that is inside `repo_root`, inside
@@ -569,7 +569,7 @@ c:\odoo\tools\odoo-kg\
 │     ├─ server.py      MCP dispatch and the stdio loop
 │     └─ tools.py       tool schemas, validation, handlers
 ├─ config\
-│  └─ acme-testing19.toml
+│  └─ sample-project.toml
 ├─ tests\
 └─ pyproject.toml       metadata only; zero dependencies
 ```

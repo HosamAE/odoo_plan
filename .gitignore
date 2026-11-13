@@ -11,3 +11,6 @@ kg/config/local/
 
 # per machine: a dashboard of THIS machine's own projects, with links to their local folders
 docs/index.html
+
+# a local file of this machine: its estate of projects (see local/workspace_local.py)
+/local/

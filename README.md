@@ -23,10 +23,10 @@ python C:\odoo\odoo20\tools\cli.py setup
 python C:\odoo\odoo20\tools\cli.py setup --db-role     # the PostgreSQL role (asks for postgres's password)
 
 # 4. each project
-odoo-ai new-project Acme --git https://github.com/<owner>/<repo> --branch <branch>
+odoo-ai new-project MyProject --git https://github.com/<owner>/<repo> --branch <branch>
 ```
 
-Then open `C:\odoo\odoo20\projects\Acme\Acme.code-workspace`.
+Then open `C:\odoo\odoo20\projects\MyProject\MyProject.code-workspace`.
 
 ## The version folder
 

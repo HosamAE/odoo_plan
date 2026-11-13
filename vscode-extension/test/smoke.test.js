@@ -61,13 +61,29 @@ assert.ok(pkg.contributes.viewsContainers.panel.some((c) => c.id === "odooCockpi
 
 const env = registered.trees["odooCi.env"];
 const roots = env.getChildren();
-assert.deepStrictEqual(roots.slice(0, 4).map((r) => r.label.replace("  (this window)", "")), ["Odoo 17", "Odoo 18", "Odoo 19", "Odoo 20"]);
+// this window's version only: no other version, no list of projects
+assert.ok(roots[0].label.startsWith("Odoo 19"), "the first row is the version of the open project");
+assert.ok(!roots.some((r) => /^Odoo (17|18|20)/.test(r.label)), "the other versions are not listed");
+assert.ok(!roots.some((r) => r.command && r.command.command === "vscode.openFolder"), "no other project is listed");
+assert.deepStrictEqual(roots.slice(1, 4).map((r) => r.label), ["Tools", "Odoo source", "Python venv"], "what this version needs");
 assert.strictEqual(roots[roots.length - 1].label, "Maintenance");
 const maintenance = env.getChildren(roots[roots.length - 1]);
 assert.ok(maintenance.length >= 7 && maintenance.every((m) => m.command && registered.commands[m.command.command]), "maintenance items must call registered commands");
-const v19 = roots.find((r) => r.label.startsWith("Odoo 19"));
-assert.ok(v19.label.includes("this window"), "the window's own version is marked");
-assert.ok(env.getChildren(v19).length >= 3, "a version shows tools/source/venv");
+// any number of servers of this project is shown, one row each (and only this project's)
+{
+  const saved = ext._test.serverState.servers;
+  ext._test.serverState.servers = [
+    { pid: 11, port: 8069, conf: "a.conf", mine: true, db: "one" }, { pid: 12, port: 8070, conf: "a.conf", mine: true, db: "two" },
+    { pid: 13, port: 8071, conf: "a.conf", mine: true, db: null }, { pid: 99, port: 9000, conf: "x.conf", mine: false, db: "foreign" }];
+  const tree = registered.trees["odooCi.actions"];
+  const top = tree.getChildren();
+  const serverRow = top.find((r) => r._kind === "server");
+  assert.strictEqual(serverRow.label, "Servers (:8069 :8070 :8071)", "the header names every server of the project");
+  const running = tree.getChildren(serverRow).filter((r) => /^Server :\d+: Running/.test(r.label));
+  assert.deepStrictEqual(running.map((r) => r.label), ["Server :8069: Running", "Server :8070: Running", "Server :8071: Running"], "one row for each, none for another project's");
+  assert.ok(/one/.test(running[0].description) && /two/.test(running[1].description), "each with its database");
+  ext._test.serverState.servers = saved;
+}
 // R3 quick fix: only where it is safe
 const { fixLenSearch } = ext._test;
 assert.strictEqual(fixLenSearch("n = len(self.env['x'].search([('a', '=', 1)]))"), "n = self.env['x'].search_count([('a', '=', 1)])");
@@ -192,6 +208,6 @@ assert.strictEqual(parseOdooCommand(`python3.12 odoo-bin --http-port=1901`, proj
   setIssuesSource("Server", null, null);
 }
 
-console.log(`smoke OK: ${Object.keys(registered.commands).length} commands, ${Object.keys(registered.trees).length} views, ${roots.length - 1} versions listed`);
+console.log(`smoke OK: ${Object.keys(registered.commands).length} commands, ${Object.keys(registered.trees).length} views, this version only`);
 subscriptions.forEach((s) => s.dispose && s.dispose());
 process.exit(0);

@@ -25,26 +25,26 @@ HEALTHY = """\
 
 # a request that crashed because the database is older than the code
 UNDEFINED_COLUMN = HEALTHY + """\
-2026-11-10 23:07:44,400 5376 ERROR hx_full_ci3 odoo.http: Exception during request handling.
+2026-11-10 23:07:44,400 5376 ERROR ax_full_ci3 odoo.http: Exception during request handling.
 Traceback (most recent call last):
   File "C:\\odoo\\odoo19\\odoo\\odoo\\sql_db.py", line 440, in execute
     self._obj.execute(query, params)
-psycopg2.errors.UndefinedColumn: column res_partner.hx_parakey_external_user_id does not exist
-LINE 1: ...ignage_name", "res_partner"."hx_home_company_id", "res_partn...
+psycopg2.errors.UndefinedColumn: column res_partner.ax_parakey_external_user_id does not exist
+LINE 1: ...ignage_name", "res_partner"."ax_home_company_id", "res_partn...
 
-2026-11-10 23:07:44,469 5376 INFO hx_full_ci3 werkzeug: 127.0.0.1 - - [10/Nov/2026 23:07:44] "GET /odoo HTTP/1.1" 500 - 4 0.003 0.007
+2026-11-10 23:07:44,469 5376 INFO ax_full_ci3 werkzeug: 127.0.0.1 - - [10/Nov/2026 23:07:44] "GET /odoo HTTP/1.1" 500 - 4 0.003 0.007
 """
 
 # an upgrade that failed: the other server held the same database
 CONCURRENT = """\
 2026-11-10 23:11:08,000 73360 INFO ? odoo: Odoo version 19.0
-2026-11-10 23:11:14,557 73360 WARNING hx_full_ci3 odoo.addons.attachment_indexation.models.ir_attachment: Attachment indexation of PDF documents is unavailable because the 'pdfminer.six' Python librar
-2026-11-10 23:11:15,596 73360 ERROR hx_full_ci3 odoo.sql_db: bad query: b'UPDATE ir_module_module SET demo = false WHERE id = 84'
+2026-11-10 23:11:14,557 73360 WARNING ax_full_ci3 odoo.addons.attachment_indexation.models.ir_attachment: Attachment indexation of PDF documents is unavailable because the 'pdfminer.six' Python librar
+2026-11-10 23:11:15,596 73360 ERROR ax_full_ci3 odoo.sql_db: bad query: b'UPDATE ir_module_module SET demo = false WHERE id = 84'
 ERROR: could not serialize access due to concurrent update
 
-2026-11-10 23:11:15,597 73360 WARNING hx_full_ci3 odoo.modules.loading: Transient module states were reset
-2026-11-10 23:11:15,597 73360 ERROR hx_full_ci3 odoo.registry: Failed to load registry
-2026-11-10 23:11:15,597 73360 CRITICAL hx_full_ci3 odoo.service.server: Failed to initialize database `hx_full_ci3`.
+2026-11-10 23:11:15,597 73360 WARNING ax_full_ci3 odoo.modules.loading: Transient module states were reset
+2026-11-10 23:11:15,597 73360 ERROR ax_full_ci3 odoo.registry: Failed to load registry
+2026-11-10 23:11:15,597 73360 CRITICAL ax_full_ci3 odoo.service.server: Failed to initialize database `ax_full_ci3`.
 """
 
 BROKEN_VIEW = """\
@@ -73,7 +73,7 @@ class TestAnalyzeLog(unittest.TestCase):
         result = server_ctl.analyze_log(UNDEFINED_COLUMN)
         self.assertEqual(result["state"], "problems")
         self.assertEqual(result["http_500"], 1)
-        self.assertIn("hx_parakey_external_user_id", result["first_issue"]["message"])
+        self.assertIn("ax_parakey_external_user_id", result["first_issue"]["message"])
         self.assertIn("-u", result["hint"])
         self.assertIn("older than the code", result["hint"])
 
@@ -105,13 +105,13 @@ class TestAnalyzeLog(unittest.TestCase):
 
 
 # a traceback Odoo attaches to a WARNING it tolerates: this is in the log of a SUCCESSFUL `-u all`
-TOLERATED = """2026-11-10 23:15:43,409 45616 INFO hx_full_ci3 odoo.modules.loading: loading acme_planning/views/board_menus.xml
-2026-11-10 23:15:43,424 45616 WARNING hx_full_ci3 odoo.tools.convert: Skipping deletion for missing XML ID `'action_gantt_timeoff'`
+TOLERATED = """2026-11-10 23:15:43,409 45616 INFO ax_full_ci3 odoo.modules.loading: loading acme_planning/views/board_menus.xml
+2026-11-10 23:15:43,424 45616 WARNING ax_full_ci3 odoo.tools.convert: Skipping deletion for missing XML ID `'action_gantt_timeoff'`
 Traceback (most recent call last):
   File "C:/odoo/odoo19/odoo/odoo/tools/convert.py", line 261, in _tag_delete
     x
 ValueError: External ID not found in the system: acme_planning.action_gantt_timeoff
-2026-11-10 23:16:10,567 45616 INFO hx_full_ci3 odoo.modules.loading: Modules loaded.
+2026-11-10 23:16:10,567 45616 INFO ax_full_ci3 odoo.modules.loading: Modules loaded.
 """
 
 
@@ -202,7 +202,7 @@ class TestCli(unittest.TestCase):
         proc.returncode = 0
         with mock.patch.object(server_ctl, "other_connections", return_value=0), \
                 mock.patch.object(server_ctl.subprocess, "Popen", return_value=proc):
-            code, out = self.run_cli(["upgrade", "--conf", "p.conf", "-d", "hx_full_ci3", "--quiet"])
+            code, out = self.run_cli(["upgrade", "--conf", "p.conf", "-d", "ax_full_ci3", "--quiet"])
         self.assertEqual(code, 1)
         self.assertIn("FAILED", out)
 
@@ -215,7 +215,7 @@ class TestCli(unittest.TestCase):
                 mock.patch.object(server_ctl.subprocess, "Popen", return_value=proc):
             code, out = self.run_cli(["upgrade", "--conf", "p.conf", "-d", "db1", "--quiet"])
         self.assertEqual(code, 0)
-        self.assertIn("errors of other databases left out: hx_full_ci3", out)
+        self.assertIn("errors of other databases left out: ax_full_ci3", out)
 
     def test_upgrade_without_a_database_is_refused(self):
         code, _ = self.run_cli(["upgrade", "--conf", "p.conf"])
@@ -253,11 +253,11 @@ if __name__ == "__main__":
 
 
 class TestDrift(unittest.TestCase):
-    OUT = 'noise\nHX_DRIFT_JSON:{"acme_key_parakey": ["res.partner.hx_parakey_external_user_id"], "?": ["x.y"]}\n'
+    OUT = 'noise\nHX_DRIFT_JSON:{"acme_key_parakey": ["res.partner.ax_parakey_external_user_id"], "?": ["x.y"]}\n'
 
     def test_the_answer_is_found_among_the_shells_noise(self):
         self.assertEqual(server_ctl.parse_drift(self.OUT)["acme_key_parakey"],
-                         ["res.partner.hx_parakey_external_user_id"])
+                         ["res.partner.ax_parakey_external_user_id"])
         self.assertEqual(server_ctl.parse_drift('HX_DRIFT_JSON:{}\n'), {})
 
     def test_no_answer_is_none_not_an_empty_database(self):
@@ -295,7 +295,7 @@ class TestDrift(unittest.TestCase):
 class TestLocation(unittest.TestCase):
     TRACE = ('2026-11-10 23:00:00,000 1 ERROR db odoo.http: Exception during request handling.\nTraceback (most recent call last):\n'
              '  File "C:\\odoo\\odoo19\\odoo\\odoo\\http.py", line 2856, in __call__\n    x\n'
-             '  File "c:\\odoo\\projectsodoo19\\acme\\acme_work_plan\\models\\daymap.py", line 164, in hx_daymap_data\n    y\n'
+             '  File "c:\\odoo\\projectsodoo19\\acme\\acme_work_plan\\models\\daymap.py", line 164, in ax_daymap_data\n    y\n'
              '  File "C:\\odoo\\odoo19\\odoo\\odoo\\orm\\fields.py", line 1700, in __get__\n    z\n'
              'AttributeError: \'hr.leave\' object has no attribute \'request_unit_hour\'\n')
 
@@ -362,12 +362,12 @@ class TestDatabaseReport(unittest.TestCase):
 NO_DATABASE = """\
 2026-11-10 23:39:30,027 121120 INFO ? odoo.service.server: HTTP service (werkzeug) running on HoOsS.home:1900
 2026-11-10 23:40:31,191 121120 ERROR acme_help_test odoo.sql_db: bad query: b'SELECT "res_company"."id" FROM res_company'
-ERROR: column res_company.hx_show_all_branches does not exist
+ERROR: column res_company.ax_show_all_branches does not exist
 2026-11-10 23:40:31,202 121120 WARNING ? odoo.service.server: cron0 encountered an Exception:
 2026-11-10 23:40:31,722 121120 ERROR acme_testing19 odoo.sql_db: bad query: b'SELECT "res_company"."id" FROM res_company'
-ERROR: column res_company.hx_show_all_branches does not exist
-2026-11-10 23:40:32,100 121120 ERROR hx_ci_v3 odoo.registry: Failed to load registry
-2026-11-10 23:40:33,000 121120 INFO hx_try odoo.modules.loading: Modules loaded.
+ERROR: column res_company.ax_show_all_branches does not exist
+2026-11-10 23:40:32,100 121120 ERROR ax_ci_v3 odoo.registry: Failed to load registry
+2026-11-10 23:40:33,000 121120 INFO ax_try odoo.modules.loading: Modules loaded.
 """
 
 
@@ -375,20 +375,20 @@ class TestNoDatabaseChosen(unittest.TestCase):
     def test_other_databases_failing_is_a_problem_not_a_dead_server(self):
         result = server_ctl.analyze_log(NO_DATABASE)
         self.assertEqual(result["state"], "problems", "the server answers: it has not failed")
-        self.assertEqual(result["databases_failing"], ["acme_help_test", "acme_testing19", "hx_ci_v3"])
+        self.assertEqual(result["databases_failing"], ["acme_help_test", "acme_testing19", "ax_ci_v3"])
         self.assertIn("No database was chosen", result["hint"])
         self.assertIn("-d <database>", result["hint"])
         self.assertIn("Databases that fail to load", server_ctl.summarize(result))
 
     def test_with_a_database_chosen_only_its_own_errors_count(self):
-        result = server_ctl.analyze_log(NO_DATABASE, database="hx_try")
+        result = server_ctl.analyze_log(NO_DATABASE, database="ax_try")
         self.assertEqual(result["state"], "healthy")
         self.assertEqual(result["errors"], 0)
-        self.assertEqual(result["other_databases"], ["acme_help_test", "acme_testing19", "hx_ci_v3"])
+        self.assertEqual(result["other_databases"], ["acme_help_test", "acme_testing19", "ax_ci_v3"])
         self.assertIn("left out", server_ctl.summarize(result))
 
     def test_the_chosen_database_failing_is_still_a_failure(self):
-        result = server_ctl.analyze_log(NO_DATABASE, database="hx_ci_v3")
+        result = server_ctl.analyze_log(NO_DATABASE, database="ax_ci_v3")
         self.assertEqual(result["state"], "failed")
 
     def test_the_cli_takes_the_database(self):
@@ -396,7 +396,7 @@ class TestNoDatabaseChosen(unittest.TestCase):
             handle.write(NO_DATABASE)
         try:
             with mock.patch("builtins.print") as shown:
-                code = server_ctl.main(["health", "--log", handle.name, "--json", "--db", "hx_try"])
+                code = server_ctl.main(["health", "--log", handle.name, "--json", "--db", "ax_try"])
             self.assertEqual((code, json.loads(shown.call_args.args[0])["state"]), (0, "healthy"))
         finally:
             os.unlink(handle.name)

@@ -10,6 +10,7 @@ Checks the layout agreed on 2026-11-08 for the version these tools belong to:
 `--fix` repairs what is safe to repair (launcher, PATH, pylint .pth); it never
 deletes anything, it only names what is left over.
 """
+import glob
 import json
 import os
 import shutil
@@ -76,7 +77,11 @@ def check_tools(r, v, fix):
     plugins = os.path.join(TOOLS_DIR, "pylint_plugins")
     if os.path.isdir(plugins):
         want = f"{WIN_ROOT}/odoo{v}/tools/pylint_plugins"
-        pth = fs(f"{WIN_ROOT}/odoo{v}/venv/Lib/site-packages/acme_pylint_plugins.pth")
+        pth = fs(f"{WIN_ROOT}/odoo{v}/venv/Lib/site-packages/odoo_pylint_plugins.pth")
+        if fix:   # earlier versions named this file after a project; the one name left is ours
+            for left in glob.glob(os.path.join(os.path.dirname(pth), "*_pylint_plugins.pth")):
+                if os.path.basename(left) != os.path.basename(pth):
+                    os.remove(left)
         have = open(pth, encoding="utf-8").read().strip() if os.path.isfile(pth) else ""
         if have != want and fix and os.path.isdir(os.path.dirname(pth)):
             with open(pth, "w", encoding="utf-8") as handle:
