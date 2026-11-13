@@ -46,8 +46,50 @@ def is_overlay(path):
     return any(fnmatch.fnmatch(path, pattern) for pattern in OVERLAY_PATTERNS)
 
 
+def _ignored_by(root):
+    """A function rel-path -> True for what the .gitignore at `root` keeps out of git.
+
+    Used when `root` is not a git work tree (a copy, a temporary folder): the tools tree is what git would publish,
+    never what happens to lie on this machine's disk (a graph config, a dashboard of local projects, an estate file)."""
+    patterns = []
+    path = os.path.join(root, ".gitignore")
+    if os.path.isfile(path):
+        with open(path, encoding="utf-8") as handle:
+            patterns = [ln.strip() for ln in handle if ln.strip() and not ln.startswith(("#", "!"))]
+
+    def ignored(rel):
+        parts = rel.split("/")
+        for pattern in patterns:
+            anchored = pattern.startswith("/")
+            body = pattern.strip("/")
+            if anchored or "/" in body:
+                if rel == body or rel.startswith(body + "/") or fnmatch.fnmatch(rel, body):
+                    return True
+            elif any(fnmatch.fnmatch(part, body) for part in parts):
+                return True
+        return False
+    return ignored
+
+
+def _git_listed(root):
+    """What git itself lists under `root` (tracked, or new and not ignored), or None when `root` is not a work tree."""
+    probe = subprocess.run(["git", "-C", root, "rev-parse", "--is-inside-work-tree"], capture_output=True, text=True, check=False)
+    if probe.returncode or probe.stdout.strip() != "true":
+        return None
+    listed = subprocess.run(["git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+                            capture_output=True, check=False)
+    if listed.returncode:
+        return None
+    return {p for p in listed.stdout.decode("utf-8").split("\0") if p}
+
+
 def tools_files(root):
-    """Relative posix paths of the tools tree under `root` (no caches, no machine-local files)."""
+    """Relative posix paths of the tools tree under `root`: what git publishes, no caches, no machine-local files.
+
+    In a git work tree git decides (a file in .gitignore is never part of the tools). Elsewhere the .gitignore at `root` does
+    (a tree that was built here has none, and is listed whole)."""
+    listed = _git_listed(root)
+    ignored = None if listed is not None else _ignored_by(root)
     found = []
     for base, dirs, files in os.walk(root):
         rel_base = os.path.relpath(base, root).replace(os.sep, "/")
@@ -57,6 +99,10 @@ def tools_files(root):
             if name in SKIP_FILES or name.endswith(SKIP_SUFFIXES):
                 continue
             rel = name if rel_base == "." else f"{rel_base}/{name}"
+            if listed is not None and rel not in listed:
+                continue
+            if ignored is not None and ignored(rel):
+                continue
             found.append(rel)
     return sorted(found)
 
