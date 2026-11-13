@@ -10,11 +10,12 @@
   "homepage": "https://github.com/HosamAE/odoo_plan",
   "repository": {
     "type": "git",
-    "url": "https://github.com/HosamAE/odoo_plan.git"
+    "url": "https://github.com/HosamAE/odoo_plan.git",
+    "directory": "vscode-extension"
   },
   "icon": "media/icon.png",
   "galleryBanner": { "color": "#1f1f1f", "theme": "dark" },
-  "version": "2.4.8",
+  "version": "2.4.9",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
