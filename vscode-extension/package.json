@@ -1,7 +1,7 @@
 {
   "name": "odoo-ci",
   "displayName": "Cockpit Odoo",
-  "description": "One control room for the Odoo projects on your machine (17-20): servers, databases, quality checks, errors tied to your code, the project's knowledge graph with the dependency tree of the module you are editing, tools, and remote databases over SSH.",
+  "description": "Run, test and inspect your Odoo projects (17-20) from one panel: servers, databases, errors linked to your code, and the dependency map of the module you are editing.",
   "publisher": "HosamAE",
   "author": {
     "name": "HosamAE",
@@ -13,7 +13,7 @@
     "url": "https://github.com/HosamAE/odoo_plan.git"
   },
   "icon": "media/icon.png",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
