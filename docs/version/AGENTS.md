@@ -22,7 +22,7 @@ Odoo Executable: `C:\odoo\odoo19\odoo\odoo-bin`
 
 * **NEVER** run any Git command without explicit user confirmation (`Yes/No`).
 * **Manifest Version Bump**: Do NOT bump version in `__manifest__.py` during regular code edits. ONLY bump version (`19.0.x.y.z`) when explicitly requested by the user to commit or push to Git.
-* **Module Registry Guard (`.github/modules.txt`)**: When adding, removing, renaming, or deprecating a module, you MUST immediately synchronize `.github/modules.txt` (`gate`, `ship`, or `skip`). Always verify using `python .github/scripts/acme_modules.py`.
+* **Module Registry Guard (`.github/modules.txt`)**: When adding, removing, renaming, or deprecating a module, you MUST immediately synchronize `.github/modules.txt` (`gate`, `ship`, or `skip`). If the project has a script that checks the register (`.github/scripts/<company>_modules.py`), run it.
 * **Odoo Commit Format**: `[FIX] module: summary`, `[ADD] module: summary`, `[IMP] module: summary`, `[REF] module: summary`, `[REM] module: summary`.
 
 ### 4. RECAP, SECURITY & PROCESS TERMINATION
@@ -48,14 +48,14 @@ Full Reference: See [ODOO19_BREAKING_CHANGES_AND_FRAMEWORK_RULES.md](file:///c:/
 3. **Mail Composer Context**: Use `default_res_ids: [id]` list instead of deprecated `default_res_id`.
 4. **No Inline `parent.` Context**: Do not use `parent.field` in inline list contexts; use `@api.onchange`.
 5. **Product Catalog Kwargs**: Always pass `**kwargs` to `_get_product_catalog_record_lines`.
-6. **Strict Manifest Categories**: Use registered categories like `Acme/Booking`, `Acme/Conference`, `Acme/Coworking`.
+6. **Strict Manifest Categories**: Use the categories the project has registered (its manifests already show them), e.g. `<Company>/Booking`; do not invent a new one.
 7. **Search View Syntax**: `<group>` inside `<search>` MUST only contain `<filter>` tags with `group_by`.
 
 ---
 
 ## 🚀 ADVANCED RULES (SELF-VERIFY & NEGATIVE CONSTRAINTS)
 
-* **Self-Verification**: Auto-verify XML/Python syntax via `odoo-ai lint` and verify module registry via `python .github/scripts/acme_modules.py` before marking tasks done.
+* **Self-Verification**: Auto-verify XML/Python syntax via `odoo-ai lint` and verify the module register with the project's own script (`.github/scripts/<company>_modules.py`, when it has one) before marking tasks done.
 * **Memory Bank**: Read/update `PROGRESS.md` in project root.
 * **Diff & Patching**: Output targeted snippets instead of full files.
 * ❌ **NO Raw SQL**, ❌ **NO `len(search())`**, ❌ **NO Hardcoded DB IDs**, ❌ **NO Direct DOM in OWL**, ❌ **NO Unused Imports (Zero unused symbols/modules)**.

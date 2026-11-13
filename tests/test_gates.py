@@ -104,6 +104,44 @@ class TestXmlRules(unittest.TestCase):
         self.assertEqual(rules(xml_findings("v.xml", "<x context=\"{'default_res_id': 1}\"/>")), ["R2"])
 
 
+class TestTheLogGateKnowsWhoseModelsAreOurs(unittest.TestCase):
+    """The gate reads the log of any project: our models are named by the project, not by these tools."""
+
+    def run_gate(self, files, log_line):
+        import importlib
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            for rel, text in files.items():
+                (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                (root / rel).write_text(text, encoding="utf-8")
+            log = root / "odoo.log"
+            log.write_text(log_line + "\n", encoding="utf-8")
+            with mock.patch.dict(os.environ, {"GATE_ROOT": tmp}):
+                for name in ("gate_common", "check_test_log"):
+                    sys.modules.pop(name, None)
+                gate = importlib.import_module("check_test_log")
+                try:
+                    return gate.main(str(log))
+                finally:
+                    for name in ("gate_common", "check_test_log"):
+                        sys.modules.pop(name, None)
+
+    LINE = ("2026-11-08 10:00:00,000 1 WARNING db odoo.orm.fields: Field 'acme.booking.sale_order_id' in dependency of x "
+            "should be searchable (DeprecationWarning)")
+
+    def test_a_model_named_like_our_modules_is_caught_without_any_setting(self):
+        files = {"acme_sale/__manifest__.py": "{}", "acme_hr/__manifest__.py": "{}"}
+        self.assertEqual(self.run_gate(files, self.LINE), 1)
+
+    def test_a_model_of_somebody_else_is_not(self):
+        files = {"other_sale/__manifest__.py": "{}"}
+        self.assertEqual(self.run_gate(files, self.LINE), 0)
+
+    def test_the_project_can_list_prefixes_its_models_use_but_its_modules_do_not(self):
+        files = {"other_sale/__manifest__.py": "{}", ".github/model_prefixes.txt": "# our models\nacme\n"}
+        self.assertEqual(self.run_gate(files, self.LINE), 1)
+
+
 class TestFindOdoo(unittest.TestCase):
     """find_odoo derives the source from the project's location: no C:/odoo in the code."""
 

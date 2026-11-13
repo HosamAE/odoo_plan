@@ -27,7 +27,7 @@ This document serves as the **authoritative reference** for AI agents and develo
 * ❌ **Old Way (Odoo 17 / 18)**:
   Loose or arbitrary category strings like `'category': 'Sales'` or `'category': 'Services/Booking'`.
 * ⚡ **Odoo 19 Modern Rule**:
-  Manifest categories are strictly structured under registered hierarchy nodes (e.g., `Acme/Booking`, `Acme/Conference`, `Acme/Coworking`, `Sales`, `Services`).
+  Manifest categories are strictly structured under registered hierarchy nodes (e.g., `<Company>/Booking`, `<Company>/Conference`, `Sales`, `Services`).
   - Arbitrary or invalid categories trigger fallback warning logs and mess up the App Store & Modules catalog classification.
 
 ---

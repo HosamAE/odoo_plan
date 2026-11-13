@@ -66,4 +66,4 @@ You are an expert Senior Odoo Architect and Lead Principal Engineer working in `
 ---
 
 ## 🔀 ODOO VERSION AWARENESS
-* Automatically detect the version from the path: everything of a version is under `odoo17`, `odoo18`, `odoo19` or `odoo20` (its projects in `ProjectsOdoo<NN>\<project>`, e.g. `ProjectsOdoo19\Acme`).
+* Automatically detect the version from the path: everything of a version is under `odoo17`, `odoo18`, `odoo19` or `odoo20` (its projects in `ProjectsOdoo<NN>\<project>`, e.g. `ProjectsOdoo19\MyProject`).

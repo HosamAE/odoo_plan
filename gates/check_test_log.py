@@ -28,7 +28,7 @@ import pathlib
 import re
 import sys
 
-from gate_common import modules
+from gate_common import model_prefixes, modules
 
 
 
@@ -37,7 +37,8 @@ OURS = modules()
 # A path inside one of our modules, in either slash direction, any case.
 PATH_RX = re.compile(r"[\\/](%s)[\\/][^\s:]+\.py" % "|".join(sorted(map(re.escape, OURS))), re.I)
 # A model of ours, quoted in a warning Odoo raises from its own files.
-OUR_MODEL_RX = re.compile(r"'((?:hx|hxg|acme|hoss)\.[\w.]+)'")
+PREFIXES = model_prefixes()
+OUR_MODEL_RX = re.compile(r"'((?:%s)\.[\w.]+)'" % "|".join(sorted(map(re.escape, PREFIXES)))) if PREFIXES else None
 LEVEL_RX = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d+ \d+ (WARNING|ERROR) \S+ (\S+): (.*)$")
 
 
@@ -61,7 +62,7 @@ def finding(logger, message):
             where = p.group(0).replace("\\", "/").lstrip("/")
             what = re.sub(r"^.*?(DeprecationWarning|UserWarning|Warning): ", r"\1: ", message)
             return f"{where}: {what[:140]}"
-        ours = OUR_MODEL_RX.search(message)
+        ours = OUR_MODEL_RX.search(message) if OUR_MODEL_RX else None
         if ours:
             what = re.sub(r"^.*?(DeprecationWarning|UserWarning|Warning): ", r"\1: ", message)
             return f"{ours.group(1)}: {what[:160]}"
