@@ -126,7 +126,7 @@ def main():
     ci_parser = subparsers.add_parser(
         "ci", help="Run the project's CI here before pushing: the static checks of ci.yml, then install and test")
     ci_parser.add_argument("--path", "-p", default=".", help="Any folder inside the project (default: here)")
-    ci_parser.add_argument("--static-only", action="store_true", help="Only the static checks (seconds)")
+    ci_parser.add_argument("--static-only", action="store_true", help="Only the static checks")
     ci_parser.add_argument("--stop-servers", action="store_true",
                            help="Stop running Odoo servers first (their crons would write to the test database)")
     ci_parser.add_argument("--keep-db", action="store_true", help="Keep the test database afterwards")
