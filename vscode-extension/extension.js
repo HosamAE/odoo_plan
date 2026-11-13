@@ -1376,8 +1376,8 @@ class EnvProvider {
       tooltip: info.ready ? `Odoo ${info.v} is ready` : `Odoo ${info.v} is incomplete: use "Set up this version"`,
     }));
     out.push(mark(info.tools, "Tools", "odoo-ai new-version " + info.v));
-    out.push(mark(info.source, "Odoo source", "cloned by Set up"));
-    out.push(mark(info.venv, "Python venv", "created by Set up"));
+    out.push(mark(info.source, "Odoo source", "download it (setup lists the command)"));
+    out.push(mark(info.venv, "Python venv", "create it (setup lists the command)"));
     if (!info.ready) {
       out.push(treeItem(`Set up Odoo ${info.v}…`, {
         icon: "rocket", command: { command: "odooCi.newVersion", title: "Set up", arguments: [info.v] },
