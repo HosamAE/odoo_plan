@@ -23,9 +23,9 @@ Host acme17
     HostName 10.0.0.1
     User root
 
-Host hetzner acme19
+Host cloudhost acme19
   HostName 10.0.0.2
-  User hossam
+  User dev
   IdentityFile ~/.ssh/id_ed25519
 
 Host *.internal bad!name
@@ -56,12 +56,12 @@ def ns(**values):
 class TestHosts(unittest.TestCase):
     def test_only_plain_host_names_are_hosts(self):
         hosts = remote_dbs.parse_ssh_config(CONFIG)
-        self.assertEqual([h["name"] for h in hosts], ["acme17", "hetzner", "acme19"])
+        self.assertEqual([h["name"] for h in hosts], ["acme17", "cloudhost", "acme19"])
 
     def test_each_host_has_its_own_user_and_name(self):
         hosts = {h["name"]: h for h in remote_dbs.parse_ssh_config(CONFIG)}
         self.assertEqual((hosts["acme17"]["user"], hosts["acme17"]["hostname"]), ("root", "10.0.0.1"))
-        self.assertEqual(hosts["hetzner"]["user"], hosts["acme19"]["user"])
+        self.assertEqual(hosts["cloudhost"]["user"], hosts["acme19"]["user"])
 
     def test_a_missing_config_is_no_hosts(self):
         self.assertEqual(remote_dbs.ssh_hosts("no/such/file"), [])

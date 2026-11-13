@@ -144,7 +144,7 @@ function create(api, context) {
       }
       const key = (await context.secrets.get(KEY)) || "";
       await working(`Translating ${m.module} into ${m.lang}`, async () => {
-        const res = await run(["i18n", "translate", "--path", project().root, "-m", m.module, "-l", m.lang, "--endpoint", t.url, "--model", t.model, "--json"], { HX_TRANSLATE_KEY: key });
+        const res = await run(["i18n", "translate", "--path", project().root, "-m", m.module, "-l", m.lang, "--endpoint", t.url, "--model", t.model, "--json"], { ODOO_TRANSLATE_KEY: key });
         let data = null;
         try { data = JSON.parse(res.out.trim().split(/\r?\n/).pop()); } catch (e) { /* not JSON */ }
         if (data && data.ok) r.last = { level: data.skipped.length ? "warn" : "ok", text: `${m.module}/${m.lang}: ${data.translated} translated${data.skipped.length ? `, ${data.skipped.length} left for you (the model changed a placeholder or gave no answer)` : ""}.` };

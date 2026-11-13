@@ -16,7 +16,8 @@ const local = process.env.LOCALAPPDATA || "";
 const exe = process.env.CODE_EXE || [path.join(local, "odoo-ci", "vscode-test", "Code.exe"), path.join(local, "Programs", "Antigravity IDE", "Antigravity IDE.exe")].find((p) => fs.existsSync(p));
 if (!exe) { console.error("no editor found (set CODE_EXE)"); process.exit(2); }
 const extensionDir = path.join(__dirname, "..", "..");
-const project = process.env.ODOO_CI_TEST_PROJECT || "C:\\odoo\\ProjectsOdoo19\\Acme";
+const project = process.env.ODOO_CI_TEST_PROJECT || "";
+if (!project) { console.error("set ODOO_CI_TEST_PROJECT to an Odoo project folder"); process.exit(2); }
 const python = process.env.ODOO_CI_TEST_PYTHON || path.join(path.dirname(path.dirname(extensionDir)), "venv", "Scripts", "python.exe");
 const cli = path.join(path.dirname(extensionDir), "cli.py");
 const cleanEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(VSCODE_|ELECTRON_)/.test(k)));

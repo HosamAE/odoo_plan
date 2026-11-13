@@ -495,10 +495,7 @@
         }
       }
     },
-    "cSpell.words": ["acme", "Acme", "hoss", "Hoss", "esign", "floorplan", "bankid", "ondelete", "sudo",
-      "odoo", "Odoo", "odools", "pylint", "pylintrc", "ormcache", "onchange", "xmlid", "xpath",
-      "qweb", "QWeb", "owl", "OWL", "hr", "res", "uom", "kanban", "revpar", "adr", "occ",
-      "fortnox", "brevo", "creditsafe", "bolagsverket", "krinova"],
+    "cSpell.words": ["odoo", "Odoo", "odools", "pylint", "pylintrc", "ormcache", "onchange", "xmlid", "xpath", "qweb", "QWeb", "owl", "OWL", "hr", "res", "uom", "kanban", "sudo", "ondelete"],
     "cSpell.diagnosticLevel": "Hint",
     "cSpell.ignorePaths": ["**/odoo19/odoo/**", "**/odoo19/enterprise/**", "**/odoo19/venv/**",
       "**/i18n/**", "**/*.po", "**/*.pot", "**/static/lib/**", "**/help/sv/**"],

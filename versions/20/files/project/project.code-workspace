@@ -500,7 +500,7 @@
         }
       }
     },
-    "cSpell.words": ["acme", "Acme", "hoss", "Hoss", "esign", "floorplan", "bankid", "ondelete", "sudo", "odoo", "Odoo", "odools", "pylint", "pylintrc", "ormcache", "onchange", "xmlid", "xpath", "qweb", "QWeb", "owl", "OWL", "hr", "res", "uom", "kanban"],
+    "cSpell.words": ["odoo", "Odoo", "odools", "pylint", "pylintrc", "ormcache", "onchange", "xmlid", "xpath", "qweb", "QWeb", "owl", "OWL", "hr", "res", "uom", "kanban", "sudo", "ondelete"],
     "peacock.color": "#1b85b8",
     "python.languageServer": "None",
     "python.analysis.typeCheckingMode": "off",

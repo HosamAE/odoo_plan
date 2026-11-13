@@ -157,7 +157,7 @@ exports.run = async function run() {
     const roots = api._test.actionsTree.getChildren();
     const labels = roots.map((r) => String(r.label));
     check("the sidebar has the project row and a row for each page of the cockpit",
-      labels[0] === "Acme · Odoo 19" && ["Quality", "Databases", "Graph", "Server log", "Tools & Maintenance", "Remote servers"].every((l) => labels.includes(l)), labels.join(" | "));
+      labels[0].startsWith(path.basename(project) + " · Odoo ") && ["Quality", "Databases", "Graph", "Server log", "Tools & Maintenance", "Remote servers"].every((l) => labels.includes(l)), labels.join(" | "));
     check("the project row opens the cockpit", roots[0].command && roots[0].command.command === "odooCi.cockpitPanel", JSON.stringify(roots[0].command));
     const serverGroup = roots.find((r) => String(r.label).startsWith("Server ("));
     const stateRow = serverGroup && api._test.actionsTree.getChildren(serverGroup).find((r) => /^Server: /.test(String(r.label)));

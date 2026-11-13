@@ -14,6 +14,7 @@ This branch is the same for everyone. What belongs to one machine or one project
 | The knowledge graph of a project and its config | `%LOCALAPPDATA%\odoo-kg\projects\<project>`, `kg\config\local\<project>.toml` | no (`kg/config/local/` is ignored) |
 | Machine paths | `local.json` | no |
 | Your manifests' category and author for new addons | the environment variables `ODOO_SCAFFOLD_CATEGORY`, `ODOO_SCAFFOLD_AUTHOR` (default: `Custom`, your `git config user.name`) | no |
+| What `odoo-ai workspace` should know about YOUR estate: project ids, ports, families of projects with shared rules, the text of a CLAUDE.md | `tools\local\workspace_local.py` (an example: `docs	emplates\workspace_local.example.py`); not needed for an ordinary project | no (`/local/` is ignored) |
 | Another place to fetch the tools from | the environment variable `ODOO_PLAN_REMOTE` | no |
 
 Nothing here stores a password or a key; `odoo-ai` has a secret scan (`odoo-ai secrets`) for what you are about to commit.

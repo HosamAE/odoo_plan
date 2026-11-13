@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.4
+
+- Nothing about a company or a customer is built into the tools any more: what `odoo-ai workspace` knows about an estate of projects (ids, ports, shared rules, the text of a CLAUDE.md) is read from `tools/local/workspace_local.py` when it exists, and every other project is simply found by its manifests.
+- The translation key is passed as `ODOO_TRANSLATE_KEY` (`HX_TRANSLATE_KEY` is still read).
+- The editor tests assume no project: `ODOO_CI_TEST_PROJECT` names the one to use.
+
 ## 2.4.3
 
 - Light themes: the warning pill and the outlines of the module map reach the contrast WCAG asks for; the theme class of the editor is no longer lost when the page redraws.
