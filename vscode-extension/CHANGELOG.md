@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.10
+
+- A server started from the project's folder with a relative `-c file.conf` (the .conf is in that folder) is recognised as the project's: before, it showed as "not a local process" and Stop found nothing to stop.
+- When the port answers but not from a process of this project (Docker, WSL, another machine, a test run), Stop says so instead of "No Odoo server found to stop".
+- The server and upgrade logs are named after the project AND its Odoo version, so one project name on Odoo 19 and on Odoo 20 no longer shares a log.
+- An upgrade whose process dies or is killed from outside no longer leaves the tree saying "Upgrading..." for ever: it ends when the process exits, not only when every pipe has closed.
+
 ## 2.4.9
 
 - The pictures of the listing (Open VSX, the extension's page in the editor) show: they pointed into the repository root, where they do not exist; they are now full addresses, and the repository entry names the folder of the extension.

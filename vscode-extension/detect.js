@@ -85,7 +85,13 @@ function parseOdooCommand(cmd, project) {
   let mine = false;
   if (project && project.root) {
     const root = normPath(project.root);
-    mine = (conf !== null && (normPath(conf).startsWith(root + "/") || path.posix.basename(normPath(conf)) === `${project.name}.conf`.toLowerCase()))
+    // `-c testing.conf` run from the project's own folder: the process list does not say where it ran, but a
+    // relative .conf that exists in this project's folder is this project's (without this the server answered on its
+    // port, showed as "not a local process", and Stop found nothing to stop).
+    const relativeConfOfThisProject = conf !== null && !path.isAbsolute(conf) && !/^[a-z]:[\\/]/i.test(conf)
+      && fs.existsSync(path.join(project.root, conf));
+    mine = relativeConfOfThisProject
+      || (conf !== null && (normPath(conf).startsWith(root + "/") || path.posix.basename(normPath(conf)) === `${project.name}.conf`.toLowerCase()))
       || normPath(cmd).includes(root + "/")
       || normPath(cmd).split(/[\s,;"']+/).some((word) => word.endsWith(root));   // e.g. the last entry of --addons-path=a,b
   }

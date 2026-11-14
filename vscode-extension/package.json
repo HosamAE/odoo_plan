@@ -15,7 +15,7 @@
   },
   "icon": "media/icon.png",
   "galleryBanner": { "color": "#1f1f1f", "theme": "dark" },
-  "version": "2.4.9",
+  "version": "2.4.10",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"

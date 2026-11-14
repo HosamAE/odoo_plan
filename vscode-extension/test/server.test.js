@@ -27,6 +27,24 @@ for (const [args, db] of [
   assert.strictEqual(info.mine, true, `${args}: this project's`);
 }
 
+// a server started from the project's own folder with a relative -c: the project's, when that .conf is in its folder
+{
+  const root = fs.mkdtempSync(path.join(require("os").tmpdir(), "cockpit-rel-"));
+  fs.writeFileSync(path.join(root, "testing.conf"), "[options]\nhttp_port = 2002\n");
+  const here = { root, name: "Demo", version: "20" };
+  const mine = _test.parseOdooCommand(line("-c testing.conf -d dev"), here);
+  assert.strictEqual(mine.mine, true, "a relative .conf of the project's folder is the project's");
+  assert.strictEqual(mine.port, 2002, "and its port is read from it");
+  const other = _test.parseOdooCommand(line("-c elsewhere.conf -d dev"), here);
+  assert.strictEqual(other.mine, false, "a relative .conf that is not in the folder is not");
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
+// the same project name on two Odoo versions is two projects: they never share a log file
+assert.notStrictEqual(_test.serverLogPath({ name: "Demo", version: "19" }, 2002),
+  _test.serverLogPath({ name: "Demo", version: "20" }, 2002), "a log per Odoo version");
+assert.ok(/Demo\.20\.server\.2002\.log$/.test(_test.serverLogPath({ name: "Demo", version: "20" }, 2002)), "name, version, port");
+
 // an upgrade run is not a server, whatever its database
 assert.strictEqual(_test.parseOdooCommand(line("-c Demo.conf -d x -u all --stop-after-init"), project), null);
 

@@ -386,10 +386,16 @@ function confPath(project) {
   return findConf(project);   // <name>.conf first (the layout of these tools, with its own xxyy port), else odoo.conf
 }
 
+/** The name a project's log files start with: its name and its Odoo version. */
+function logStem(project) {
+  return project.version ? `${project.name}.${project.version}` : project.name;
+}
+
 function serverLogPath(project, port) {
   const dir = extContext && extContext.globalStorageUri ? extContext.globalStorageUri.fsPath : require("os").tmpdir();
   fs.mkdirSync(dir, { recursive: true });
-  return path.join(dir, `${project.name}.server${port ? `.${port}` : ""}.log`);
+  // The version is part of the name: one project name on Odoo 19 and on Odoo 20 is two projects, and they must not read each other's log.
+  return path.join(dir, `${logStem(project)}.server${port ? `.${port}` : ""}.log`);
 }
 
 /** The servers this window started, by port: {proc, db, log, exited}. Several can run at once, each with its own log. */
@@ -628,7 +634,7 @@ async function upgradeDatabase(preset) {
   serverOutput = serverOutput || vscode.window.createOutputChannel("Odoo Server", "log");
   serverOutput.clear();
   serverOutput.show(true);
-  const log = path.join(path.dirname(serverLogPath(project)), `${project.name}.upgrade.log`);
+  const log = path.join(path.dirname(serverLogPath(project)), `${logStem(project)}.upgrade.log`);
   const args = serverArgs(project, "upgrade", ["-d", db, "-m", modules, "--log", log, "--root", project.root]);
   const what = modules === "all" ? "all modules" : modules;
   let code = 1;
@@ -643,7 +649,13 @@ async function upgradeDatabase(preset) {
     const sink = (chunk) => serverOutput.append(chunk.toString());
     proc.stdout.on("data", sink);
     proc.stderr.on("data", sink);
-    const finished = new Promise((resolve) => proc.on("close", (c) => resolve(c === null ? 1 : c)));
+    // "close" waits for every pipe to end, and a grandchild that keeps one open (or a process killed from outside) can
+    // leave it hanging for ever: the tree then says "Upgrading" with nothing running. "exit" settles it after a short grace.
+    let settle;
+    const finished = new Promise((resolve) => { settle = resolve; });
+    proc.on("close", (c) => settle(c === null ? 1 : c));
+    proc.on("exit", (c) => setTimeout(() => settle(c === null ? 1 : c), 3000));
+    proc.on("error", () => settle(1));
     // while it runs, read its log every two seconds: which module, out of how many, what is left, what has gone wrong
     let reported = 0;
     let busy = false;
@@ -1123,8 +1135,12 @@ async function stopServer() {
   const servers = await detectServers(project);
   const targets = servers.filter((s) => s.mine);   // never another project's server
   for (const s of targets) await killTree(s.pid);
+  const answering = !targets.length && state.portOpen ? getProjectPort(project) : null;
   vscode.window.showInformationMessage(targets.length
-    ? `Stopped ${targets.length} Odoo server${targets.length === 1 ? "" : "s"}.` : "No Odoo server found to stop.");
+    ? `Stopped ${targets.length} Odoo server${targets.length === 1 ? "" : "s"}.`
+    : answering
+      ? `Port ${answering} answers, but not from a process of this project (Docker, WSL, another machine, or another project's server), so it cannot be stopped from here.`
+      : "No Odoo server found to stop.");
   setTimeout(pollServerStatus, 1000);
 }
 
@@ -1678,5 +1694,5 @@ function deactivate() {
 }
 
 module.exports = { activate, deactivate, _test: { fixLenSearch, parseOdooCommand, splitCommandLine, detectServers, listOdooProcesses, killTree,
-    startServerWith, launched, freePort, focusServer, stopServerAt, serverState: state, serverRun,
+    startServerWith, launched, freePort, focusServer, stopServerAt, serverState: state, serverRun, serverLogPath,
     issues: { IssuesProvider, setIssuesSource, visibleIssues, occurrences, issueFilter, issueCursor, progressLine, duration, shortText, state } } };
