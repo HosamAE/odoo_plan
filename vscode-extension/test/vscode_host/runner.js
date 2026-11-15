@@ -342,7 +342,9 @@ exports.run = async function run() {
       fs.writeFileSync(process.env.ODOO_CI_TEST_READY, "1");
       await sleep(Number(process.env.ODOO_CI_TEST_HOLD_MS || 0));
     }
-    fs.rmSync(dir, { recursive: true, force: true });
+    // On Windows a process that was just stopped can still hold a file for a moment (ENOTEMPTY): try again, and if it
+    // still will not go, leave it to the system's temp cleaning. Clearing a scratch folder is not what is under test.
+    try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 8, retryDelay: 500 }); } catch (e) { /* scratch only */ }
   } catch (error) {
     check("the run itself did not crash", false, error && error.stack);
   }

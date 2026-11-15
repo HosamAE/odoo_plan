@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.11
+
+- The code is easier to maintain: `extension.js` (1698 lines) is split, unchanged, into `server.js` (server control, upgrade, backup, drop, health), `trees.js` (the sidebar trees) and `issues.js` (errors and warnings). Nothing a person sees changes.
+- The real-editor test no longer fails now and then on Windows when a scratch folder is still held by a process that just stopped.
+
 ## 2.4.10
 
 - A server started from the project's folder with a relative `-c file.conf` (the .conf is in that folder) is recognised as the project's: before, it showed as "not a local process" and Stop found nothing to stop.
